@@ -2,41 +2,96 @@
 
 ### The Operating Platform for Modern Churches
 
-**ChurchFlow** is an all-in-one Church Management SaaS platform designed to help churches, ministries, denominations, and multi-branch organizations manage their people, finances, activities, communication, and day-to-day operations from one secure and intelligent platform.
+**ChurchFlow** is an all-in-one Church Management SaaS platform for churches,
+ministries, denominations, and multi-branch organizations — managing people,
+finances, activities, communication, and daily operations from one secure,
+multi-tenant workspace.
 
-From **member management and attendance** to **finance, subvention management, events, pastoral care, communication, reporting, and administration**, ChurchFlow brings the essential systems a church needs into one connected workspace.
+See [`church-saas-architecture.md`](church-saas-architecture.md) for the full
+technical and product architecture.
 
-Whether you're managing a single local church, multiple branches, a regional structure, or a large denomination, ChurchFlow provides the tools and flexibility to organize your operations, improve accountability, simplify administration, and make better decisions.
+---
 
-### What ChurchFlow Helps You Manage
+## Current state: Phase 1 (Foundation) — implemented
 
-* 👥 **People & Members** — Member profiles, families, groups, departments, and member records.
-* 💰 **Finance** — Income, expenses, donations, budgets, accounts, transfers, approvals, and financial reports.
-* 🏛️ **Subvention Management** — Configurable submission, review, approval, calculation, and reporting workflows.
-* 📅 **Events & Activities** — Events, calendars, registrations, attendance, and activity management.
-* ❤️ **Pastoral Care** — Follow-ups, visits, counselling records, prayer requests, and care activities with appropriate access controls.
-* 📢 **Communication** — Announcements, email notifications, targeted communication, and bulk SMS.
-* 📊 **Reports & Analytics** — Meaningful insights into membership, attendance, finance, activities, and church operations.
-* 🏢 **Branches & Organizations** — Manage churches, branches, departments, regions, districts, campuses, and other organizational structures.
-* 📄 **Documents & Records** — Organize important church documents and administrative records.
-* 🔐 **Security & Accountability** — Role-based permissions, audit trails, tenant isolation, secure authentication, and controlled access.
-* 💳 **Subscriptions & Billing** — Manage ChurchFlow subscriptions and separately purchase bulk SMS credits.
+The scaffolding in this repository implements the Phase 1 foundation described in
+the architecture document (§H): Laravel 12 skeleton, multi-tenancy, unified auth,
+RBAC, the organizational-hierarchy tables, and the audit log.
 
-### Built for Growth
+### What's in place
 
-ChurchFlow is designed as a **multi-tenant SaaS platform**, allowing each church or organization to operate within its own secure environment while benefiting from a modern, scalable infrastructure.
+| Area | Implementation |
+|---|---|
+| **Tenancy** | `churches` table + a global `TenantScope` applied automatically via the `BelongsToTenant` trait, so tenant models never need a hand-written `where('church_id', ...)`. Fails **closed**: no bound tenant means no rows. |
+| **Tenant resolution** | `IdentifyTenant` middleware resolves the current church from the authenticated user and binds it as `tenant.church_id`. |
+| **Users & RBAC** | One unified `users` table (replacing the legacy three-table model), with `roles` / `permissions` / `permission_role` / `role_user`. Roles are tenant-scoped; permission *names* are a fixed platform catalog seeded by `RolePermissionSeeder`. |
+| **Platform admins** | `is_platform_admin` users have no church context; `PlatformAdminOnly` binds `tenant.disabled = true` so platform routes can see across tenants deliberately. |
+| **Organizational hierarchy** | Per-tenant configurable `unit_types` ("Province", "Diocese", "Region", …) + a self-referencing `organizational_units` tree — denomination terminology is data, not schema. |
+| **Audit log** | `audit_logs` table populated by the `Auditable` trait + `AuditableObserver` (create/update/delete, before/after JSON, secrets stripped). |
+| **Auth** | Register/login/logout with Laravel's built-in bcrypt hashing, CSRF, and login rate limiting. No plaintext passwords, no raw SQL. |
+| **Policies** | `BaseTenantPolicy` (defense-in-depth church ownership check) + `MemberPolicy` as the Phase 1 example. |
 
-Churches can choose a subscription plan that fits their needs and activate their organization after successful payment. **Email communication is included with the platform, while bulk SMS operates through a separate pay-as-you-go SMS credit system.**
+### The test that matters most
 
-### One Platform. One Connected Church.
+`tests/Feature/TenantIsolationTest.php` asserts that a user in Church A cannot see,
+query, or update a member belonging to Church B — **even by guessing the ID directly**
+— and that a request with no bound tenant returns *zero* rows rather than all rows.
 
-ChurchFlow eliminates fragmented spreadsheets, disconnected systems, and repetitive administrative processes by bringing church operations together in one place.
+---
 
-**Manage your people.
-Track your finances.
-Organize your activities.
-Connect with your members.
-Understand your data.
-Grow your church.**
+## Local setup
 
-**ChurchFlow — Manage. Connect. Grow.**
+Requirements: PHP 8.2+ (with `pdo_sqlite`, `mbstring`, `openssl`, `curl`, `zip`),
+Composer, and Node/npm only if you intend to build front-end assets.
+
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+
+# SQLite is the default — just create the file and migrate
+php artisan migrate --seed
+
+php artisan serve
+```
+
+The database is SQLite by default (`database/database.sqlite`) for zero-config local
+development and tests. Point `DB_CONNECTION` at MySQL/MariaDB in `.env` when needed.
+
+Production parity for MySQL:
+
+```bash
+php artisan migrate --seed
+```
+
+### Running the tests
+
+```bash
+php artisan test
+```
+
+The suite runs against an in-memory SQLite database (see `phpunit.xml`), so it never
+touches your development data.
+
+---
+
+## Roadmap
+
+| Phase | Scope | Status |
+|---|---|---|
+| 0 | Legacy analysis + target architecture | ✅ (architecture doc) |
+| 1 | Foundation: auth, tenancy, RBAC, audit | ✅ implemented |
+| 2 | Church & People: org structure, members, families, departments | next |
+| 3 | Activities: events, calendar, attendance | planned |
+| 4 | Finance: accounts, income, expenses, budgets | planned |
+| 5 | Subvention rule engine + migrated RCCG data | planned |
+| 6 | Pastoral Care | planned |
+| 7 | Communication: email (included) / SMS wallet | planned |
+| 8 | SaaS billing: payment-gated registration | planned |
+| 9 | Onboarding & product tours | planned |
+| 10 | Hardening & deployment | planned |
+
+## License
+
+The Laravel framework is open-sourced software licensed under the
+[MIT license](https://opensource.org/licenses/MIT).
