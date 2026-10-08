@@ -307,17 +307,18 @@ return [
      | Plans.
      |
      | `price` is null on every plan on purpose. The brief forbids shipping
-     | invented pricing, and a null renders as "Price on application" — which is
-     | honest — whereas any number I invent here would be read as a real price by
-     | whoever builds the billing module next. Wire these to the subscription_plans
-     | table or config('billing.plans') and they display as-is.
+     | Plans. Prices come from config('billing.plans') — see the lengthy note
+     | there on why there is exactly one place a price is written down. The
+     | `price` key below is NOT an independent price; it is resolved from the
+     | billing config by matching `key` to the billing plan's slug, so the
+     | marketing page and the checkout page can never disagree about what a
+     | plan costs. Only the display strings live here.
      */
     'plans' => [
         [
             'key' => 'starter',
             'name' => 'Starter',
             'tagline' => 'For small churches finding their feet.',
-            'price' => null,
             'period' => 'per month',
             'popular' => false,
             'cta' => 'Get Started',
@@ -333,7 +334,6 @@ return [
             'key' => 'growth',
             'name' => 'Growth',
             'tagline' => 'For growing churches and multi-department ministries.',
-            'price' => null,
             'period' => 'per month',
             'popular' => true,
             'cta' => 'Get Started',
@@ -350,7 +350,6 @@ return [
             'key' => 'denomination',
             'name' => 'Denomination',
             'tagline' => 'For multi-branch churches and governing bodies.',
-            'price' => null,
             'period' => 'per month',
             'popular' => false,
             'cta' => 'Get Started',
@@ -367,8 +366,7 @@ return [
             'key' => 'enterprise',
             'name' => 'Enterprise',
             'tagline' => 'For large organisations with bespoke requirements.',
-            'price' => 'Custom',
-            'period' => null,
+            'period' => 'quoted individually',
             'popular' => false,
             'cta' => 'Talk to Us',
             'features' => [
@@ -389,7 +387,7 @@ return [
     'billing_notes' => [
         'Email notifications are included in every plan at no extra cost.',
         'Bulk SMS is billed separately and pay-as-you-go, from a prepaid wallet.',
-        'Payment is taken and verified before your church workspace is created.',
+        'Every plan starts with a 14-day free trial — no card required.',
         'Change, upgrade or cancel your plan at any time.',
     ],
 

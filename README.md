@@ -1,19 +1,21 @@
-# ChurchFlow — Phase 1–11 (Foundation → SaaS Billing → Onboarding → Production Hardening → 14-Day Trial)
+# ChurchFlow — Phase 1–12 (Foundation → SaaS Billing → Onboarding → Production Hardening → 14-Day Trial → Pricing & Forms)
 
 Product name: **ChurchFlow** (`APP_NAME`, the landing page's nav/footer and
 `<title>`). Earlier phase notes below sometimes say "Church SaaS"
 generically where they describe the *system* rather than the brand — a
 naming artifact of when those phases were written, not a second product.
 
-**Current state: Phase 10 integrated and verified, Phase 11 (14-day trial +
-plan self-service) built on top of it. 224 tests / 648 assertions passing.**
+**Current state: 246 tests / 746 assertions passing.** Phases 10 and 11 are
+integrated and verified; Phase 12 (stated pricing across the four tiers, and
+styled forms across both dashboards) is built on top of them.
 
 Sections below, in order:
 - Phase 1–9 feature notes (unchanged, kept as the historical record)
-- **Phase 10 — production hardening** (`DEPLOYMENT.md`, `SECURITY.md`)
-- **Phase 11 — 14-day trial + subscribe/upgrade/downgrade**
-- **The integration itself** — what the Phase 1–10 drop-in got wrong when
-  applied to this codebase, and how that was resolved
+- **Phase 10** — production hardening (`DEPLOYMENT.md`, `SECURITY.md`)
+- **Phase 11** — 14-day trial + subscribe/upgrade/downgrade
+- **Phase 12** — stated pricing + the styled form system
+- **The integrations** — what the Phase 1–10 drop-in got wrong, and what
+  only a real browser caught
 
 ## Setup
 
@@ -811,3 +813,162 @@ no 2FA; no dependency scanning in CI. The dunning timer still uses
   `/register` (200), `/plans` (200), `/health` (200, reporting per-dependency
   status).
 
+
+---
+
+## Phase 12 — stated pricing, and the styled form system
+
+Two requests, one of which turned out to be a correctness bug rather than a
+cosmetic gap.
+
+### 1. Starter, Growth, Denomination and Enterprise now state their price
+
+**What was actually wrong.** There were two independent plan lists:
+
+- the `plans` **table** — what the app charges. Checkout, plan limits, invoices
+  and the billing screens all read from it. It had real numbers.
+- `config('marketing.plans')` — what the pricing pages displayed. Every tier
+  had `'price' => null` and rendered **"Price on request"**, deliberately, from
+  an earlier phase that was told not to invent pricing.
+
+So the marketing page said "Price on request" while the checkout charged
+₦25,000. Each list was individually defensible; the combination is the single
+worst bug a pricing page can have — the visitor is quoted one thing and billed
+another. There was also a naming mismatch: the marketing tiers were Starter /
+Growth / **Denomination** / Enterprise, but the database had Starter / Growth /
+**Professional** — so "Denomination" was advertised and could not be bought.
+
+**The fix.** One place a price is written down — `config('billing.plans')`:
+
+- `PlanSeeder` seeds the `plans` table from it (so the seeded rows and the
+  config cannot drift).
+- `PlanCatalog` resolves the display list. **The database row wins over the
+  config** whenever one exists, because that is what checkout actually charges —
+  a price a platform admin edits at runtime must be the price the page shows.
+  The config only fills gaps (a fresh install, or a tier with no purchasable
+  row).
+- `Professional` was renamed to `Denomination` so the advertised tier is the
+  purchasable tier.
+- **Enterprise is advertised, not sold.** It has no listed price, so
+  `monthly_price` is now NULLABLE — storing `0.00` to satisfy the old NOT NULL
+  constraint would have been far worse, because 0 is a real number that reads
+  as "free tier" and would flow into proration and comparisons as one. Null
+  means "quoted individually": `Plan::displayPrice()` renders **Custom**,
+  `Plan::isSelfServe()` is false, it gets a "Talk to us" CTA instead of a
+  checkout button, and `is_active = false` keeps it out of every plan picker.
+
+Prices are stated on all four: **Starter ₦10,000/mo · Growth ₦25,000/mo ·
+Denomination ₦60,000/mo · Enterprise Custom**, with the annual equivalent
+(₦100,000 / ₦250,000 / ₦600,000 — two months free) shown beneath the monthly
+figure. Present on the landing page (`/`), the marketing pricing page
+(`/pricing`), the post-registration plan picker (`/plans`), the billing hub and
+the plan-change table — all rendering through the same `Plan::displayPrice()`,
+so six pages cannot format the same number six ways.
+
+`Plan::priceFor()` (used by checkout and renewal, and relied on by existing
+tests) is unchanged.
+
+### 2. The styled form system
+
+A design system already existed (`cf-field`, `cf-label`, `cf-input`,
+`cf-select`, `cf-textarea`, `cf-alert`, `cf-btn`, `cf-table`, `cf-card`) and the
+dashboard already used it — but **every application view was still a stub**.
+Members was a bare `<form>` with one search box and a link to `#` for "Add
+Member"; Events, Announcements, Tasks, Departments, Families and Groups were
+`<ul>` lists; the platform-admin dashboard was two lines:
+`<x-layout><h1>Platform Admin</h1></x-layout>`.
+
+Built five form components and rebuilt the pages on them:
+
+| component | what it handles |
+|---|---|
+| `x-form.input` | label, hint, error, required marker, `aria-invalid`/`aria-describedby` |
+| `x-form.select` | accepts a plain map **or** `{value,label}` pairs (a plain map silently casts numeric-string keys to ints) |
+| `x-form.textarea` | wide by default; a long field in a 2-column grid is a bad field |
+| `x-form.checkbox` | visually styled box with the input hidden but still focusable and in the a11y tree |
+| `x-form.card` | the form shell: title, description, a validation summary, body, actions |
+
+Rebuilt on them, with real create forms wired to what the controllers actually
+validate: **members, events, announcements, tasks, departments, families,
+groups, financial accounts, attendance sessions, SMS campaigns, prayer
+requests, pastoral cases, subvention submissions**, plus the billing hub and
+plan table from Phase 11.
+
+The **platform-admin dashboard** got a real controller and screen: churches and
+users, paying vs trialing (with a conversion figure), **subscription and SMS
+revenue reported separately** (§31 — one combined total is what would hide a
+collapse in either), recent signups, a "needs attention" support queue, and a
+subscriptions-by-status breakdown. Settings and feature-flags were rebuilt with
+the same components.
+
+Every form follows the same three rules: **errors appear beside their field**
+(not only in a summary at the top), **input survives a failed submit**, and
+**the create panel opens itself when validation fails** — otherwise the errors
+are hidden behind a collapsed toggle, which is worse than not collapsing at all.
+
+### 3. The bug only a browser found
+
+Everything above passed its tests, and the smoke sweep — which walks every
+authenticated GET route asserting 200 — was green. Then the pages were loaded
+in a real browser, and the console was full of:
+
+```
+Refused to execute inline script because it violates the following
+Content-Security-Policy directive: "script-src 'self' 'unsafe-eval'"
+```
+
+**Phase 10's CSP had no inline-script allowance.** Every inline `<script>` in
+the app was blocked: the landing page's tab explorer, the dashboard's Chart.js
+render, and every one of the new form toggles. Nothing 500'd. Every page
+returned 200 with all its markup intact — which is exactly why no PHP test and
+no smoke sweep could see it. The tests were checking *presence*; the browser
+was checking *execution*.
+
+The fix is a **per-response nonce**, not `'unsafe-inline'`:
+
+- `SecurityHeaders` generates a nonce per request and exposes it via
+  `SecurityHeaders::nonce()`, stamped onto every inline `<script>` tag.
+- `script-src` carries `'nonce-...'`, so the app's own scripts run and nothing
+  else does. `'unsafe-inline'` would also re-enable scripts injected by an
+  attacker, which is most of what CSP exists to stop — it would fix the symptom
+  by removing the protection.
+- `'unsafe-inline'` is emitted **only** in `local`/`testing` as a fallback for
+  anything that injects a script without the nonce; production gets the nonce
+  alone.
+- `https://cdn.jsdelivr.net` was added to `script-src` for Chart.js.
+
+### The tests that matter most in this phase
+
+- `tests/Feature/SecurityHeadersCspTest.php` — the policy carries a nonce, the
+  nonce is **unique per response** (a reused nonce is as good as none), rendered
+  pages tag their inline scripts with the *response's* nonce, the Chart.js CDN
+  is permitted, `'unsafe-inline'` appears only in the dev environment, and the
+  other security headers survive.
+- `tests/Feature/LandingPageTest.php` — rewritten for the new contract: all four
+  tiers present **with prices stated**, no "Price on request" anywhere, a price
+  edited in the database **wins over the config default**, annual prices and the
+  toggle, Enterprise advertised but not purchasable, and enterprise routed to
+  Contact rather than a payment page.
+- `tests/Feature/MemberFormTest.php` — the create form renders every field the
+  `StoreMemberRequest` validates (a missing one makes the form quietly
+  un-submittable), labels are wired to inputs, an empty list shows a teaching
+  empty state, a failed submit re-displays with the error, and a user without
+  `members.create` never receives the form markup.
+- `tests/Feature/PlatformAdminDashboardTest.php` — a church user is forbidden;
+  totals span multiple tenants; the two revenue streams appear as **separate**
+  figures; a past-due church lands in the support queue; the dashboard renders
+  cleanly with **no data at all** (the conversion percentage divides by counts
+  that are all zero on a fresh install); settings save and validate.
+
+### Verified in a browser, not just in tests
+
+Run against a live server with a seeded demo church, on 16 authenticated pages:
+
+- **0 console errors, 0 failed requests** (the CSP violations are gone).
+- `.cf-input` / `.cf-select` / `.cf-textarea` / `.cf-label` present on every
+  rebuilt page, with **0 bare unstyled inputs** inside any form.
+- Clicking a real toggle: `hidden: true, inputsVisible: 0` →
+  `hidden: false, inputsVisible: 7`. The landing page's tab explorer panel
+  populates. This is the assertion the PHP tests structurally cannot make — a
+  CSP violation leaves the `<script>` tag in the DOM and the handler unbound, so
+  asserting on markup alone would have passed while the page was broken.

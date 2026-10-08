@@ -10,7 +10,7 @@
 --}}
 
 @php
-    $plans = config('marketing.plans');
+    $plans = app(\App\Domains\Subscriptions\Services\PlanCatalog::class)->forDisplay();
     $billingNotes = config('marketing.billing_notes');
 
     // Feature comparison matrix. Kept next to the page rather than in config
@@ -146,15 +146,14 @@
                         <p class="mk-plan__tagline">{{ $plan['tagline'] }}</p>
 
                         <p class="mk-plan__price">
-                            @if ($plan['price'])
-                                <span class="mk-num">{{ $plan['price'] }}</span>
-                                @if ($plan['period'])
-                                    <span class="mk-plan__period">{{ $plan['period'] }}</span>
-                                @endif
-                            @else
-                                <span class="mk-plan__pricepending">Price on request</span>
+                            <span class="mk-num">{{ $plan['price'] }}</span>
+                            @if ($plan['period'])
+                                <span class="mk-plan__period">{{ $plan['period'] }}</span>
                             @endif
                         </p>
+                        @if ($plan['yearly_price'])
+                            <p class="mk-plan__annual">or {{ $plan['yearly_price'] }} billed yearly — two months free</p>
+                        @endif
 
                         <ul class="mk-checks mk-plan__features">
                             @foreach ($plan['features'] as $feature)
@@ -162,10 +161,20 @@
                             @endforeach
                         </ul>
 
-                        <a href="{{ $plan['key'] === 'enterprise' ? route('contact') : route('get-started', ['plan' => $plan['key']]) }}"
-                            class="mk-btn {{ $plan['popular'] ? 'mk-btn--primary' : 'mk-btn--secondary' }} mk-btn--block mk-plan__cta">
-                            {{ $plan['cta'] }}
-                        </a>
+                        @if ($plan['is_self_serve'])
+                            <a href="{{ route('get-started', ['plan' => $plan['key']]) }}"
+                                class="mk-btn {{ $plan['popular'] ? 'mk-btn--primary' : 'mk-btn--secondary' }} mk-btn--block mk-plan__cta">
+                                {{ $plan['cta'] }}
+                            </a>
+                        @else
+                            {{-- No listed price means no checkout page — a payment
+                                 step for an unspecified amount is worse than a
+                                 conversation. --}}
+                            <a href="{{ route('contact') }}"
+                                class="mk-btn mk-btn--secondary mk-btn--block mk-plan__cta">
+                                {{ $plan['cta'] }}
+                            </a>
+                        @endif
                     </article>
                 @endforeach
             </div>

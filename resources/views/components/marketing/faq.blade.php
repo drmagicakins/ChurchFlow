@@ -50,7 +50,7 @@
 </section>
 
 @push('head')
-    <script type="application/ld+json">
+    <script nonce="{{ \App\Http\Middleware\SecurityHeaders::nonce() }}" type="application/ld+json">
         {!! json_encode([
             '@context' => 'https://schema.org',
             '@type' => 'FAQPage',

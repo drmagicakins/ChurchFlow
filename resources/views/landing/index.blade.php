@@ -93,18 +93,25 @@
   .billing-toggle button{border:none;background:none;padding:8px 18px;border-radius:999px;font-family:inherit;font-size:13.5px;font-weight:600;color:var(--ink-soft);cursor:pointer}
   .billing-toggle button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
 
-  .plans{display:grid;grid-template-columns:repeat({{ max(count($plans), 1) }},1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
-  @media (max-width:800px){.plans{grid-template-columns:1fr}}
-  .plan{background:var(--paper-raised);padding:28px 24px;display:flex;flex-direction:column}
+  .plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
+  @media (max-width:1100px){.plans{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:640px){.plans{grid-template-columns:1fr}}
+  .plan{background:var(--paper-raised);padding:28px 24px;display:flex;flex-direction:column;position:relative}
   .plan.featured{background:var(--ink);color:var(--paper)}
   .plan.featured .ink-soft{color:#C9CCE2}
   .plan h3{font-size:19px}
-  .price{font-family:'Fraunces',serif;font-size:36px;margin:14px 0 4px}
+  .plan-flag{position:absolute;top:14px;right:14px;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--gold);color:var(--ink)}
+  .plan-tagline{font-size:13.5px;color:var(--ink-soft);margin:6px 0 0;min-height:2.6em}
+  .plan.featured .plan-tagline{color:#C9CCE2}
+  .price{font-family:'Fraunces',serif;font-size:36px;margin:14px 0 2px;line-height:1.1}
   .price span{font-size:14px;font-family:'Work Sans',sans-serif;color:var(--ink-soft)}
   .plan.featured .price span{color:#C9CCE2}
+  .plan-annual{font-size:12px;color:var(--teal);margin:0 0 4px;font-weight:600}
+  .plan.featured .plan-annual{color:#7FD1BE}
   .plan ul{list-style:none;margin:18px 0 24px;padding:0;font-size:14px;flex:1}
   .plan li{padding:7px 0;border-top:1px solid var(--line)}
   .plan.featured li{border-top:1px solid #333a5c}
+  .plan .btn{margin-top:auto;text-align:center}
   .billing-note{font-size:12.5px;color:var(--ink-soft);margin-top:10px;text-align:center}
 
   details{border-bottom:1px solid var(--line);padding:16px 0}
@@ -237,8 +244,15 @@
       <p>Email notifications are included with every plan. Bulk SMS is available separately through SMS credits — you always see the cost before you send.</p>
     </div>
 
-    @if($plans->isNotEmpty())
-      @if($plans->contains(fn($p) => $p->yearly_price !== null))
+    @if(count($plans) > 0)
+      @php
+        // The yearly toggle only makes sense when at least one tier actually
+        // has an annual price — rendering a dead toggle for a monthly-only
+        // catalogue is worse than having none.
+        $hasYearly = collect($plans)->contains(fn ($p) => $p['yearly_price'] !== null);
+      @endphp
+
+      @if($hasYearly)
         <div class="billing-toggle" role="group" aria-label="Billing interval">
           <button type="button" id="toggle-monthly" aria-pressed="true">Monthly</button>
           <button type="button" id="toggle-yearly" aria-pressed="false">Yearly</button>
@@ -247,31 +261,49 @@
 
       <div class="plans">
         @foreach($plans as $plan)
-          <div class="plan {{ $loop->index === 1 && $plans->count() >= 3 ? 'featured' : '' }}">
-            <h3>{{ $plan->name }}</h3>
+          <div class="plan {{ !empty($plan['popular']) ? 'featured' : '' }}">
+            @if(!empty($plan['popular']))
+              <span class="plan-flag">Most popular</span>
+            @endif
+            <h3>{{ $plan['name'] }}</h3>
+            <p class="plan-tagline">{{ $plan['tagline'] }}</p>
             <div class="price">
-              <span class="price-monthly">{{ $plan->currency === 'NGN' ? '₦' : $plan->currency.' ' }}{{ number_format($plan->monthly_price) }}<span> /month</span></span>
-              @if($plan->yearly_price !== null)
-                <span class="price-yearly" style="display:none">{{ $plan->currency === 'NGN' ? '₦' : $plan->currency.' ' }}{{ number_format($plan->yearly_price) }}<span> /year</span></span>
+              <span class="price-monthly">{{ $plan['price'] }}<span> /month</span></span>
+              @if($plan['yearly_price'] !== null)
+                <span class="price-yearly" style="display:none">{{ $plan['yearly_price'] }}<span> /year</span></span>
               @endif
             </div>
+
+            @if($plan['yearly_price'] !== null)
+              <p class="plan-annual">Two months free on annual billing</p>
+            @endif
+
             <ul>
-              <li>{{ $plan->max_members ? number_format($plan->max_members).' members' : 'Unlimited members' }}</li>
-              <li>{{ $plan->max_branches ? $plan->max_branches.' branch'.($plan->max_branches > 1 ? 'es' : '') : 'Unlimited branches' }} · {{ $plan->max_admins ? $plan->max_admins.' admin logins' : 'Unlimited admin logins' }}</li>
-              <li>Finance &amp; subvention included</li>
-              @if($plan->hasFeature('advanced_reports'))<li>Advanced reports</li>@endif
-              @if($plan->hasFeature('api_access'))<li>API access</li>@endif
-              @if($plan->hasFeature('custom_domain'))<li>Custom domain</li>@endif
-              <li>Email included</li>
+              @foreach($plan['features'] as $feature)
+                <li>{{ $feature }}</li>
+              @endforeach
             </ul>
-            <a class="btn {{ $loop->index === 1 && $plans->count() >= 3 ? 'btn-primary' : 'btn-ghost' }}"
-               href="{{ auth()->check() && !auth()->user()->church_id ? route('checkout.review', $plan) : route('register') }}">
-              Choose {{ $plan->name }}
-            </a>
+
+            @if($plan['is_self_serve'])
+              <a class="btn {{ !empty($plan['popular']) ? 'btn-primary' : 'btn-ghost' }}"
+                 href="{{ auth()->check() && !auth()->user()->church_id ? route('checkout.review', $plan['plan_id']) : route('register') }}">
+                {{ $plan['cta'] }} — {{ $plan['name'] }}
+              </a>
+            @else
+              {{-- Enterprise has no listed price, so it must not lead to a
+                   checkout page for an unspecified amount. It leads to a
+                   conversation instead. --}}
+              <a class="btn btn-ghost" href="{{ route('contact') }}">
+                {{ $plan['cta'] }}
+              </a>
+            @endif
           </div>
         @endforeach
       </div>
-      <p class="billing-note">SMS credits purchased separately, any plan.</p>
+      <p class="billing-note">
+        All prices in Nigerian Naira, excluding applicable tax. Every plan includes a 14-day free trial.
+        SMS credits purchased separately, on any plan.
+      </p>
     @else
       <p>Plans are being finalized — <a href="{{ route('register') }}">create an account</a> and we'll notify you the moment pricing is live.</p>
     @endif
@@ -320,7 +352,7 @@
   </div>
 </footer>
 
-<script>
+<script nonce="{{ \App\Http\Middleware\SecurityHeaders::nonce() }}">
 (function(){
   var data = {
     0: { stats: [["1,284","Members"],["+38","This month"],["6","Branches"]], bars: [40,55,48,62,58,70,66,74],

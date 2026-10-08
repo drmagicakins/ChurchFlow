@@ -53,7 +53,7 @@
      | same contract the app shell relies on.
      |
      | Do NOT add another @vite([...]) below: that is what used to happen here, and
-     | it emitted the same <script type="module"> (and stylesheet) TWICE on every
+     | it emitted the same <script nonce="{{ \App\Http\Middleware\SecurityHeaders::nonce() }}" type="module"> (and stylesheet) TWICE on every
      | guest page. The duplicate stylesheet is merely wasteful; the duplicate
      | module script is not — the second copy re-executes module top-level code and
      | makes the page's script graph ambiguous.

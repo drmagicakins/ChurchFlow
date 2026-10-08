@@ -29,3 +29,8 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Local dev helper that creates a demo church with a KNOWN password
+# (demo@churchflow.test / password123). Useful locally, never in a repo or
+# on a server — a seeded account with a published password is a back door.
+/dev-demo.php

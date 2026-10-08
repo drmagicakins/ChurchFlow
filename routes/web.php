@@ -227,7 +227,7 @@ Route::middleware(['auth', \App\Http\Middleware\IdentifyTenant::class, \App\Http
         ->prefix('platform-admin')
         ->name('platform-admin.')
         ->group(function () {
-            Route::get('/', fn () => view('platform-admin.dashboard'))->name('dashboard');
+            Route::get('/', \App\Http\Controllers\PlatformAdmin\DashboardController::class)->name('dashboard');
 
             Route::get('/billing', [\App\Http\Controllers\PlatformAdmin\BillingOverviewController::class, 'index'])->name('billing.index');
             Route::get('/billing/churches/{church}', [\App\Http\Controllers\PlatformAdmin\BillingOverviewController::class, 'showChurch'])->name('billing.church');

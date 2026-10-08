@@ -416,7 +416,7 @@
         </div>
     </footer>
 
-    <script>
+    <script nonce="{{ \App\Http\Middleware\SecurityHeaders::nonce() }}">
         // Add the hairline under the top bar once the page has scrolled, so the hero
         // can bleed into the header without a visible seam at rest.
         (function() {

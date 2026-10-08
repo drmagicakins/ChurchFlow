@@ -84,7 +84,7 @@
      | in config/marketing.php: there is no verified price to publish yet, and a
      | wrong price in structured data is worse than no price at all.
     --}}
-    <script type="application/ld+json">
+    <script nonce="{{ \App\Http\Middleware\SecurityHeaders::nonce() }}" type="application/ld+json">
         {!! json_encode([
             '@context' => 'https://schema.org',
             '@type' => 'SoftwareApplication',
@@ -98,7 +98,7 @@
             'offers' => [
                 '@type' => 'AggregateOffer',
                 'priceCurrency' => 'NGN',
-                'offerCount' => count(config('marketing.plans')),
+                'offerCount' => count(config('billing.plans')),
                 'availability' => 'https://schema.org/InStock',
             ],
         ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) !!}

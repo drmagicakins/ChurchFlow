@@ -466,6 +466,128 @@
         color: #334155;
     }
 
+    /* ------------------------------------------------------- form shell */
+
+    /* The card that wraps a whole form. Deliberately the same visual weight as
+       .cf-card so a form inside a page reads as part of the page, not as a
+       second, differently-styled surface. */
+    .cf-form {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 0.85rem;
+        overflow: hidden;
+    }
+
+    .cf-form__head {
+        padding: 1.1rem 1.35rem 0.9rem;
+        border-bottom: 1px solid var(--line);
+        background: var(--paper);
+    }
+
+    .cf-form__title {
+        margin: 0;
+        font-size: 1.02rem;
+        font-weight: 700;
+        color: var(--ink);
+    }
+
+    .cf-form__desc {
+        margin: 0.3rem 0 0;
+        font-size: 0.83rem;
+        color: var(--muted);
+        max-width: 68ch;
+    }
+
+    .cf-form__body { padding: 1.25rem 1.35rem 0.35rem; }
+
+    /* Two columns on a wide screen, one below 720px. Stacked is the default
+       because a settings form is a series of decisions, and side-by-side
+       decisions invite skimming. */
+    .cf-form__body--inline {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 0 1.1rem;
+    }
+
+    /* A field that must span the full width even in an inline grid. */
+    .cf-field--wide { grid-column: 1 / -1; }
+
+    .cf-form__actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        padding: 1rem 1.35rem 1.25rem;
+        border-top: 1px solid var(--line);
+        background: var(--paper);
+    }
+
+    .cf-label__req { color: var(--danger); margin-left: 0.15rem; }
+
+    /* ------------------------------------------------------- alert internals */
+
+    /* A validation summary lists every error at once rather than one at a
+       time. An icon column keeps a long list from looking like body text. */
+    .cf-alert__icon { flex: none; margin-top: 0.1rem; }
+    .cf-alert__body { flex: 1; min-width: 0; }
+    .cf-alert__title { margin: 0; font-weight: 650; }
+    .cf-alert__list {
+        margin: 0.35rem 0 0;
+        padding-left: 1.1rem;
+        display: grid;
+        gap: 0.15rem;
+    }
+
+    /* ------------------------------------------------- boxed checkbox */
+
+    /* The native control is hidden but NOT display:none — that would remove it
+       from the accessibility tree and from keyboard tabbing. It stays focusable;
+       only its default chrome is replaced. */
+    .cf-check--boxed {
+        align-items: flex-start;
+        gap: 0.65rem;
+        padding: 0.7rem 0.85rem;
+        border: 1px solid var(--line);
+        border-radius: 0.6rem;
+        background: var(--surface);
+        cursor: pointer;
+        transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .cf-check--boxed:hover { border-color: var(--brand); }
+    .cf-check--boxed input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+
+    .cf-check__box {
+        flex: none;
+        width: 1.15rem;
+        height: 1.15rem;
+        margin-top: 0.1rem;
+        border: 1.5px solid var(--line);
+        border-radius: 0.3rem;
+        background: #fff;
+        display: grid;
+        place-items: center;
+        color: transparent;
+        transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+
+    .cf-check--boxed input:checked + .cf-check__box {
+        background: var(--brand);
+        border-color: var(--brand);
+        color: #fff;
+    }
+
+    /* Focus lands on the hidden input, so the visible box has to carry the ring. */
+    .cf-check--boxed input:focus-visible + .cf-check__box {
+        outline: none;
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 25%, transparent);
+    }
+
+    .cf-check__text { display: grid; gap: 0.1rem; }
+    .cf-check__label { font-weight: 600; color: var(--ink); font-size: 0.88rem; }
+    .cf-check__hint { font-size: 0.78rem; color: var(--muted); }
+
     /* ---------------------------------------------------------------- alerts */
 
     .cf-alert {
@@ -3194,11 +3316,21 @@ html { scroll-padding-top: 5.5rem; }
     }
 
     /* Deliberately not styled as a number. "Price on request" is a placeholder
-       state, and it must not be mistaken at a glance for a real price. */
+       state, and it must not be mistaken at a glance for a real price. Kept
+       for any tier that genuinely has no listed price. */
     .mk-plan__pricepending {
         font-size: 0.95rem;
         font-weight: 650;
         color: var(--color-mk-muted);
+    }
+
+    /* The annual-billing equivalent, shown under the monthly price. Reads as a
+       secondary line, not a competing headline price. */
+    .mk-plan__annual {
+        font-size: 0.76rem;
+        font-weight: 600;
+        color: var(--color-mk-accent, #2f6e63);
+        margin: 0;
     }
 
     .mk-plan__period {

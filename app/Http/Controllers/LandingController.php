@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Plan;
+use App\Domains\Subscriptions\Services\PlanCatalog;
 use Illuminate\View\View;
 
 /**
@@ -19,8 +19,15 @@ class LandingController extends Controller
 {
     public function index(): View
     {
+        // Phase 12: the four tiers — Starter, Growth, Denomination and
+        // Enterprise — sourced from PlanCatalog, which lists every marketing
+        // tier (including Enterprise, which has no purchasable row) with its
+        // resolved price. Previously this filtered on `plans.is_active`, so
+        // Enterprise was invisible on the landing page even though the pricing
+        // copy advertised it: two pages disagreeing about whether a tier
+        // exists, never mind what it costs.
         return view('landing.index', [
-            'plans' => Plan::where('is_active', true)->orderBy('sort_order')->get(),
+            'plans' => app(PlanCatalog::class)->forDisplay(),
         ]);
     }
 }

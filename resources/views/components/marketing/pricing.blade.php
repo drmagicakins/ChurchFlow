@@ -6,22 +6,25 @@
  |
  |   1. Email is included in every plan.
  |   2. Bulk SMS is billed separately, pay-as-you-go.
- |   3. Payment is verified BEFORE the church workspace is created.
+ |   3. Every plan starts with a 14-day free trial.
  |
- | Prices render from config and are null, which prints as "Price on request".
- | That is deliberate: the brief forbids inventing final pricing, and a made-up
- | number here would be read as a real price by whoever wires up billing next.
- | When real prices exist, fill in config('marketing.plans.*.price') and the
- | markup needs no change.
+ | PRICES. These are not written here — they are resolved by
+ | PlanCatalog, which reads the `plans` row first (what the app actually
+ | charges) and falls back to config('billing.plans'). This page used to show
+ | "Price on request" on every tier while the checkout charged real amounts,
+ | which is the worst possible bug on a pricing page: the visitor is quoted
+ | one thing and billed another. Starter, Growth, Denomination and Enterprise
+ | now all state their price, and Enterprise states "Custom" because a
+ | bespoke agreement genuinely has no sticker price.
 --}}
 
 @php
-    $plans = config('marketing.plans');
+    $plans = app(\App\Domains\Subscriptions\Services\PlanCatalog::class)->forDisplay();
     $billingNotes = config('marketing.billing_notes');
 
     // The billing sequence, shown once, as a chain. It is the clearest way to
     // state an order of operations that a marketing page usually blurs.
-    $journey = ['Choose plan', 'Pay', 'We verify', 'Church created', 'Dashboard'];
+    $journey = ['Choose plan', 'Start free trial', 'Use ChurchFlow', 'Subscribe', 'Church grows'];
 @endphp
 
 <section class="mk-section mk-section--tint" id="pricing">
@@ -62,8 +65,9 @@
                 </div>
 
                 <p class="mk-pricing__fineprint">
-                    Prices are shown as "Price on request" until billing is configured. No card
-                    details are collected on this page.
+                    Every plan starts with a 14-day free trial. No card details are collected
+                    on this page, and nothing is charged until your trial ends or you choose
+                    to subscribe.
                 </p>
             </div>
 
@@ -83,15 +87,16 @@
                         <p class="mk-plan__tagline">{{ $plan['tagline'] }}</p>
 
                         <p class="mk-plan__price">
-                            @if ($plan['price'])
-                                <span class="mk-num">{{ $plan['price'] }}</span>
-                                @if ($plan['period'])
-                                    <span class="mk-plan__period">{{ $plan['period'] }}</span>
-                                @endif
-                            @else
-                                <span class="mk-plan__pricepending">Price on request</span>
+                            <span class="mk-num">{{ $plan['price'] }}</span>
+                            @if ($plan['period'])
+                                <span class="mk-plan__period">{{ $plan['period'] }}</span>
                             @endif
                         </p>
+                        @if ($plan['yearly_price'])
+                            <p class="mk-plan__annual">
+                                or {{ $plan['yearly_price'] }} billed yearly — two months free
+                            </p>
+                        @endif
 
                         <ul class="mk-checks mk-plan__features">
                             @foreach ($plan['features'] as $feature)

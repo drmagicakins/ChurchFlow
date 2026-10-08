@@ -241,7 +241,7 @@
         </div>
     </div>
 
-    <script>
+    <script nonce="{{ \App\Http\Middleware\SecurityHeaders::nonce() }}">
         document.addEventListener('alpine:init', () => {
             Alpine.data('cfSearch', (suggestUrl, allUrl) => ({
                 q: new URLSearchParams(location.search).get('q') || '', open: false, loading: false, error: false,
