@@ -5,11 +5,12 @@ namespace App\Providers;
 use App\Domains\Communication\Listeners\NotifySubmitterOfSubventionDecision;
 use App\Domains\Communication\Providers\NullSmsProvider;
 use App\Domains\Communication\Providers\SmsProviderInterface;
+use App\Domains\Onboarding\Listeners\TrackOnboardingStarted;
 use App\Domains\Subscriptions\Events\ChurchActivated;
 use App\Domains\Subscriptions\Gateways\NullPaymentGateway;
 use App\Domains\Subscriptions\Gateways\PaymentGatewayInterface;
-use App\Domains\Onboarding\Listeners\TrackOnboardingStarted;
 use App\Domains\Subventions\Events\SubventionSubmissionDecided;
+use App\Listeners\RecordQueueWorkerHeartbeat;
 use App\Models\Announcement;
 use App\Models\Appointment;
 use App\Models\Approval;
@@ -49,6 +50,8 @@ use App\Policies\SubventionSubmissionPolicy;
 use App\Policies\TaskPolicy;
 use App\Policies\TransactionPolicy;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Queue\Events\JobExceptionOccurred;
+use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Support\Facades\Event as EventFacade;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -102,5 +105,24 @@ class AppServiceProvider extends ServiceProvider
 
         EventFacade::listen(SubventionSubmissionDecided::class, NotifySubmitterOfSubventionDecision::class);
         EventFacade::listen(ChurchActivated::class, TrackOnboardingStarted::class);
+
+        // Phase 13: every job a worker picks up refreshes the queue-worker
+        // heartbeat that the `queue_worker` health check reads.
+        //
+        // Registered on the JobProcessing EVENT rather than as job middleware,
+        // for two reasons. `Queue::globalMiddleware()` does not exist in this
+        // framework version, so the obvious call is not an option. More
+        // importantly, this is hooking an observable fact about the worker
+        // ("it took a job") rather than changing how the job runs, and a
+        // listener expresses that without giving the app a way to alter job
+        // execution from a provider — which is precisely the kind of global
+        // hook that ends up swallowing exceptions later.
+        //
+        // Fires on PICKUP, before the job body runs: a job that then throws or
+        // hangs has already proven the worker was alive, which is what this
+        // heartbeat means. Writing it on JobProcessed would lose the signal
+        // exactly on the failures worth knowing about.
+        EventFacade::listen(JobProcessing::class, RecordQueueWorkerHeartbeat::class);
+        EventFacade::listen(JobExceptionOccurred::class, RecordQueueWorkerHeartbeat::class);
     }
 }

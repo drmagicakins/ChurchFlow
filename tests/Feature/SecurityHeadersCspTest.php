@@ -21,6 +21,13 @@ use Tests\TestCase;
  * a `nonce-...` entry in `script-src`. `'unsafe-inline'` is emitted only in
  * local/testing as a fallback.
  *
+ *   4. The Chart.js CDN allowance is GONE, and asserted gone. Chart.js is
+ *      imported through resources/js/app.js and bundled by Vite, so the
+ *      `cdn.jsdelivr.net` entry was a standing third-party script allowance
+ *      for something nothing loaded — pure attack surface. A test that keeps
+ *      asserting the allowance exists is worse than no test, because it locks
+ *      in an outdated decision and hides the fact that the app moved on.
+ *
  * WHAT THESE TESTS CAN AND CANNOT DO
  * ----------------------------------
  * A PHP test cannot execute JavaScript, so it cannot prove a handler fires.
@@ -87,18 +94,30 @@ class SecurityHeadersCspTest extends TestCase
         );
     }
 
-    public function test_the_cdn_chart_library_is_permitted_by_script_src(): void
+    public function test_no_third_party_script_origin_is_allowed(): void
     {
-        // The dashboard renders Chart.js from jsdelivr. Without an explicit
-        // allowance the script is blocked and the chart silently never draws —
-        // the same class of failure as the inline-script gap.
+        // Chart.js used to load from cdn.jsdelivr.net; it is now bundled by
+        // Vite (see the note in resources/js/app.js). A standing allowance for
+        // a host nothing loads from is attack surface with no upside, so the
+        // policy must not carry one. Asserting its ABSENCE is the point: a
+        // test asserting its presence would keep a stale decision alive.
         $csp = $this->cspFrom('/login');
 
-        $this->assertStringContainsString(
-            'https://cdn.jsdelivr.net',
-            $csp,
-            'script-src must allow the Chart.js CDN the dashboard loads from.'
-        );
+        preg_match('/script-src([^;]*)/', $csp, $m);
+        $scriptSrc = $m[1] ?? '';
+
+        $this->assertStringNotContainsString('cdn.jsdelivr.net', $scriptSrc);
+        $this->assertStringNotContainsString('http', $scriptSrc, 'script-src must not allow a remote origin.');
+    }
+
+    public function test_the_dashboard_does_not_load_chartjs_from_a_cdn(): void
+    {
+        // The other half of the same guarantee: even if the policy were
+        // widened, the view itself must not reach for a CDN.
+        $source = file_get_contents(resource_path('views/dashboard.blade.php'));
+
+        $this->assertStringNotContainsString('cdn.jsdelivr.net', $source);
+        $this->assertStringNotContainsString('chart.umd', $source);
     }
 
     public function test_unsafe_inline_is_never_shipped_in_the_production_policy(): void

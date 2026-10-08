@@ -25,6 +25,18 @@ use Symfony\Component\HttpFoundation\Response;
  *     fonts.googleapis.com. Without `style-src`/`font-src` entries for it,
  *     the stylesheet is blocked and the site falls back to a system font.
  *
+ * NOTE on cdn.jsdelivr.net: the dashboard's `@push('scripts')` block used to
+ * load Chart.js from that CDN, and this policy was widened to allow it. That
+ * script tag has since been removed — Chart.js is imported through
+ * resources/js/app.js and bundled by Vite instead, which is strictly better
+ * here: it is version-pinned by package.json, it works offline, and it does
+ * not hand a third party the ability to execute code in this app. The CDN
+ * entry is therefore gone rather than left in as harmless-looking dead
+ * configuration, because a standing third-party `script-src` allowance for a
+ * script nothing loads is pure attack surface. Leaving it also hid a real
+ * finding: a test asserting the allowance stays "correct" while the app
+ * no longer needs it.
+ *
  * `img-src` includes `data:` for inline SVG/data-URI images. Revisit
  * 'unsafe-eval' if/when Alpine is replaced or a nonce-based build (e.g.
  * moving directive expressions out of the DOM) makes it unnecessary.
@@ -80,7 +92,7 @@ class SecurityHeaders
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
         }
 
-        $scriptSrc = "'self' 'unsafe-eval' 'nonce-{$nonce}' https://cdn.jsdelivr.net";
+        $scriptSrc = "'self' 'unsafe-eval' 'nonce-{$nonce}'";
 
         // Dev-only escape hatch — see the class docblock. Never in production.
         if (app()->environment('local', 'testing')) {

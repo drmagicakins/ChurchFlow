@@ -1042,25 +1042,146 @@
 
     /* ---------------------------------------------------------------- responsive shell */
 
+    /* Desktop: no hamburger, no drawer, no scrim. These exist only below the
+       shell breakpoint, and hiding them here rather than relying on the JS is
+       what keeps a JS failure from showing a button that does nothing. */
+    .cf-navtoggle, .cf-sidebar__close, .cf-navscrim { display: none; }
+
     @media (max-width: 61.99rem) {
         .cf-shell { grid-template-columns: 1fr; }
 
+        /* ---- the drawer ------------------------------------------------- */
+
+        /* Off-canvas, NOT a scrolling strip. The previous mobile nav was the
+           same 30 links in a horizontal scroller, which hid every section
+           heading and made "Loans" three swipes away with no indication it
+           existed. A drawer keeps the grouping the desktop nav has. */
         .cf-sidebar {
-            position: static;
-            height: auto;
-            flex-direction: row;
-            align-items: center;
-            gap: 0.3rem;
-            overflow-x: auto;
-            padding: 0.6rem 0.75rem;
-            border-right: 0;
-            border-bottom: 1px solid var(--line);
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: min(19rem, 86vw);
+            height: 100dvh;
+            z-index: 70;
+            padding: 0.9rem 0.85rem 2rem;
+            border-right: 1px solid var(--line);
+            border-bottom: 0;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            transform: translateX(-100%);
+            transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0.35rem;
+            box-shadow: 0 24px 48px -24px rgba(15, 23, 42, 0.5);
         }
 
-        .cf-sidebar__brand { padding: 0 0.5rem 0 0; }
-        .cf-sidebar__label { display: none; }
-        .cf-sidebar__group { margin-top: 0; display: flex; gap: 0.3rem; }
-        .cf-navlink { white-space: nowrap; }
+        .cf-sidebar.is-open { transform: translateX(0); }
+
+        @media (prefers-reduced-motion: reduce) {
+            .cf-sidebar { transition: none; }
+        }
+
+        .cf-sidebar__top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.5rem;
+        }
+
+        .cf-sidebar__brand { padding-bottom: 0.7rem; }
+
+        .cf-sidebar__close {
+            display: grid;
+            place-items: center;
+            width: 2rem;
+            height: 2rem;
+            flex: none;
+            margin-top: 0.15rem;
+            border: 1px solid var(--line);
+            border-radius: 0.5rem;
+            background: var(--surface);
+            color: var(--muted);
+            font-size: 1.2rem;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .cf-sidebar__close:hover { color: var(--ink); border-color: var(--muted); }
+
+        /* Group headings come BACK on mobile. They were hidden by the old
+           strip layout, which is most of why it was unusable. */
+        .cf-sidebar__label { display: block; }
+        .cf-sidebar__group { margin-top: 0.7rem; display: block; }
+        .cf-navlink { white-space: normal; }
+
+        /* The scrim. A tap anywhere outside the drawer closes it, which is the
+           first thing everyone tries. */
+        .cf-navscrim {
+            display: block;
+            position: fixed;
+            inset: 0;
+            z-index: 65;
+            background: rgba(15, 23, 42, 0.42);
+            backdrop-filter: blur(1px);
+        }
+
+        /* ---- the hamburger button ---------------------------------------- */
+
+        .cf-navtoggle {
+            display: grid;
+            place-items: center;
+            position: relative;
+            width: 2.4rem;
+            height: 2.4rem;
+            flex: none;
+            border: 1px solid var(--line);
+            border-radius: 0.6rem;
+            background: var(--surface);
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .cf-navtoggle:hover { border-color: var(--muted); }
+
+        .cf-navtoggle__bars { display: grid; gap: 0.27rem; width: 1.05rem; }
+
+        /* The three bars animate into an × when open, so the button always
+           shows what pressing it will do rather than needing a label. */
+        .cf-navtoggle__bars > span {
+            display: block;
+            height: 2px;
+            border-radius: 2px;
+            background: var(--ink);
+            transform-origin: center;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .cf-navtoggle__bars > span { transition: none; }
+        }
+
+        .cf-navtoggle__bars > span.is-x:nth-child(1) { transform: translateY(0.42rem) rotate(45deg); }
+        .cf-navtoggle__bars > span.is-x:nth-child(2) { opacity: 0; }
+        .cf-navtoggle__bars > span.is-x:nth-child(3) { transform: translateY(-0.42rem) rotate(-45deg); }
+
+        /* The unread dot: the drawer holds the Notifications link, so a phone
+           user should not have to open it to discover they have any. */
+        .cf-navtoggle__dot {
+            position: absolute;
+            top: 0.35rem;
+            right: 0.35rem;
+            width: 0.45rem;
+            height: 0.45rem;
+            border-radius: 50%;
+            background: var(--danger, #dc2626);
+            box-shadow: 0 0 0 2px var(--surface);
+        }
+
+        /* Lock the page behind an open drawer. Without this the page scrolls
+           underneath it and, on iOS, drags the drawer with it. */
+        html.cf-navlocked, html.cf-navlocked body { overflow: hidden; }
     }
 }
 
@@ -4767,6 +4888,46 @@ html { scroll-padding-top: 5.5rem; }
 
     .cfg-empty { padding: 2.4rem 1rem; text-align: center; color: var(--muted); }
     .cfg-empty a { color: var(--brand-600); font-weight: 600; }
+
+    /* --- Phase 13 additions to the grid --------------------------------- */
+
+    /* The count line exists to prevent a specific misreading: "4 results"
+       when only the loaded page was searched. It must sit close enough to the
+       search box to be read as a caption for it, not as page furniture. */
+    .cfg-countline { margin: -0.4rem 0 0.7rem; }
+    .cfg-countline__warn { color: var(--warn-ink, #92400e); font-weight: 600; }
+
+    .cfg-toolbar__searchform { display: flex; align-items: center; }
+
+    .cfg-toolbar__clear {
+        border: 0; background: transparent; cursor: pointer; color: var(--muted);
+        font-size: 1rem; line-height: 1; padding: 0 0.15rem;
+    }
+    .cfg-toolbar__clear:hover { color: var(--ink); }
+
+    .cfg-table tbody tr.is-selected { background: rgba(29, 78, 216, 0.07); }
+    .cfg-table tbody tr.is-selected:hover { background: rgba(29, 78, 216, 0.11); }
+
+    /* A link that is really a button ("Clear the filter") — styled as a link
+       because it changes no state outside this view, but it must not be an
+       <a> with no href, which is unfocusable and reads as a link to a screen
+       reader that then does nothing. */
+    .cf-linkish {
+        border: 0; background: transparent; padding: 0; cursor: pointer;
+        color: var(--brand-600, #1d4ed8); font-weight: 600; font: inherit; font-size: 0.8rem;
+        text-decoration: underline;
+    }
+
+    .cfg-bulkbar__select { min-width: 11rem; }
+
+    .cfg-pager { margin-top: 0.9rem; }
+    .cfg-pager nav { font-size: 0.8rem; color: var(--muted); }
+    .cfg-pager [aria-current="page"] span {
+        background: var(--brand) !important; border-color: transparent !important; color: #fff !important;
+    }
+    .cfg-pager a, .cfg-pager span { border-radius: 0.4rem !important; }
+
+    .cf-nowrap { white-space: nowrap; }
 
     /* Laravel's default Tailwind pagination partial — restyle rather than replace, so a
        future `php artisan vendor:publish` for pagination views doesn't get silently undone. */

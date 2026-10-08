@@ -101,6 +101,11 @@
         ->where('user_id', $user->id)
         ->whereNull('read_at')
         ->count() : 0;
+
+    // Phase 13: the mobile drawer needs a short, flat list of the same links
+    // for quick-jump, and the count of visible items tells the hamburger
+    // whether a badge is worth showing.
+    $navItemCount = collect($groups)->sum(fn ($g) => count($g['items']));
 @endphp
 
 <!doctype html>
@@ -113,15 +118,32 @@
     @stack('head')
 </head>
 <body>
-    <div class="cf-shell">
-        <aside class="cf-sidebar">
-            <a href="{{ route('dashboard') }}" class="cf-sidebar__brand">
-                <span class="cf-sidebar__mark" aria-hidden="true">CF</span>
-                <span class="cf-sidebar__wordmark">
-                    <span>Church<em>Flow</em></span>
-                    <small>The Operating Platform for Modern Churches</small>
-                </span>
-            </a>
+    <div class="cf-shell" x-data="cfNav()" @keydown.escape.window="close()">
+        {{-- Mobile drawer scrim. Clicking outside the nav closes it, which is
+             what everyone tries first. --}}
+        <div class="cf-navscrim" x-show="open" x-cloak @click="close()" aria-hidden="true"></div>
+
+        <aside class="cf-sidebar" id="cf-sidebar"
+               :class="{ 'is-open': open }"
+               role="navigation"
+               aria-label="Main">
+            <div class="cf-sidebar__top">
+                <a href="{{ route('dashboard') }}" class="cf-sidebar__brand">
+                    <span class="cf-sidebar__mark" aria-hidden="true">CF</span>
+                    <span class="cf-sidebar__wordmark">
+                        <span>Church<em>Flow</em></span>
+                        <small>The Operating Platform for Modern Churches</small>
+                    </span>
+                </a>
+
+                {{-- Closes the drawer. Only visible on mobile. Uses a CSS ×
+                     rather than an icon component because the icon set has no
+                     cross glyph, and inventing one for a single use adds a
+                     sprite entry nothing else will ever reference. --}}
+                <button type="button" class="cf-sidebar__close" @click="close()" aria-label="Close navigation menu">
+                    <span aria-hidden="true">×</span>
+                </button>
+            </div>
 
             @foreach($groups as $group)
                 <div class="cf-sidebar__group">
@@ -132,7 +154,8 @@
                             [$route, , $label, $icon] = $item;
                             $active = request()->routeIs($route);
                         @endphp
-                        <a href="{{ route($route) }}" @class(['cf-navlink', 'is-active' => $active])>
+                        <a href="{{ route($route) }}" @class(['cf-navlink', 'is-active' => $active])
+                           @if($active) aria-current="page" @endif>
                             <x-ui.icon :name="$icon" />
                             <span>{{ $label }}</span>
                             @if($route === 'notifications.index' && $unread > 0)
@@ -146,6 +169,25 @@
 
         <div class="cf-main">
             <header class="cf-topbar">
+                {{-- The hamburger. Only rendered below the shell breakpoint (the
+                     desktop sidebar is always present), and it carries the
+                     unread count so a phone user does not have to open the
+                     drawer to learn they have notifications. --}}
+                <button type="button" class="cf-navtoggle"
+                        @click="toggle()"
+                        :aria-expanded="open ? 'true' : 'false'"
+                        aria-controls="cf-sidebar"
+                        aria-label="Open navigation menu">
+                    <span class="cf-navtoggle__bars" aria-hidden="true">
+                        <span :class="{ 'is-x': open }"></span>
+                        <span :class="{ 'is-x': open }"></span>
+                        <span :class="{ 'is-x': open }"></span>
+                    </span>
+                    @if($unread > 0)
+                        <span class="cf-navtoggle__dot" aria-hidden="true"></span>
+                    @endif
+                </button>
+
                 @if($user && Route::has('search.index'))
                     {{-- Live search over every module this user may see (GlobalSearchService).
                          Recent searches live in this browser's localStorage only — a per-viewer
@@ -240,6 +282,103 @@
             </main>
         </div>
     </div>
+
+    @include('partials.loader')
+
+    <script nonce="{{ \App\Http\Middleware\SecurityHeaders::nonce() }}">
+        document.addEventListener('alpine:init', () => {
+            /*
+             | The mobile drawer.
+             |
+             | "Smart" here means four specific behaviours, each of which is a
+             | way a naive hamburger fails in real use:
+             |
+             |  1. It closes itself when the viewport grows past the breakpoint.
+             |     Rotating a phone or resizing a window left the drawer open
+             |     and the scrim covering a now-desktop layout, with no visible
+             |     way to dismiss it.
+             |  2. It locks body scroll while open. Without this the page behind
+             |     scrolls under the drawer, and on iOS the drawer itself drifts.
+             |  3. It traps Tab inside the drawer. A drawer full of links that
+             |     keyboard users can tab straight out of (into content they
+             |     cannot see) is worse than no drawer.
+             |  4. It restores focus to the button that opened it, so closing
+             |     does not dump the user back at the top of the document.
+             */
+            Alpine.data('cfNav', () => ({
+                open: false,
+                _breaker: null,
+                _lastFocus: null,
+
+                init() {
+                    this._breaker = window.matchMedia('(min-width: 62rem)');
+                    this._breaker.addEventListener('change', (e) => {
+                        if (e.matches) this.close({ restoreFocus: false });
+                    });
+
+                    this.$watch('open', (isOpen) => {
+                        document.documentElement.classList.toggle('cf-navlocked', isOpen);
+                        if (isOpen) this._trapFocus();
+                    });
+                },
+
+                toggle() {
+                    if (this.open) { this.close(); return; }
+                    this._lastFocus = document.activeElement;
+                    this.open = true;
+                },
+
+                close({ restoreFocus = true } = {}) {
+                    if (!this.open) return;
+                    this.open = false;
+                    document.documentElement.classList.remove('cf-navlocked');
+
+                    if (restoreFocus && this._lastFocus && this._lastFocus.focus) {
+                        this._lastFocus.focus();
+                    }
+                },
+
+                // Keep Tab inside the open drawer. Re-queried on each keypress
+                // rather than cached, because the link list is the same DOM the
+                // server rendered per page and can differ between pages.
+                _trapFocus() {
+                    const panel = document.getElementById('cf-sidebar');
+                    if (!panel) return;
+
+                    const focusables = () => Array.from(
+                        panel.querySelectorAll('a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])')
+                    ).filter((el) => el.offsetParent !== null);
+
+                    const onKeydown = (e) => {
+                        if (e.key !== 'Tab') return;
+                        const items = focusables();
+                        if (!items.length) return;
+                        const first = items[0];
+                        const last = items[items.length - 1];
+
+                        if (e.shiftKey && document.activeElement === first) {
+                            e.preventDefault();
+                            last.focus();
+                        } else if (!e.shiftKey && document.activeElement === last) {
+                            e.preventDefault();
+                            first.focus();
+                        }
+                    };
+
+                    document.addEventListener('keydown', onKeydown);
+                    this.$watch('open', (isOpen) => {
+                        if (!isOpen) document.removeEventListener('keydown', onKeydown);
+                    });
+
+                    // Move focus into the drawer so the next Tab starts inside it.
+                    requestAnimationFrame(() => {
+                        const items = focusables();
+                        if (items.length) items[0].focus();
+                    });
+                },
+            }));
+        });
+    </script>
 
     <script nonce="{{ \App\Http\Middleware\SecurityHeaders::nonce() }}">
         document.addEventListener('alpine:init', () => {

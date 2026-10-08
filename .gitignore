@@ -34,3 +34,13 @@ Thumbs.db
 # (demo@churchflow.test / password123). Useful locally, never in a repo or
 # on a server — a seeded account with a published password is a back door.
 /dev-demo.php
+
+# Single-purpose debugging scripts written while chasing a specific Blade
+# compile error and a health-endpoint test failure. They bootstrap Laravel and
+# poke at compiled views / run probes directly. Genuinely useful when the same
+# class of problem recurs, but they are scratch, not part of the app — nothing
+# under app/, routes/, tests/ or resources/ references them.
+/dev-balance.php
+/dev-lines.php
+/dev-view.php
+/dev-health-probe.php

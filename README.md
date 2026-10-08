@@ -1,19 +1,22 @@
-# ChurchFlow — Phase 1–12 (Foundation → SaaS Billing → Onboarding → Production Hardening → 14-Day Trial → Pricing & Forms)
+# ChurchFlow — Phase 1–13 (Foundation → SaaS Billing → Onboarding → Production Hardening → 14-Day Trial → Pricing & Forms → Platform Health)
 
 Product name: **ChurchFlow** (`APP_NAME`, the landing page's nav/footer and
 `<title>`). Earlier phase notes below sometimes say "Church SaaS"
 generically where they describe the *system* rather than the brand — a
 naming artifact of when those phases were written, not a second product.
 
-**Current state: 246 tests / 746 assertions passing.** Phases 10 and 11 are
+**Current state: 252 tests / 784 assertions passing.** Phases 10 and 11 are
 integrated and verified; Phase 12 (stated pricing across the four tiers, and
-styled forms across both dashboards) is built on top of them.
+styled forms across both dashboards) and Phase 13 (the public platform status
+page, the data-grid component, and the health-check severity model) are built
+on top of them.
 
 Sections below, in order:
 - Phase 1–9 feature notes (unchanged, kept as the historical record)
 - **Phase 10** — production hardening (`DEPLOYMENT.md`, `SECURITY.md`)
 - **Phase 11** — 14-day trial + subscribe/upgrade/downgrade
 - **Phase 12** — stated pricing + the styled form system
+- **Phase 13** — the platform status page, the data grid, and health-check severity
 - **The integrations** — what the Phase 1–10 drop-in got wrong, and what
   only a real browser caught
 
@@ -808,10 +811,12 @@ no 2FA; no dependency scanning in CI. The dunning timer still uses
   `add_trial_and_pending_plan_to_churches_table` migration.
 - `php artisan db:seed` — `RolePermissionSeeder`, `PlanSeeder`, `TourSeeder`,
   `FeatureFlagSeeder` all applied.
-- `php artisan test` — **224 tests, 648 assertions, all passing.**
+- `php artisan test` — **252 tests, 784 assertions, all passing** (the figure
+  at the time this section was written was 224/648; it is kept here as the
+  historical record for that phase and superseded by the current count above).
 - Live HTTP smoke check against a running server: `/` (200, landing page),
   `/register` (200), `/plans` (200), `/health` (200, reporting per-dependency
-  status).
+  status), `/health.json` (200 or 503 by design — see Phase 13).
 
 
 ---
@@ -972,3 +977,153 @@ Run against a live server with a seeded demo church, on 16 authenticated pages:
   populates. This is the assertion the PHP tests structurally cannot make — a
   CSP violation leaves the `<script>` tag in the DOM and the handler unbound, so
   asserting on markup alone would have passed while the page was broken.
+
+---
+
+## Phase 13 — the platform status page, the data grid, and health-check severity
+
+### 1. `/health` became a real status page; `/health.json` kept its shape
+
+Phase 10 shipped `/health` as `{"status":"ok"}` for a load balancer —
+machine-readable and nothing else. An operator, or a church whose only symptom
+was "the app seems broken", could not see *what* was wrong, *since when*, or
+whether it had happened before.
+
+- `/health` is now a **public HTML page**: a banner answering the two questions
+  a visitor actually has (is it broken, and is it broken for me), the live
+  probe results taken on this page load, the open issues with first-seen /
+  last-seen / occurrence-count / duration, and a "recently resolved" section.
+- `/health.json` is **unchanged in shape** so a monitor already pointed at it
+  keeps working. It still returns 200/503 based on the **live probe alone** — a
+  lingering open incident whose check is passing again must not keep a load
+  balancer routing traffic away.
+- Both are **rate-limited** (`throttle:60,1`): they run real probes against the
+  database, cache, queue and storage, so an unthrottled public endpoint is a way
+  to hammer those backends from outside.
+
+Two rules make a public status page safe to be public:
+
+1. An incident shows its check name, a human-readable message, severity and
+   timestamps — **never** the raw exception, a stack trace, a file path, a query
+   or a credential. The `context` column is deliberately not rendered.
+2. The probes are **read-only**. `HealthCheckService::runReadOnly()` writes
+   nothing; incident recording is the cron's job. If a page view recorded
+   occurrences, every visitor would inflate the count and a crawler would open
+   incidents by itself. A test asserts a `GET /health` leaves the incident table
+   empty.
+
+The page is deliberately honest about a subtlety: an open incident is not
+re-probed on every view, and the page states when the last cron run was — a
+status page that implies freshness it does not have is worse than one that says
+"as of 14:32".
+
+### 2. Incident lifecycle, and why the fingerprint is normalized
+
+`HealthCheckService` turns a pass/fail stream into a table of incidents:
+
+```
+fail, no open incident for this fingerprint  -> OPEN a new incident
+fail, open incident already exists           -> bump occurrences/last_seen
+pass, open incident exists                   -> RESOLVE it, timestamped
+pass, no open incident                       -> nothing to record
+```
+
+The third rule is what makes the page useful rather than alarming: a fixed
+problem stops showing as broken and keeps the time it was resolved.
+
+The **fingerprint** decides whether two failures are "the same problem". Left
+raw, `"Connection refused (took 31ms)"` and `"Connection refused (took 34ms)"`
+would open two incidents a minute apart and a one-hour outage would be 60 rows.
+Numbers, durations, ids, UUIDs, file paths and quoted values are stripped before
+hashing; the raw message is still stored, so nothing is lost — only the identity
+key is normalized. Recording uses a transaction with `lockForUpdate()`, so two
+overlapping scheduler runs cannot both decide no incident exists and both insert.
+
+### 3. The severity model — failure ≠ verdict (`config/health.php`)
+
+The bug this fixed: with `APP_ENV=testing` and no payment credentials, the
+`payments` check fails (correctly — the webhook endpoint really is unconfigured),
+so `/health.json` returned 503 **always**. A fresh install was permanently red,
+which is how a status page stops being read.
+
+The fix separates two ideas that were conflated:
+
+- **A probe must never lie.** A failing check still reports `ok: false`, still
+  shows as failing on the page, and still records and resolves its incident.
+- **An unconfigured dependency may not make a correct install look degraded.**
+
+`failureCounts($checkName)` decides severity, and `config/health.php` exposes it:
+
+- `severity_causing.{check}` (default **true**) — whether a failure makes the
+  platform report degraded. Default true means Phase 10's strictness is
+  unchanged with no configuration.
+- `force_severity.{check}` (default **null**) — a deploy-time override of the
+  environment exemption. `true` makes a check count even in local/testing (how
+  the stricter behaviour stays *testable*); `false` makes it never count even in
+  production.
+- Independent of both: **local and testing never report degraded**, and a `sync`
+  queue driver exempts `queue_worker` (there is no worker to run, so "no worker
+  heartbeat" is the correct state, not a fault).
+
+### 4. The data grid, with an honest search box
+
+`<x-grid.data-table>` adds client-side instant filtering on top of the existing
+server pagination. The part that matters is that it **says so**: the count line
+reads "Showing 25 of 4,312 — searching within this page" whenever a filter is
+active, because a search box that silently only searches page 1 of 173 is a lie
+the user will act on. The magnifier still submits the server-side search for the
+whole dataset; the instant filter is explicitly the narrow one.
+
+There is a separate empty state for "no rows match 'xyz' on this page" as
+opposed to "no records yet" — telling someone the wrong one wastes their time.
+
+### 5. Three bugs found by running things, not by reading them
+
+- **The `@php` backtick.** A doc comment inside a `@php` block contained a
+  literal closing PHP tag, which **ends the block early** — everything after it
+  became raw PHP and the whole view died with `unexpected end of file` pointing
+  at the *end* of the file. Fixed by not writing that tag in a comment.
+- **`<x-layout>` inside a CSS comment.** In Blade that tag name compiles into a
+  real component call **even inside a CSS comment**; the component was never
+  closed and swallowed the entire stylesheet. Naming it in words instead.
+- **`{{ $filters }}` where `$filters` defaulted to `[]`.** `{{ }}` calls
+  `htmlspecialchars()`, so a slot whose `@props` default is an array throws
+  `Argument #1 must be of type string, array given` for **every caller that did
+  not pass that slot** — `finance/accounts/show` 500'd unconditionally. The
+  default is now `null`, the render is guarded by
+  `is_string(...) || instanceof Htmlable`, and the reason is recorded in the
+  component so the default does not get "tidied" back.
+
+The third is the interesting one: it was invisible to the entire per-phase suite,
+which exercises each page its own phase owns. It was caught by
+`SmokeEveryPageTest`, a sweep that walks the whole route table as a
+fully-permissioned user asserting no GET page 500s. (That test's own docblock
+still calls itself "throwaway" — worth promoting to a maintained test, since it
+is the only thing currently covering this class of bug.)
+
+### The tests that matter most in this phase
+
+- `tests/Feature/HealthAndSecurityHeadersTest.php` — the `/health.json` contract
+  (all seven checks present by name), `status` agreeing with the HTTP code in
+  both directions, a severity-causing failure producing a real 503, local not
+  reporting degraded without worker/payment config, `force_severity` restoring
+  the strict behaviour per check, a `GET /health` writing no incident rows, and
+  the security headers (including HSTS only on HTTPS).
+- `tests/Feature/SecurityHeadersCspTest.php` — the CSP nonce, unchanged from
+  Phase 12.
+
+### A test-harness trap worth knowing about
+
+`GET /health` and `GET /health.json` are **different routes** — the first is the
+HTML page. Calling `getJson('/health')` asserts JSON against a 15KB HTML
+document, which surfaces as "Invalid JSON was returned from the route" and looks
+like an endpoint bug when it is a test bug.
+
+Separately, `HealthCheckService::runOne()` logs a failing probe **without**
+`report()` and **without** an `'exception'` context key. Laravel's test-time
+`registerExceptionTracking()` collects any `MessageLogged` carrying
+`context['exception']`, and `TestResponse::decodeResponseJson()` then re-throws
+that collection — so a health probe, which fails *by design* on an unconfigured
+dependency, would poison every JSON assertion on the endpoint even though the
+body was perfectly valid. The class and origin travel as ordinary context keys
+instead, which keeps the log entry diagnosable without arming that trap.

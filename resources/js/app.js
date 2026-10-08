@@ -246,3 +246,60 @@ if (document.readyState === 'loading') {
 }
 
 Alpine.start();
+
+/*
+ | ---------------------------------------------------------------------------
+ | Data grid: instant filter + selection
+ | ---------------------------------------------------------------------------
+ | Two jobs, and the reason they are one component rather than two:
+ |
+ |  1. `filter` narrows the rows ALREADY LOADED, in the browser, with no round
+ |     trip. It is deliberately not a server search — the component that uses
+ |     this says so in its own count line, and offers a separate "Search all"
+ |     button for the full dataset. A search box that quietly only searches
+ |     page 1 of 173 is a lie the user will act on.
+ |
+ |  2. `selected` holds the ids of checked rows for bulk actions. In memory
+ |     only, so a reload (new search, new sort, new page) clears it — a
+ |     selection made against one filtered view must not silently carry into a
+ |     different one, where it could mean something else entirely.
+ | `isRowVisible(el)` reads the row's pre-computed `data-search` attribute
+ | rather than walking the DOM text on every keystroke: the server already
+ | flattened each row to lowercase searchable text once, which keeps typing
+ | responsive on a 100-row page.
+ */
+Alpine.data('cfDataGrid', ({ perPage = 25 } = {}) => ({
+    filter: '',
+    selected: [],
+    perPage,
+
+    get rows() {
+        return Array.from(this.$el.querySelectorAll('[data-cfg-row]'));
+    },
+
+    get visible() {
+        return this.rows.filter((el) => this.rowMatches(el)).length;
+    },
+
+    get allSelected() {
+        const ids = this.rows.map((el) => String(el.dataset.cfgId)).filter(Boolean);
+        return ids.length > 0 && ids.every((id) => this.selected.includes(id));
+    },
+
+    rowMatches(el) {
+        const q = this.filter.trim().toLowerCase();
+        if (!q) return true;
+        return (el.dataset.search || '').includes(q);
+    },
+
+    isRowVisible(el) {
+        return this.rowMatches(el);
+    },
+
+    toggleAll(checked) {
+        const ids = this.rows.map((el) => String(el.dataset.cfgId)).filter(Boolean);
+        this.selected = checked
+            ? [...new Set([...this.selected, ...ids])]
+            : this.selected.filter((id) => !ids.includes(id));
+    },
+}));

@@ -14,12 +14,24 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [LoginController::class, 'store']);
 });
 
-// --- Phase 10: dependency health check (§44) ---
-// Public and unauthenticated on purpose — a monitoring tool can't log in —
-// rate-limited to stop it being used to hammer the database/cache/queue.
-Route::get('/health', [\App\Http\Controllers\HealthController::class, 'show'])
+// --- Phase 10/13: the platform status page (§44) ---
+// Public and unauthenticated on purpose — a monitoring tool can't log in, and
+// neither can a church whose only symptom is "the app seems broken". A status
+// page nobody can reach during an outage is useless.
+//
+// `/health` is the human-readable page; `/health.json` is the machine
+// endpoint a load balancer or uptime monitor was already pointed at in Phase
+// 10, kept in the same shape so nothing already configured breaks. Both are
+// rate-limited: they run real probes against the database, cache, queue and
+// storage, so an unthrottled public endpoint is a way to hammer those
+// backends from outside.
+Route::get('/health', [\App\Http\Controllers\HealthController::class, 'index'])
     ->middleware('throttle:60,1')
     ->name('health');
+
+Route::get('/health.json', [\App\Http\Controllers\HealthController::class, 'json'])
+    ->middleware('throttle:60,1')
+    ->name('health.json');
 
 // --- Phase 10: the public landing page (§27-39) ---
 // This is the marketing landing page built for Phase 10 — a real route
