@@ -1,44 +1,34 @@
-@extends('layouts.app')
+<x-layouts.auth
+    :title="'Sign in · '.config('marketing.product.name', 'ChurchFlow')"
+    heading="Sign in"
+    subheading="Welcome back. Sign in to manage your church.">
 
-@section('title', 'Log in — ChurchFlow')
+    <form method="POST" action="{{ route('login') }}" class="cf-card" style="display:grid;gap:1rem">
+        @csrf
 
-@section('content')
-    <div class="auth-wrap">
-        <div class="card">
-            <h1>Log in</h1>
-            <p class="muted">Welcome back to ChurchFlow.</p>
+        <x-auth.field
+            name="email"
+            label="Email address"
+            type="email"
+            autocomplete="email"
+            :autofocus="true" />
 
-            @if ($errors->any())
-                <div class="errors" style="margin-top:1rem">
-                    <ul>
-                        @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
+        <x-auth.field
+            name="password"
+            label="Password"
+            type="password"
+            autocomplete="current-password" />
 
-            <form method="POST" action="{{ route('login') }}">
-                @csrf
+        <label class="cf-small" style="display:flex;align-items:center;gap:.5rem">
+            <input type="checkbox" name="remember" value="1">
+            <span>Remember me</span>
+        </label>
 
-                <label for="email">Email address</label>
-                <input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus
-                    autocomplete="username">
+        <button type="submit" class="cf-btn cf-btn--primary">Sign in</button>
 
-                <label for="password">Password</label>
-                <input id="password" type="password" name="password" required autocomplete="current-password">
-
-                <label style="display:flex;align-items:center;gap:0.5rem;font-weight:400;margin-top:1rem">
-                    <input type="checkbox" name="remember" value="1" style="width:auto">
-                    <span>Remember me</span>
-                </label>
-
-                <button type="submit">Log in</button>
-            </form>
-        </div>
-
-        <p class="alt">
-            No account yet? <a href="{{ route('register') }}">Create a church account</a>
+        <p class="cf-small cf-muted">
+            New here? <a href="{{ route('register') }}">Create an account</a>
         </p>
-    </div>
-@endsection
+    </form>
+
+</x-layouts.auth>

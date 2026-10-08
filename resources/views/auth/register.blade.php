@@ -1,53 +1,41 @@
-@extends('layouts.app')
+<x-layouts.auth
+    :title="'Create your account · '.config('marketing.product.name', 'ChurchFlow')"
+    heading="Create your account"
+    subheading="Start with a free account, then choose a plan to set up your church. No church is created until payment is complete.">
 
-@section('title', 'Register — ChurchFlow')
+    <form method="POST" action="{{ route('register') }}" class="cf-card" style="display:grid;gap:1rem">
+        @csrf
 
-@section('content')
-    <div class="auth-wrap">
-        <div class="card">
-            <h1>Create your church account</h1>
-            <p class="muted">
-                Phase 1 setup: this creates your church and owner account immediately.
-                Payment-gated activation arrives in Phase 8.
-            </p>
+        <x-auth.field
+            name="name"
+            label="Your name"
+            autocomplete="name"
+            :autofocus="true" />
 
-            @if ($errors->any())
-                <div class="errors" style="margin-top:1rem">
-                    <ul>
-                        @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
+        <x-auth.field
+            name="email"
+            label="Email address"
+            type="email"
+            autocomplete="email" />
 
-            <form method="POST" action="{{ route('register') }}">
-                @csrf
+        <x-auth.field
+            name="password"
+            label="Password"
+            type="password"
+            autocomplete="new-password"
+            hint="At least 8 characters." />
 
-                <label for="church_name">Church name</label>
-                <input id="church_name" type="text" name="church_name" value="{{ old('church_name') }}" required autofocus>
+        <x-auth.field
+            name="password_confirmation"
+            label="Confirm password"
+            type="password"
+            autocomplete="new-password" />
 
-                <label for="name">Your name</label>
-                <input id="name" type="text" name="name" value="{{ old('name') }}" required
-                    autocomplete="name">
+        <button type="submit" class="cf-btn cf-btn--primary">Create account</button>
 
-                <label for="email">Email address</label>
-                <input id="email" type="email" name="email" value="{{ old('email') }}" required
-                    autocomplete="username">
-
-                <label for="password">Password</label>
-                <input id="password" type="password" name="password" required autocomplete="new-password">
-
-                <label for="password_confirmation">Confirm password</label>
-                <input id="password_confirmation" type="password" name="password_confirmation" required
-                    autocomplete="new-password">
-
-                <button type="submit">Create account</button>
-            </form>
-        </div>
-
-        <p class="alt">
-            Already registered? <a href="{{ route('login') }}">Log in</a>
+        <p class="cf-small cf-muted">
+            Already have an account? <a href="{{ route('login') }}">Sign in</a>
         </p>
-    </div>
-@endsection
+    </form>
+
+</x-layouts.auth>

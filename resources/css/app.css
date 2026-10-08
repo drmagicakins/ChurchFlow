@@ -5,7 +5,4650 @@
 @source '../**/*.blade.php';
 @source '../**/*.js';
 
+/*
+ | ChurchFlow design system
+ | ---------------------------------------------------------------------------
+ | One token layer, consumed by every surface (marketing site, auth screens, app
+ | shell, and plain content pages that don't pull in the compiled bundle). Keep
+ | additions here, never per-view: a colour or radius defined in two places is a
+ | colour that will disagree with itself within a month.
+ |
+ | NOTE ON TAILWIND VERSION. This project is Tailwind v4 (CSS-first: `@import
+ | 'tailwindcss'` + `@theme`, built via @tailwindcss/vite, no tailwind.config.js).
+ | The marketing landing-page package was authored against v3 (`@tailwind
+ | base/components/utilities`, a JS config, Alpine + PostCSS). Its tailwind.config.js
+ | tokens have been PORTED into the @theme block below rather than installed, and its
+ | app.css was NOT copied over — pasting v3 directives into a v4 stylesheet compiles
+ | to nothing and would strip every style from the whole application, not just the
+ | landing page. Anything added from that package must come through this file.
+ */
+
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Inter', 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
+        'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Brand — indigo. 600 is the primary action colour; 700 the hover. */
+    --color-brand-50: #eef2ff;
+    --color-brand-100: #e0e7ff;
+    --color-brand-200: #c7d2fe;
+    --color-brand-300: #a5b4fc;
+    --color-brand-400: #818cf8;
+    --color-brand-500: #6366f1;
+    --color-brand-600: #4f46e5;
+    --color-brand-700: #4338ca;
+    --color-brand-800: #3730a3;
+    --color-brand-900: #312e81;
+    --color-brand-950: #1e1b4b;
+
+    /* Warm accent, used sparingly — highlights, the "answered" state, badges. */
+    --color-accent-400: #fbbf24;
+    --color-accent-500: #f59e0b;
+    --color-accent-600: #d97706;
+
+    /*
+     | Marketing palette, ported from the landing-page package's tailwind.config.js.
+     | These names (navy, brand-blue, brand-green, ink, muted) are used verbatim by
+     | the ported marketing components, so they must exist as Tailwind colour tokens
+     | for those utility classes (text-brand-blue, bg-navy, border-brand-green, …)
+     | to resolve. Flattened to `--color-*` because v4 has no nested colour objects.
+     */
+    --color-navy: #0b2a5b;
+    --color-navy-900: #081e42;
+    --color-navy-800: #0b2a5b;
+    --color-navy-700: #123a78;
+
+    --color-brand-blue: #1677ff;
+    --color-brand-green: #18b981;
+    --color-brand-light-blue: #eff6ff;
+    --color-brand-light-green: #ecfdf5;
+
+    --color-ink: #0f172a;
+    --color-muted: #64748b;
+
+    --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -12px rgba(15, 23, 42, 0.12);
+
+    --radius-card: 0.875rem;
+}
+
+/*
+ | Semantic aliases. Both the written-out CSS variables (for the standalone
+ | inline fallback in partials/theme.blade.php) and plain classes live here so a
+ | view never has to invent a colour. `surface`/`line`/`ink`/`muted` are the four
+ | that matter: everything else derives from them.
+ */
+:root {
+    color-scheme: light;
+
+    --brand: var(--color-brand-600, #4f46e5);
+    --brand-dark: var(--color-brand-700, #4338ca);
+    --brand-tint: var(--color-brand-50, #eef2ff);
+
+    --ink: #0f172a;
+    --muted: #64748b;
+    --line: #e2e8f0;
+    --surface: #ffffff;
+    --canvas: #f8fafc;
+
+    --ok-bg: #f0fdf4;
+    --ok-line: #bbf7d0;
+    --ok-ink: #166534;
+
+    --warn-bg: #fffbeb;
+    --warn-line: #fde68a;
+    --warn-ink: #92400e;
+
+    --danger: #dc2626;
+    --danger-bg: #fef2f2;
+    --danger-line: #fecaca;
+
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+    --shadow-md: 0 4px 12px -2px rgba(15, 23, 42, 0.08), 0 2px 6px -2px rgba(15, 23, 42, 0.05);
+    --shadow-lg: 0 18px 40px -12px rgba(15, 23, 42, 0.18);
+
+    --shell-sidebar: 15rem;
+    --shell-gutter: clamp(1rem, 3vw, 2rem);
+}
+
+@layer base {
+    *,
+    *::before,
+    *::after {
+        box-sizing: border-box;
+    }
+
+    html {
+        -webkit-text-size-adjust: 100%;
+        scroll-behavior: smooth;
+    }
+
+    body {
+        margin: 0;
+        background: var(--canvas);
+        color: var(--ink);
+        font-family: var(--font-sans);
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    h1, h2, h3, h4 {
+        margin: 0;
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+        font-weight: 650;
+    }
+
+    h1 { font-size: clamp(1.6rem, 1.2rem + 1.4vw, 2.1rem); }
+    h2 { font-size: clamp(1.2rem, 1.05rem + 0.6vw, 1.45rem); }
+    h3 { font-size: 1.05rem; }
+
+    p { margin: 0; }
+
+    a { color: var(--brand); }
+
+    :focus-visible {
+        outline: 2px solid var(--brand);
+        outline-offset: 2px;
+        border-radius: 4px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+            animation-duration: 0.001ms !important;
+            transition-duration: 0.001ms !important;
+            scroll-behavior: auto !important;
+        }
+    }
+}
+
+/*
+ | Hand-rolled components. Deliberately plain CSS rather than @apply chains: these
+ | class names are used from Blade partials that also have to render when the Vite
+ | bundle is absent (see partials/theme.blade.php), so they must be legible as CSS.
+ */
+@layer components {
+
+    /* ---------------------------------------------------------------- layout */
+
+    .cf-shell {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: var(--shell-sidebar) 1fr;
+    }
+
+    .cf-sidebar {
+        background: var(--surface);
+        border-right: 1px solid var(--line);
+        padding: 1.1rem 0.85rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow-y: auto;
+    }
+
+    .cf-sidebar__brand {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-weight: 700;
+        color: var(--ink);
+        text-decoration: none;
+        padding: 0.35rem 0.5rem 0.9rem;
+        letter-spacing: -0.02em;
+    }
+
+    .cf-sidebar__mark {
+        width: 1.9rem;
+        height: 1.9rem;
+        border-radius: 0.55rem;
+        background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font-size: 0.95rem;
+        flex: none;
+    }
+
+    .cf-sidebar__group { margin-top: 0.85rem; }
+
+    .cf-sidebar__label {
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+        color: var(--muted);
+        font-weight: 700;
+        padding: 0 0.5rem 0.35rem;
+    }
+
+    .cf-navlink {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.45rem 0.5rem;
+        border-radius: 0.5rem;
+        color: #334155;
+        text-decoration: none;
+        font-size: 0.88rem;
+        font-weight: 500;
+    }
+
+    .cf-navlink:hover { background: var(--canvas); color: var(--ink); }
+
+    .cf-navlink.is-active {
+        background: var(--brand-tint);
+        color: var(--brand-dark);
+        font-weight: 600;
+    }
+
+    .cf-main { min-width: 0; display: flex; flex-direction: column; }
+
+    .cf-topbar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background: color-mix(in srgb, var(--surface) 88%, transparent);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--line);
+        padding: 0.7rem var(--shell-gutter);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .cf-content {
+        padding: clamp(1.1rem, 2.5vw, 2rem) var(--shell-gutter) 3rem;
+        width: 100%;
+        max-width: 76rem;
+        margin: 0 inline;
+    }
+
+    .cf-page-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.4rem;
+    }
+
+    /* ---------------------------------------------------------------- surfaces */
+
+    .cf-card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-card);
+        padding: 1.4rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .cf-card--flush { padding: 0; overflow: hidden; }
+
+    .cf-card__head {
+        padding: 1rem 1.4rem;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .cf-card__body { padding: 1.4rem; }
+
+    .cf-grid { display: grid; gap: 1rem; }
+
+    /*
+     | Two-up by default at desktop widths, collapsing to one column below ~60rem.
+     | An auto-fit track list is the trap here: `minmax(16rem, 1fr)` inside a
+     | 1040px content area resolves to THREE tracks, so a dashboard built as a
+     | 2-column grid silently becomes a 3-column one and every panel is narrower
+     | than intended. Explicit-ish tracks with a written-down breakpoint instead.
+     |
+     | --4 is deliberately capped at four: five 12rem tracks fit in a 1200px row, so
+     | auto-fit gives five 240px stat tiles where four 300px ones were designed for.
+     */
+    .cf-grid--2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); }
+    .cf-grid--3 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); }
+    .cf-grid--4 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); max-width: 100%; }
+
+    @media (min-width: 60rem) {
+        .cf-grid--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+
+    /* ---------------------------------------------------------------- stats */
+
+    .cf-stat { display: flex; flex-direction: column; gap: 0.3rem; }
+
+    .cf-stat__label {
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: var(--muted);
+        font-weight: 650;
+    }
+
+    .cf-stat__value {
+        font-size: 1.65rem;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .cf-stat__hint { font-size: 0.82rem; color: var(--muted); }
+
+    /* ---------------------------------------------------------------- type */
+
+    .cf-muted { color: var(--muted); }
+    .cf-small { font-size: 0.85rem; }
+    .cf-tiny { font-size: 0.78rem; }
+    .cf-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+    /*
+     | Money text (₦, $, £, €).
+     |
+     | Measured in the browser at the KPI's own 800-weight / 24.8px: Inter and
+     | ui-sans-serif draw U+20A6 (₦) at essentially the same width as a capital
+     | "N" (18.67 vs 19.00) and it reads as a plain letter N — so "₦0" was
+     | indistinguishable from "N0" on the dashboard. Falling through to
+     | sans-serif/Segoe UI Symbol gives a glyph that is clearly distinct
+     | (17.92 vs 20.67).
+     |
+     | Putting a symbol-capable family first for amounts only means the currency
+     | never depends on which Latin face happened to win the font-stack race,
+     | while body copy keeps Inter.
+    */
+    .cf-money {
+        font-family: 'Segoe UI Symbol', 'Noto Sans Symbols 2', 'DejaVu Sans', sans-serif;
+        font-variant-numeric: tabular-nums;
+    }
+    .cf-money--strong {
+        font-weight: 800;
+    }
+
+    .cf-eyebrow {
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--brand-dark);
+    }
+
+    /* ---------------------------------------------------------------- buttons */
+
+    .cf-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        padding: 0.55rem 1rem;
+        border-radius: 0.6rem;
+        border: 1px solid transparent;
+        font: inherit;
+        font-size: 0.88rem;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+        transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+        white-space: nowrap;
+    }
+
+    .cf-btn--primary { background: var(--brand); color: #fff; }
+    .cf-btn--primary:hover { background: var(--brand-dark); }
+
+    .cf-btn--secondary {
+        background: var(--surface);
+        color: var(--ink);
+        border-color: var(--line);
+        box-shadow: var(--shadow-sm);
+    }
+    .cf-btn--secondary:hover { background: var(--canvas); border-color: #cbd5e1; }
+
+    .cf-btn--ghost { background: transparent; color: var(--muted); }
+    .cf-btn--ghost:hover { background: var(--canvas); color: var(--ink); }
+
+    .cf-btn--danger { background: var(--danger); color: #fff; }
+    .cf-btn--danger:hover { background: #b91c1c; }
+
+    .cf-btn--sm { padding: 0.35rem 0.7rem; font-size: 0.8rem; border-radius: 0.5rem; }
+    .cf-btn--block { width: 100%; }
+
+    /* ---------------------------------------------------------------- forms */
+
+    .cf-field { margin-bottom: 1.05rem; }
+
+    .cf-label {
+        display: block;
+        font-size: 0.83rem;
+        font-weight: 600;
+        margin-bottom: 0.35rem;
+        color: #334155;
+    }
+
+    .cf-input,
+    .cf-select,
+    .cf-textarea {
+        width: 100%;
+        padding: 0.6rem 0.75rem;
+        border: 1px solid var(--line);
+        border-radius: 0.6rem;
+        background: var(--surface);
+        color: var(--ink);
+        font: inherit;
+        font-size: 0.92rem;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .cf-input::placeholder,
+    .cf-textarea::placeholder { color: #94a3b8; }
+
+    .cf-input:focus,
+    .cf-select:focus,
+    .cf-textarea:focus {
+        outline: none;
+        border-color: var(--brand);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 18%, transparent);
+    }
+
+    .cf-input[aria-invalid='true'] { border-color: var(--danger); }
+
+    .cf-textarea { min-height: 6.5rem; resize: vertical; }
+
+    .cf-hint { font-size: 0.78rem; color: var(--muted); margin-top: 0.3rem; }
+    .cf-error { font-size: 0.8rem; color: var(--danger); margin-top: 0.3rem; font-weight: 500; }
+
+    .cf-check {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.88rem;
+        color: #334155;
+    }
+
+    /* ---------------------------------------------------------------- alerts */
+
+    .cf-alert {
+        display: flex;
+        gap: 0.7rem;
+        align-items: flex-start;
+        padding: 0.8rem 1rem;
+        border-radius: 0.7rem;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        font-size: 0.88rem;
+        margin-bottom: 1rem;
+    }
+
+    .cf-alert--ok { background: var(--ok-bg); border-color: var(--ok-line); color: var(--ok-ink); }
+    .cf-alert--warn { background: var(--warn-bg); border-color: var(--warn-line); color: var(--warn-ink); }
+    .cf-alert--error { background: var(--danger-bg); border-color: var(--danger-line); color: #991b1b; }
+
+    .cf-alert ul { margin: 0.25rem 0 0; padding-left: 1.1rem; }
+
+    /* ---------------------------------------------------------------- tables */
+
+    .cf-table-wrap { overflow-x: auto; }
+
+    .cf-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+
+    .cf-table th {
+        text-align: left;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: var(--muted);
+        font-weight: 700;
+        padding: 0.7rem 1.1rem;
+        border-bottom: 1px solid var(--line);
+        background: var(--canvas);
+        white-space: nowrap;
+    }
+
+    .cf-table td {
+        padding: 0.75rem 1.1rem;
+        border-bottom: 1px solid var(--line);
+        vertical-align: middle;
+    }
+
+    .cf-table tbody tr:last-child td { border-bottom: 0; }
+    .cf-table tbody tr:hover { background: #fbfdff; }
+
+    /* ---------------------------------------------------------------- badges */
+
+    .cf-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.15rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.73rem;
+        font-weight: 650;
+        background: var(--canvas);
+        color: #475569;
+        border: 1px solid var(--line);
+        white-space: nowrap;
+    }
+
+    .cf-badge--brand { background: var(--brand-tint); color: var(--brand-dark); border-color: var(--color-brand-200); }
+    .cf-badge--ok { background: var(--ok-bg); color: var(--ok-ink); border-color: var(--ok-line); }
+    .cf-badge--warn { background: var(--warn-bg); color: var(--warn-ink); border-color: var(--warn-line); }
+    .cf-badge--danger { background: var(--danger-bg); color: #991b1b; border-color: var(--danger-line); }
+
+    /* ---------------------------------------------------------------- misc */
+
+    .cf-defs { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 0.45rem 1.1rem; font-size: 0.88rem; }
+    .cf-defs dt { color: var(--muted); }
+    .cf-defs dd { margin: 0; }
+
+    .cf-empty { text-align: center; padding: 2.6rem 1.4rem; }
+    .cf-empty__title { font-weight: 650; margin-bottom: 0.25rem; }
+
+    .cf-divider { height: 1px; background: var(--line); border: 0; margin: 1.4rem 0; }
+
+    /*
+     | Marketing component classes.
+     |
+     | The landing-page package defined these with Tailwind v3 `@apply`. They are
+     | written out as plain CSS here instead, for two reasons: `@apply` inside a v4
+     | `@layer components` block resolves against the v4 theme and would silently
+     | become a no-op for any utility the package assumed from its own v3 config;
+     | and the marketing pages, like the app pages, must still render sensibly if the
+     | compiled bundle is missing (see partials/theme.blade.php).
+     |
+     | Class names kept identical to the package so the ported Blade components
+     | need no edits beyond their layout utilities.
+     */
+
+    .cf-container {
+        margin-inline: auto;
+        width: 100%;
+        max-width: 80rem; /* matches the package's max-w-content: 1280px */
+        padding-inline: 1.5rem;
+    }
+
+    @media (min-width: 64rem) {
+        .cf-container { padding-inline: 2rem; }
+    }
+
+    .cf-marketing-eyebrow {
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--color-brand-blue);
+    }
+
+    .cf-btn-primary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        border-radius: 0.5rem;
+        background: var(--color-brand-blue);
+        padding: 0.75rem 1.25rem;
+        font: inherit;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #fff;
+        text-decoration: none;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+        white-space: nowrap;
+    }
+
+    .cf-btn-primary:hover { background: #0d5fd6; }
+
+    .cf-btn-secondary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        border-radius: 0.5rem;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        padding: 0.75rem 1.25rem;
+        font: inherit;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--ink);
+        text-decoration: none;
+        box-shadow: var(--shadow-sm);
+        cursor: pointer;
+        transition: border-color 0.15s ease, background-color 0.15s ease;
+        white-space: nowrap;
+    }
+
+    .cf-btn-secondary:hover { border-color: #cbd5e1; background: var(--canvas); }
+
+    .cf-btn-ghost-on-dark {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        border-radius: 0.5rem;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        padding: 0.75rem 1.25rem;
+        font: inherit;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #fff;
+        text-decoration: none;
+        background: transparent;
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+        white-space: nowrap;
+    }
+
+    .cf-btn-ghost-on-dark:hover { background: rgba(255, 255, 255, 0.1); }
+
+    /*
+     | NOTE: the landing package also ships a `.cf-card` using `@apply rounded-2xl
+     | border shadow-card`. That name COLLIDES with the app's own `.cf-card` defined
+     | earlier in this file (used by every dashboard/module page). The package's
+     | version is intentionally NOT ported — one `.cf-card`, owned by the app shell.
+     | Marketing sections use `.cf-mcard` instead.
+     */
+    .cf-mcard {
+        border-radius: 1rem;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        box-shadow: var(--shadow-card);
+    }
+
+    /* Skip link target for the marketing layout. */
+    .cf-sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    .cf-sr-only:focus {
+        position: static;
+        width: auto;
+        height: auto;
+        margin: 0;
+        overflow: visible;
+        clip: auto;
+        white-space: normal;
+    }
+
+    .cf-avatar {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 999px;
+        background: var(--brand-tint);
+        color: var(--brand-dark);
+        display: grid;
+        place-items: center;
+        font-size: 0.8rem;
+        font-weight: 700;
+        flex: none;
+    }
+
+    /* ---------------------------------------------------------------- auth */
+
+    .cf-auth {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 2rem 1rem 3rem;
+        background:
+            radial-gradient(60rem 30rem at 50% -10%, var(--brand-tint), transparent 70%),
+            var(--canvas);
+    }
+
+    .cf-auth__panel { width: 100%; max-width: 26.5rem; }
+
+    .cf-auth__brand {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+        margin-bottom: 1.3rem;
+        font-weight: 700;
+        font-size: 1.1rem;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+        text-decoration: none;
+    }
+
+    .cf-auth__footer { text-align: center; margin-top: 1.1rem; font-size: 0.88rem; color: var(--muted); }
+
+    /* ---------------------------------------------------------------- marketing */
+
+    .cf-hero {
+        position: relative;
+        overflow: hidden;
+        background:
+            radial-gradient(70rem 34rem at 15% -20%, #eef2ff, transparent 62%),
+            radial-gradient(50rem 26rem at 90% 0%, #fdf4ff, transparent 60%),
+            var(--surface);
+        border-bottom: 1px solid var(--line);
+    }
+
+    .cf-hero__inner {
+        max-width: 72rem;
+        margin: 0 auto;
+        padding: clamp(3rem, 7vw, 5.5rem) var(--shell-gutter) clamp(2.5rem, 5vw, 4rem);
+        display: grid;
+        gap: clamp(2rem, 5vw, 3.5rem);
+        grid-template-columns: 1fr;
+        align-items: center;
+    }
+
+    @media (min-width: 64rem) {
+        .cf-hero__inner { grid-template-columns: 1.05fr 0.95fr; }
+    }
+
+    .cf-hero__title {
+        font-size: clamp(2.1rem, 1.3rem + 3.4vw, 3.4rem);
+        letter-spacing: -0.035em;
+        line-height: 1.06;
+        font-weight: 700;
+    }
+
+    .cf-hero__lede {
+        font-size: clamp(1rem, 0.95rem + 0.35vw, 1.15rem);
+        color: #475569;
+        max-width: 34rem;
+    }
+
+    .cf-cta-row { display: flex; flex-wrap: wrap; gap: 0.7rem; align-items: center; }
+
+    .cf-hero__stats {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1.2rem;
+        margin: 2.4rem 0 0;
+    }
+
+    .cf-section { max-width: 72rem; margin: 0 auto; padding: clamp(2.6rem, 5vw, 4.5rem) var(--shell-gutter); }
+
+    .cf-section--tint { background: var(--surface); border-block: 1px solid var(--line); max-width: none; }
+    .cf-section--tint > * { max-width: 72rem; margin-inline: auto; }
+
+    .cf-section__head { max-width: 42rem; margin-bottom: 2.2rem; }
+
+    /* Feature grid */
+    .cf-feature {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-card);
+        padding: 1.4rem;
+        box-shadow: var(--shadow-sm);
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+        height: 100%;
+    }
+
+    .cf-feature__icon {
+        width: 2.3rem;
+        height: 2.3rem;
+        border-radius: 0.65rem;
+        background: var(--brand-tint);
+        color: var(--brand-dark);
+        display: grid;
+        place-items: center;
+        font-size: 1.05rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .cf-feature__title { font-weight: 650; font-size: 1rem; }
+    .cf-feature__body { font-size: 0.9rem; color: var(--muted); }
+
+    /* Marketing top bar */
+    .cf-mkbar {
+        position: sticky;
+        top: 0;
+        z-index: 30;
+        background: color-mix(in srgb, var(--surface) 85%, transparent);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid transparent;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .cf-mkbar.is-stuck { border-bottom-color: var(--line); box-shadow: var(--shadow-sm); }
+
+    .cf-mkbar__inner {
+        max-width: 72rem;
+        margin: 0 auto;
+        padding: 0.7rem var(--shell-gutter);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1.5rem;
+    }
+
+    .cf-mkbar__nav { display: none; gap: 1.5rem; align-items: center; }
+
+    @media (min-width: 56rem) { .cf-mkbar__nav { display: flex; } }
+
+    .cf-mkbar__link {
+        color: #475569;
+        text-decoration: none;
+        font-size: 0.88rem;
+        font-weight: 500;
+    }
+
+    .cf-mkbar__link:hover { color: var(--ink); }
+
+    /* Check list */
+    .cf-checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+
+    .cf-checks li {
+        display: grid;
+        grid-template-columns: 1.35rem minmax(0, 1fr);
+        gap: 0.65rem;
+        font-size: 0.9rem;
+        color: #334155;
+        align-items: start;
+    }
+
+    .cf-checks li::before {
+        content: '✓';
+        width: 1.35rem;
+        height: 1.35rem;
+        border-radius: 999px;
+        background: var(--ok-bg);
+        color: var(--ok-ink);
+        border: 1px solid var(--ok-line);
+        display: grid;
+        place-items: center;
+        font-size: 0.72rem;
+        font-weight: 700;
+        margin-top: 0.15rem;
+    }
+
+    /*
+     | The <span> wrapper is load-bearing: a bare <strong>/<em>/<code> inside a grid
+     | container becomes its OWN grid item, drops to the next implicit row, and lands
+     | in the 1.35rem tick column — rendering ~21px wide with words broken mid-glyph
+     | ("closed" squeezed onto its own line after "fails").
+     |
+     | It must be a real block, NOT `display: contents`: contents dissolves the box and
+     | hands its children straight back to the grid, reintroducing the exact bug it was
+     | added to prevent. This was verified in the browser, not assumed.
+     */
+    .cf-checks li > span { display: block; min-width: 0; }
+
+    /* Footer */
+    .cf-footer { background: var(--surface); border-top: 1px solid var(--line); }
+
+    .cf-footer__inner {
+        max-width: 72rem;
+        margin: 0 auto;
+        padding: 2.4rem var(--shell-gutter);
+        display: grid;
+        gap: 1.6rem;
+        grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+        font-size: 0.88rem;
+    }
+
+    .cf-footer__col h4 {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        margin-bottom: 0.6rem;
+    }
+
+    .cf-footer__col a { display: block; color: #475569; text-decoration: none; padding: 0.18rem 0; }
+    .cf-footer__col a:hover { color: var(--brand); }
+
+    .cf-footer__base {
+        border-top: 1px solid var(--line);
+        max-width: 72rem;
+        margin: 0 auto;
+        padding: 1rem var(--shell-gutter) 2rem;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 0.75rem;
+        font-size: 0.82rem;
+        color: var(--muted);
+    }
+
+    /* ---------------------------------------------------------------- responsive shell */
+
+    @media (max-width: 61.99rem) {
+        .cf-shell { grid-template-columns: 1fr; }
+
+        .cf-sidebar {
+            position: static;
+            height: auto;
+            flex-direction: row;
+            align-items: center;
+            gap: 0.3rem;
+            overflow-x: auto;
+            padding: 0.6rem 0.75rem;
+            border-right: 0;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .cf-sidebar__brand { padding: 0 0.5rem 0 0; }
+        .cf-sidebar__label { display: none; }
+        .cf-sidebar__group { margin-top: 0; display: flex; gap: 0.3rem; }
+        .cf-navlink { white-space: nowrap; }
+    }
+}
+
+/*
+ | ============================================================================
+ | MARKETING DESIGN SYSTEM  —  "ChurchFlow 2026"
+ | ============================================================================
+ | Additions for the public landing page. Kept in this file (not a second
+ | stylesheet) because every token here is consumed by the same compiled bundle
+ | as the app shell, and a duplicated colour is a colour that will disagree with
+ | itself. Everything is prefixed `mk-` so a marketing rule can never collide
+ | with an app-shell rule the way the package's `.cf-card` did.
+ |
+ | Colour story, read off the supplied ChurchFlow logo: deep navy wordmark, a
+ | royal-blue mark, and a green accent. Those three — navy / blue / green — are
+ | the whole palette. Nothing else is introduced, because a landing page that
+ | uses a fourth hue stops looking like one product.
+ */
+@theme {
+    /* Navies. 950 is the footer/CTA ground; 900 is the pricing panel. */
+    --color-navy: #0b2a5b;
+    --color-navy-600: #14407f;
+    --color-navy-700: #123a78;
+    --color-navy-800: #0b2a5b;
+    --color-navy-900: #081e42;
+    --color-navy-950: #061733;
+
+    /* Blues. 500 == the logo's blue exactly. */
+    --color-mk-blue-50: #eff6ff;
+    --color-mk-blue-100: #dbeafe;
+    --color-mk-blue-200: #bfdbfe;
+    --color-mk-blue-500: #1677ff;
+    --color-mk-blue-600: #0d5fd6;
+    --color-mk-blue-700: #0a4bab;
+
+    /* Greens. 500 == the logo's green exactly. */
+    --color-mk-green-50: #ecfdf5;
+    --color-mk-green-100: #d1fae5;
+    --color-mk-green-200: #a7f3d0;
+    --color-mk-green-500: #18b981;
+    --color-mk-green-600: #0e9c6a;
+    --color-mk-green-700: #047857;
+
+    /* Ink ramp. slate-* already exists in the default theme; these two are the
+       only bespoke greys the marketing copy needs. */
+    --color-mk-ink: #0f172a;
+    --color-mk-muted: #64748b;
+    --color-mk-line: #e6ecf4;
+
+    --shadow-mk-sm: 0 1px 2px rgba(11, 42, 91, 0.05);
+    --shadow-mk-md: 0 4px 16px -4px rgba(11, 42, 91, 0.1), 0 2px 6px -2px rgba(11, 42, 91, 0.05);
+    --shadow-mk-lg: 0 24px 60px -20px rgba(11, 42, 91, 0.28), 0 8px 24px -12px rgba(11, 42, 91, 0.14);
+    --shadow-mk-glow: 0 20px 45px -18px rgba(22, 119, 255, 0.55);
+
+    --radius-mk: 1rem;
+    --radius-mk-lg: 1.35rem;
+}@layer components {
+
+    /*
+     | ------------------------------------------------------------------ shell
+     | The marketing page is full-bleed with a centred content column. Using one
+     | container class everywhere (rather than Tailwind's max-w-6xl sprinkled per
+     | section) is what keeps the left edges of the nav, hero, every section and
+     | the footer on exactly the same vertical line — the single most visible
+     | difference between a page that looks designed and one that looks assembled.
+     */
+    .mk-shell {
+        width: 100%;
+        max-width: 76rem; /* 1216px content, ~min 1248 at 1440 viewport */
+        margin-inline: auto;
+        padding-inline: 1.25rem;
+    }
+
+    @media (min-width: 40rem) { .mk-shell { padding-inline: 2rem; } }
+    @media (min-width: 80rem) { .mk-shell { padding-inline: 2.5rem; } }
+
+    .mk-section { padding-block: clamp(3.5rem, 7vw, 6.5rem); }
+    .mk-section--tight { padding-block: clamp(2.5rem, 5vw, 4rem); }
+
+    /* Section heading block, capped at a comfortable measure. 42rem is roughly
+       65–70 characters at 1.0625rem — past that the eye loses the line start. */
+    .mk-head { max-width: 44rem; }
+    .mk-head--center { margin-inline: auto; text-align: center; }
+
+    .mk-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+        color: var(--color-mk-blue-500);
+    }
+
+    .mk-eyebrow::before {
+        content: '';
+        width: 1.4rem;
+        height: 2px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--color-mk-blue-500), var(--color-mk-green-500));
+    }
+
+    .mk-head--center .mk-eyebrow::before { display: none; }
+
+    .mk-h1 {
+        font-size: clamp(2.15rem, 1.25rem + 3.6vw, 3.65rem);
+        font-weight: 800;
+        line-height: 1.04;
+        letter-spacing: -0.035em;
+        color: var(--color-navy);
+        text-wrap: balance;
+    }
+
+    .mk-h2 {
+        font-size: clamp(1.7rem, 1.3rem + 1.7vw, 2.5rem);
+        font-weight: 800;
+        line-height: 1.12;
+        letter-spacing: -0.03em;
+        color: var(--color-navy);
+        text-wrap: balance;
+    }
+
+    .mk-h3 {
+        font-size: clamp(1.15rem, 1.05rem + 0.4vw, 1.4rem);
+        font-weight: 700;
+        line-height: 1.25;
+        letter-spacing: -0.02em;
+        color: var(--color-navy);
+    }
+
+    .mk-lede {
+        font-size: clamp(1.02rem, 0.98rem + 0.25vw, 1.15rem);
+        line-height: 1.65;
+        color: #556377;
+    }
+
+    .mk-body { font-size: 0.9375rem; line-height: 1.65; color: var(--color-mk-muted); }
+    .mk-small { font-size: 0.85rem; line-height: 1.6; }
+    .mk-tiny { font-size: 0.78rem; line-height: 1.55; }
+
+    /* Tabular figures for any column of numbers, so digits line up and a value
+       does not visibly jitter as it counts up. */
+    .mk-num { font-variant-numeric: tabular-nums; }
+
+    /*
+     | ------------------------------------------------------------------ brand
+     */
+    .cf-brandlogo {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        text-decoration: none;
+        flex: none;
+    }
+
+    .cf-brandlogo__text {
+        font-size: 1.28rem;
+        font-weight: 800;
+        letter-spacing: -0.035em;
+        color: var(--color-navy);
+        line-height: 1;
+        white-space: nowrap;
+    }
+
+    .cf-brandlogo__text--dark { color: #fff; }
+
+    /* The green half of the wordmark. This two-tone split is the identity. */
+    .cf-brandlogo__accent { color: var(--color-mk-green-500); }
+
+    /*
+     | ------------------------------------------------------------------ buttons
+     | Three intents only. Every CTA on the page is one of them, which is why the
+     | page reads as one product rather than eleven sections.
+     */
+    .mk-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        border-radius: 0.7rem;
+        border: 1px solid transparent;
+        padding: 0.7rem 1.25rem;
+        font: inherit;
+        font-size: 0.9rem;
+        font-weight: 650;
+        line-height: 1;
+        text-decoration: none;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background-color 0.18s ease, border-color 0.18s ease,
+            color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    }
+
+    .mk-btn:active { transform: translateY(1px); }
+
+    .mk-btn--primary {
+        background: var(--color-mk-blue-500);
+        color: #fff;
+        box-shadow: var(--shadow-mk-sm);
+    }
+    .mk-btn--primary:hover {
+        background: var(--color-mk-blue-600);
+        box-shadow: var(--shadow-mk-glow);
+        transform: translateY(-1px);
+    }
+
+    .mk-btn--secondary {
+        background: #fff;
+        color: var(--color-navy);
+        border-color: var(--color-mk-line);
+        box-shadow: var(--shadow-mk-sm);
+    }
+    .mk-btn--secondary:hover {
+        border-color: var(--color-mk-blue-200);
+        background: var(--color-mk-blue-50);
+        transform: translateY(-1px);
+    }
+
+    /* For use on the navy footer / gradient CTA band only. */
+    .mk-btn--on-dark {
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.28);
+    }
+    .mk-btn--on-dark:hover { background: rgba(255, 255, 255, 0.16); }
+
+    .mk-btn--white { background: #fff; color: var(--color-navy); }
+    .mk-btn--white:hover { background: #fff; box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.4); transform: translateY(-1px); }
+
+    .mk-btn--lg { padding: 0.9rem 1.6rem; font-size: 0.97rem; border-radius: 0.8rem; }
+    .mk-btn--block { width: 100%; }
+
+    /* Text link with an arrow that nudges on hover. */
+    .mk-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.9rem;
+        font-weight: 650;
+        color: var(--color-mk-blue-500);
+        text-decoration: none;
+    }
+    .mk-link svg { transition: transform 0.18s ease; }
+    .mk-link:hover svg { transform: translateX(3px); }
+
+    /*
+     | ------------------------------------------------------------------ cards
+     */
+    .mk-card {
+        position: relative;
+        border-radius: var(--radius-mk);
+        border: 1px solid var(--color-mk-line);
+        background: #fff;
+        box-shadow: var(--shadow-mk-sm);
+    }
+
+    /* Interaction is opt-in: a card that lifts must also be a card that is
+       clickable, otherwise the lift promises an action that does not exist. */
+    .mk-card--interactive {
+        transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+    }
+    .mk-card--interactive:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-mk-lg);
+        border-color: var(--color-mk-blue-200);
+    }
+
+    .mk-card--pad { padding: clamp(1.25rem, 2.5vw, 1.75rem); }
+
+    /* Circular icon container, the recurring shape in the reference design. */
+    .mk-icon {
+        display: grid;
+        place-items: center;
+        width: 3rem;
+        height: 3rem;
+        border-radius: 999px;
+        flex: none;
+        transition: transform 0.22s ease;
+    }
+
+    .mk-card--interactive:hover .mk-icon { transform: scale(1.08); }
+
+    .mk-icon--sm { width: 2.35rem; height: 2.35rem; }
+
+    /* Tones. Each is a solid tint — deliberately NOT a gradient per card, because
+       eight different gradients in one grid reads as decoration, not system. */
+    .mk-tone--blue { background: var(--color-mk-blue-50); color: var(--color-mk-blue-500); }
+    .mk-tone--green { background: var(--color-mk-green-50); color: var(--color-mk-green-600); }
+    .mk-tone--violet { background: #f5f3ff; color: #7c3aed; }
+    .mk-tone--amber { background: #fffbeb; color: #d97706; }
+    .mk-tone--rose { background: #fff1f2; color: #e11d48; }
+
+    /*
+     | ------------------------------------------------------------------ fields
+     */
+    .mk-field { margin-bottom: 1rem; }
+
+    .mk-label {
+        display: block;
+        font-size: 0.82rem;
+        font-weight: 650;
+        margin-bottom: 0.35rem;
+        color: #334155;
+    }
+
+    .mk-input,
+    .mk-select,
+    .mk-textarea {
+        width: 100%;
+        padding: 0.65rem 0.8rem;
+        border: 1px solid var(--color-mk-line);
+        border-radius: 0.65rem;
+        background: #fff;
+        color: var(--color-mk-ink);
+        font: inherit;
+        font-size: 0.92rem;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .mk-input:focus,
+    .mk-select:focus,
+    .mk-textarea:focus {
+        outline: none;
+        border-color: var(--color-mk-blue-500);
+        box-shadow: 0 0 0 3px rgba(22, 119, 255, 0.16);
+    }
+
+    .mk-textarea { min-height: 7rem; resize: vertical; }
+
+    .mk-error {
+        font-size: 0.79rem;
+        font-weight: 600;
+        color: #dc2626;
+        margin-top: 0.3rem;
+    }
+
+    /*
+     | ------------------------------------------------------------------ alerts
+     */
+    .mk-alert {
+        display: flex;
+        gap: 0.7rem;
+        align-items: flex-start;
+        padding: 0.85rem 1rem;
+        border-radius: 0.75rem;
+        border: 1px solid var(--color-mk-line);
+        background: #fff;
+        font-size: 0.88rem;
+        line-height: 1.55;
+    }
+
+    .mk-alert--ok { background: var(--color-mk-green-50); border-color: var(--color-mk-green-200); color: #065f46; }
+    .mk-alert--info { background: var(--color-mk-blue-50); border-color: var(--color-mk-blue-200); color: #1e40af; }
+    .mk-alert--warn { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+}@layer components {
+
+    /*
+     | ------------------------------------------------------------------ mockups
+     | The dashboard and phone previews. These are deliberately NOT screenshots:
+     | real markup means they reflow on a phone, stay sharp on any display, are
+     | readable by a screen reader, and can be swapped to live tenant data later
+     | without re-exporting an image.
+     |
+     | They are decorative on the landing page, so the whole block is hidden from
+     | assistive technology via aria-hidden — but only because the SAME
+     | information is available as text in the feature explorer further down the
+     | page. Hiding it here without exposing it there would remove real content.
+     */
+    .mk-app {
+        border-radius: var(--radius-mk-lg);
+        border: 1px solid var(--color-mk-line);
+        background: #fff;
+        box-shadow: var(--shadow-mk-lg);
+        overflow: hidden;
+    }
+
+    .mk-app__bar {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.7rem 0.9rem;
+        border-bottom: 1px solid var(--color-mk-line);
+        background: #fbfcfe;
+    }
+
+    .mk-app__dot {
+        width: 0.55rem;
+        height: 0.55rem;
+        border-radius: 999px;
+        background: #dbe3ee;
+        flex: none;
+    }
+
+    .mk-app__body {
+        display: grid;
+        grid-template-columns: 1fr; /* single column until the sidebar fits */
+    }
+
+    @media (min-width: 30rem) {
+        .mk-app__body { grid-template-columns: 8.25rem minmax(0, 1fr); }
+    }
+
+    @media (min-width: 64rem) {
+        .mk-app__body { grid-template-columns: 10rem minmax(0, 1fr); }
+    }
+
+    .mk-app__side {
+        display: none;
+        flex-direction: column;
+        gap: 0.15rem;
+        padding: 0.7rem 0.6rem;
+        border-right: 1px solid var(--color-mk-line);
+        background: #fcfdff;
+    }
+
+    @media (min-width: 30rem) { .mk-app__side { display: flex; } }
+
+    .mk-app__nav {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.42rem 0.55rem;
+        border-radius: 0.5rem;
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: #64748b;
+        line-height: 1.2;
+    }
+
+    .mk-app__nav--active {
+        background: var(--color-mk-blue-500);
+        color: #fff;
+        box-shadow: 0 6px 14px -8px rgba(22, 119, 255, 0.9);
+    }
+
+    .mk-app__main { padding: 0.9rem; min-width: 0; }
+
+    @media (min-width: 40rem) { .mk-app__main { padding: 1.15rem; } }
+
+    /* Stat tiles inside the mock. Two-up always: four of these in a row inside a
+       half-width hero column leaves each one about 60px wide on a laptop. */
+    .mk-tile {
+        border-radius: 0.75rem;
+        padding: 0.6rem 0.7rem;
+        border: 1px solid transparent;
+        min-width: 0;
+    }
+
+    .mk-tile--blue { background: var(--color-mk-blue-50); }
+    .mk-tile--green { background: var(--color-mk-green-50); }
+    .mk-tile--plain { background: #f8fafc; border-color: var(--color-mk-line); }
+
+    .mk-tile__label {
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #7c8798;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .mk-tile__value {
+        font-size: 1.02rem;
+        font-weight: 800;
+        color: var(--color-navy);
+        letter-spacing: -0.02em;
+        line-height: 1.2;
+        margin-top: 0.15rem;
+    }
+
+    /* Paired bars: income (blue→green) against expense (grey). A single-colour
+       bar chart shows a trend; two series show the gap, which is the thing a
+       treasurer actually reads. */
+    .mk-bars {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(0, 1fr);
+        gap: 0.35rem;
+        align-items: end;
+        height: 3.9rem;
+    }
+
+    .mk-bars__pair {
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 0.16rem;
+        height: 100%;
+    }
+
+    .mk-bars__bar {
+        width: 0.42rem;
+        border-radius: 999px 999px 2px 2px;
+        min-height: 0.25rem;
+        transform-origin: bottom;
+    }
+
+    .mk-bars__bar--income { background: linear-gradient(180deg, var(--color-mk-green-500), var(--color-mk-blue-500)); }
+    .mk-bars__bar--expense { background: #d7e0ec; }
+
+    /*
+     | Phone mockup. Absolutely positioned against the dashboard, and only from
+     | the lg breakpoint — below that there is no room beside the dashboard for it
+     | and it would land on top of the stat tiles.
+     */
+    .mk-phone {
+        display: none;
+    }
+
+    @media (min-width: 64rem) {
+        .mk-phone {
+            display: block;
+            position: absolute;
+            left: -2.6rem;
+            bottom: -2.4rem;
+            width: 10.5rem;
+            z-index: 20;
+            border-radius: 1.5rem;
+            border: 6px solid var(--color-navy-900);
+            background: #fff;
+            box-shadow: var(--shadow-mk-lg);
+            overflow: hidden;
+        }
+
+        .mk-phone__notch {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 3.2rem;
+            height: 0.85rem;
+            background: var(--color-navy-900);
+            border-radius: 0 0 0.6rem 0.6rem;
+            z-index: 2;
+        }
+    }
+
+    /*
+     | ------------------------------------------------------------------ explorer
+     | Tabs + panel for the interactive product education section.
+     */
+    .mk-tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.5rem 0.9rem;
+        border-radius: 999px;
+        border: 1px solid var(--color-mk-line);
+        background: #fff;
+        font: inherit;
+        font-size: 0.82rem;
+        font-weight: 650;
+        color: #475569;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background-color 0.16s ease, color 0.16s ease,
+            border-color 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .mk-tab:hover { border-color: var(--color-mk-blue-200); color: var(--color-navy); }
+
+    /* The active state is driven by Alpine binding aria-selected, so it is styled
+       from [aria-selected] rather than a second class — one source of truth for
+       "which tab is selected", visible to both CSS and assistive tech. */
+    .mk-tab[aria-selected='true'] {
+        background: var(--color-navy);
+        border-color: var(--color-navy);
+        color: #fff;
+        box-shadow: var(--shadow-mk-sm);
+    }
+
+    .mk-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+
+    .mk-table th {
+        text-align: left;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #8492a6;
+        padding: 0.55rem 0.75rem;
+        border-bottom: 1px solid var(--color-mk-line);
+        white-space: nowrap;
+    }
+
+    .mk-table td {
+        padding: 0.7rem 0.75rem;
+        border-bottom: 1px solid var(--color-mk-line);
+        color: #334155;
+        vertical-align: middle;
+    }
+
+    .mk-table tbody tr:last-child td { border-bottom: 0; }
+    .mk-table tbody tr:hover { background: #fafcff; }
+
+    /*
+     | ------------------------------------------------------------------ steps
+     | Numbered onboarding cards joined by a connector rule on wide screens. The
+     | connector is a border on a pseudo-element rather than a real <hr>, so it
+     | can be removed at the breakpoint where the cards stack without leaving a
+     | stray line behind.
+     */
+    .mk-step {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    @media (min-width: 64rem) {
+        .mk-step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 1.5rem;
+            left: calc(100% - 0.5rem);
+            width: calc(100% - 2.6rem);
+            height: 2px;
+            border-radius: 999px;
+            background-image: linear-gradient(90deg, var(--color-mk-line) 55%, transparent 0);
+            background-size: 12px 2px;
+            background-repeat: repeat-x;
+        }
+    }
+
+    /*
+     | ------------------------------------------------------------------ checks
+     */
+    .mk-checks {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 0.55rem;
+    }
+
+    .mk-checks li {
+        display: grid;
+        grid-template-columns: 1.2rem minmax(0, 1fr);
+        gap: 0.6rem;
+        align-items: start;
+        font-size: 0.88rem;
+        line-height: 1.55;
+    }
+
+    /* The tick is a pseudo-element in the first grid column, so the text stays a
+       single grid item. A bare <strong> inside the <li> would become its own grid
+       item, drop into the 1.2rem tick column and render one word per line. */
+    .mk-checks li::before {
+        content: '';
+        width: 1.2rem;
+        height: 1.2rem;
+        margin-top: 0.15rem;
+        border-radius: 999px;
+        background-color: var(--color-mk-green-100);
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23047857' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
+        background-size: 0.8rem 0.8rem;
+        background-position: center;
+        background-repeat: no-repeat;
+    }
+
+    .mk-checks--on-dark li::before {
+        background-color: rgba(24, 185, 129, 0.2);
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236ee7b7' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
+    }
+
+    /*
+     | ------------------------------------------------------------------ misc
+     */
+    .mk-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.2rem 0.6rem;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        border: 1px solid var(--color-mk-line);
+        background: #fff;
+        color: #475569;
+        white-space: nowrap;
+    }
+
+    .mk-badge--blue { background: var(--color-mk-blue-50); border-color: var(--color-mk-blue-200); color: var(--color-mk-blue-700); }
+    .mk-badge--green { background: var(--color-mk-green-50); border-color: var(--color-mk-green-200); color: var(--color-mk-green-700); }
+
+    /* Status chips inside the sample tables. */
+    .mk-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.15rem 0.5rem;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        font-weight: 650;
+        background: #f1f5f9;
+        color: #475569;
+        white-space: nowrap;
+    }
+
+    .mk-chip--ok { background: var(--color-mk-green-50); color: var(--color-mk-green-700); }
+    .mk-chip--warn { background: #fffbeb; color: #92400e; }
+    .mk-chip--info { background: var(--color-mk-blue-50); color: var(--color-mk-blue-700); }
+
+    /* Gradient band used by the final CTA and the pricing panel. */
+    .mk-gradient {
+        background:
+            radial-gradient(38rem 24rem at 12% -20%, rgba(22, 119, 255, 0.55), transparent 62%),
+            radial-gradient(34rem 22rem at 88% 120%, rgba(24, 185, 129, 0.5), transparent 60%),
+            var(--color-navy-900);
+    }
+
+    .mk-panel-dark {
+        border-radius: var(--radius-mk-lg);
+        background:
+            radial-gradient(30rem 20rem at 100% 0%, rgba(22, 119, 255, 0.35), transparent 60%),
+            var(--color-navy-900);
+        color: #fff;
+    }
+
+    /* Hairline divider that is visible on navy. */
+    .mk-rule-dark { border-top: 1px solid rgba(255, 255, 255, 0.12); }
+}/*
+ | ============================================================================
+ | MARKETING MOTION
+ | ============================================================================
+ | Out of @layer so the keyframes and the reduced-motion override are never
+ | reordered against the component rules they gated. The override also has to
+ | beat utility classes (`animate-*`, `transition-*`), which means it needs to
+ | sit outside a layer — layered rules lose to unlayered ones regardless of
+ | specificity, so a reduced-motion block inside @layer components would be
+ | silently defeated by a Tailwind `transition` utility on the same element.
+ |
+ | Everything here is short (≤ 700ms) and one-shot. Nothing loops, nothing
+ | parallaxes, nothing moves under the cursor. A visitor should notice the page
+ | settling into place, not the animation.
+ */
+
+@keyframes mk-rise {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes mk-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes mk-scale-in {
+    from { opacity: 0; transform: translateY(20px) scale(0.98); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes mk-bar-grow {
+    from { transform: scaleY(0.04); }
+    to { transform: scaleY(1); }
+}
+
+@keyframes mk-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+
+@keyframes mk-pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.45; transform: scale(0.82); }
+}
+
+/*
+ | Scroll reveal.
+ |
+ | Progressive enhancement, and this is the important part: the elements are
+ | VISIBLE by default and only hidden once `js-reveal` is set on <html> by an
+ | inline script in the layout. If JavaScript fails, is blocked, or the bundle
+ | 404s, nothing is hidden and the page still reads completely — the failure mode
+ | of the usual `.reveal { opacity: 0 }` approach is a blank landing page, which
+ | is a catastrophic outcome for a marketing site held together by one script tag.
+ */
+.js-reveal [data-reveal] {
+    opacity: 0;
+    will-change: opacity, transform;
+}
+
+.js-reveal [data-reveal].is-revealed {
+    animation: mk-rise 0.62s cubic-bezier(0.22, 0.68, 0.36, 1) forwards;
+}
+
+.js-reveal [data-reveal='scale'] { transform: translateY(20px) scale(0.98); }
+.js-reveal [data-reveal='scale'].is-revealed { animation-name: mk-scale-in; }
+
+.js-reveal [data-reveal='fade'].is-revealed { animation-name: mk-fade; }
+
+/* Stagger. Applied via inline --reveal-delay so the component decides its own
+   cadence and this file does not need a rule per use. */
+.js-reveal [data-reveal].is-revealed {
+    animation-delay: var(--reveal-delay, 0ms);
+}
+
+.mk-anim-float { animation: mk-float 6s ease-in-out infinite; }
+.mk-anim-pulse { animation: mk-pulse-dot 2.4s ease-in-out infinite; }
+
+/* Bars grow from the baseline when their reveal fires. Delay tracks --reveal-delay
+   so the chart reads left-to-right rather than all at once. */
+.is-revealed .mk-bars__bar {
+    animation: mk-bar-grow 0.7s cubic-bezier(0.22, 0.68, 0.36, 1) backwards;
+    animation-delay: var(--bar-delay, 0ms);
+}
+
+/*
+ | Reduced motion. One switch, not a per-component opt-out, because an animation
+ | added later should be covered automatically rather than relying on someone
+ | remembering to add a media query.
+ |
+ | animation: none rather than a 0.001ms duration: a near-zero animation still
+ | fires animationstart/animationend and still reserves a compositing layer, and
+ | it can flash the pre-animation state for a frame. Also, crucially, it pairs
+ | with the rule below that forces revealed elements to their final state, so a
+ | reduced-motion visitor sees the finished page immediately instead of an
+ | invisible one.
+ */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    .js-reveal [data-reveal],
+    .js-reveal [data-reveal].is-revealed {
+        opacity: 1 !important;
+        transform: none !important;
+        animation: none !important;
+    }
+
+    .mk-anim-float,
+    .mk-anim-pulse { animation: none !important; }
+
+    /* Keep the chart bars at full height: without this they stay at their
+       scaleY(0.04) start value, because the grow animation that would have
+       restored them is now suppressed. */
+    .mk-bars__bar { transform: none !important; }
+}
+
+/*
+ | Print / Save as PDF.
+ |
+ | The reveal animation is suppressed entirely on paper. Without this, every
+ | section that had not scrolled into view is captured at opacity 0 and the PDF
+ | is blank between sections — which is exactly the bug the sweep() fallback in
+ | app.js also guards against, repeated here because a stylesheet rule is the
+ | only guard that survives the print pipeline re-rendering the page.
+ */
+@media print {
+    .js-reveal [data-reveal],
+    .js-reveal [data-reveal].is-revealed {
+        opacity: 1 !important;
+        transform: none !important;
+        animation: none !important;
+    }
+
+    .mk-nav { position: static; }
+    .mk-phone, .mk-anim-float, .mk-anim-pulse { display: none !important; }
+
+    .mk-hero, .mk-section, .mk-section--tint { break-inside: avoid; }
+}
+
+/*
+ | ------------------------------------------------------------------ a11y
+ | The skip link. Previously styled with Tailwind's focus:not-sr-only, which
+ | depends on the utility compiling — if it does not, the link is either
+ | permanently visible or permanently invisible. Plain CSS is legible here and
+ | does not depend on the build.
+ */
+.cf-skip {
+    position: absolute;
+    left: -9999px;
+    top: auto;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    z-index: 100;
+}
+
+.cf-skip:focus {
+    left: 1rem;
+    top: 1rem;
+    width: auto;
+    height: auto;
+    padding: 0.65rem 1rem;
+    border-radius: 0.6rem;
+    background: var(--color-navy-900);
+    color: #fff;
+    font-size: 0.88rem;
+    font-weight: 650;
+    text-decoration: none;
+    box-shadow: var(--shadow-mk-lg);
+}
+
+/* Off-screen but still announced. Used for the expandable mobile menu. */
+.cf-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* A sticky header that a keyboard user tabs into must not hide the focused row
+   underneath itself. Pair with html's scroll-padding-top below. */
+html { scroll-padding-top: 5.5rem; }
+
+/*
+ | Native <details> disclosure used for the FAQ. Styled rather than replaced with
+ | JS so the answers work with scripting off and match the browser's built-in
+ | keyboard and find-in-page behaviour.
+ */
+.mk-faq > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.15rem;
+    cursor: pointer;
+    font-weight: 650;
+    font-size: 0.95rem;
+    color: var(--color-navy);
+    list-style: none;
+}
+
+.mk-faq > summary::-webkit-details-marker { display: none; }
+
+.mk-faq > summary::after {
+    content: '';
+    flex: none;
+    width: 1.1rem;
+    height: 1.1rem;
+    border-radius: 999px;
+    background-color: var(--color-mk-blue-50);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231677ff' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-size: 0.7rem 0.7rem;
+    background-position: center;
+    background-repeat: no-repeat;
+    transition: transform 0.2s ease;
+}
+
+.mk-faq[open] > summary::after { transform: rotate(180deg); }
+
+.mk-faq > summary:hover { background: #fafcff; }
+
+.mk-faq__body {
+    padding: 0 1.15rem 1.15rem;
+    font-size: 0.9rem;
+    line-height: 1.65;
+    color: var(--color-mk-muted);
+}@layer components {
+
+    /*
+     | ------------------------------------------------------------------ navbar
+     | Sticky, translucent, and 4.5rem tall — the height is a contract, because
+     | html { scroll-padding-top: 5.5rem } offsets in-page anchors by it. If the
+     | bar's height changes, that offset must change with it or every #anchor on
+     | the page lands underneath the bar.
+     */
+    .mk-nav {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        border-bottom: 1px solid transparent;
+        background: rgba(255, 255, 255, 0.82);
+        backdrop-filter: blur(14px) saturate(180%);
+        -webkit-backdrop-filter: blur(14px) saturate(180%);
+        transition: border-color 0.22s ease, box-shadow 0.22s ease, background-color 0.22s ease;
+    }
+
+    /* Set by Alpine once window.scrollY passes 12px, so the bar only gains a
+       border and shadow once it is actually floating over content. */
+    .mk-nav.is-stuck {
+        border-bottom-color: var(--color-mk-line);
+        box-shadow: 0 6px 24px -18px rgba(11, 42, 91, 0.5);
+        background: rgba(255, 255, 255, 0.94);
+    }
+
+    .mk-nav__inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        height: 4.5rem;
+    }
+
+    .mk-nav__links {
+        display: none;
+        align-items: center;
+        gap: 0.15rem;
+        flex: 1;
+        justify-content: center;
+    }
+
+    @media (min-width: 62rem) { .mk-nav__links { display: flex; } }
+
+    .mk-nav__link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.45rem 0.7rem;
+        border-radius: 0.55rem;
+        font-size: 0.88rem;
+        font-weight: 550;
+        color: #475569;
+        text-decoration: none;
+        background: transparent;
+        border: 0;
+        font-family: inherit;
+        line-height: 1.2;
+        cursor: pointer;
+        transition: color 0.16s ease, background-color 0.16s ease;
+    }
+
+    .mk-nav__link:hover { color: var(--color-navy); background: var(--color-mk-blue-50); }
+
+    /* Semibold + navy + a tinted pill. Three cues for "you are here", because on
+       a white bar a colour change alone is easy to miss. */
+    .mk-nav__link.is-current {
+        color: var(--color-navy);
+        font-weight: 700;
+        background: var(--color-mk-blue-50);
+    }
+
+    .mk-nav__link--btn { font-size: 0.88rem; }
+
+    .mk-nav__chev {
+        width: 0.9rem;
+        height: 0.9rem;
+        transition: transform 0.2s ease;
+    }
+
+    .mk-nav__chev.is-open { transform: rotate(180deg); }
+
+    .mk-nav__menu { position: relative; }
+
+    .mk-nav__dropdown {
+        position: absolute;
+        top: calc(100% + 0.4rem);
+        left: 50%;
+        transform: translateX(-50%);
+        width: 19rem;
+        padding: 0.4rem;
+        border-radius: 0.9rem;
+        border: 1px solid var(--color-mk-line);
+        background: #fff;
+        box-shadow: var(--shadow-mk-lg);
+        z-index: 60;
+    }
+
+    .mk-nav__dropitem {
+        display: block;
+        padding: 0.55rem 0.7rem;
+        border-radius: 0.6rem;
+        text-decoration: none;
+        transition: background-color 0.15s ease;
+    }
+
+    .mk-nav__dropitem:hover { background: var(--color-mk-blue-50); }
+
+    .mk-nav__droptitle {
+        display: block;
+        font-size: 0.86rem;
+        font-weight: 650;
+        color: var(--color-navy);
+    }
+
+    .mk-nav__dropdesc {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--color-mk-muted);
+        margin-top: 0.05rem;
+    }
+
+    .mk-nav__actions {
+        display: none;
+        align-items: center;
+        gap: 0.75rem;
+        flex: none;
+    }
+
+    @media (min-width: 62rem) { .mk-nav__actions { display: flex; } }
+
+    .mk-nav__burger {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5rem;
+        border-radius: 0.6rem;
+        border: 1px solid var(--color-mk-line);
+        background: #fff;
+        color: var(--color-navy);
+        cursor: pointer;
+    }
+
+    .mk-nav__burger:hover { background: var(--color-mk-blue-50); border-color: var(--color-mk-blue-200); }
+
+    @media (min-width: 62rem) { .mk-nav__burger { display: none; } }
+
+    .mk-nav__drawer {
+        border-top: 1px solid var(--color-mk-line);
+        background: #fff;
+        box-shadow: var(--shadow-mk-lg);
+        max-height: calc(100vh - 4.5rem);
+        overflow-y: auto;
+    }
+
+    @media (min-width: 62rem) { .mk-nav__drawer { display: none !important; } }
+
+    .mk-nav__drawerinner {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+        padding-block: 0.85rem 1.2rem;
+    }
+
+    .mk-nav__drawerlink {
+        padding: 0.6rem 0.7rem;
+        border-radius: 0.6rem;
+        font-size: 0.92rem;
+        font-weight: 600;
+        color: var(--color-navy);
+        text-decoration: none;
+    }
+
+    .mk-nav__drawerlink:hover { background: var(--color-mk-blue-50); }
+
+    .mk-nav__drawerlink--sub {
+        font-weight: 500;
+        font-size: 0.88rem;
+        color: #475569;
+        padding-left: 1.4rem;
+    }
+    .mk-nav__drawerhead {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: #94a3b8;
+        padding: 0.85rem 0.7rem 0.25rem;
+    }
+
+    .mk-nav__draweractions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 0.9rem;
+        padding-top: 0.9rem;
+        border-top: 1px solid var(--color-mk-line);
+    }
+
+    /*
+     | The nav sits on a translucent white plate. The hero behind it is a very
+     | light blue→white gradient, so contrast is comfortable; the footer and
+     | gradient CTA bands are navy but sit well below the fold.
+     */
+    .mk-page {
+        background: #fff;
+        color: var(--color-mk-ink);
+        overflow-x: hidden; /* belt and braces against a stray -z-10 blob */
+    }
+}@layer components {
+
+    /*
+     | ------------------------------------------------------------------ hero
+     */
+    .mk-hero {
+        position: relative;
+        isolation: isolate;
+        overflow: hidden;
+        padding-block: clamp(2.75rem, 6vw, 5rem) clamp(3rem, 6vw, 5.5rem);
+        background: linear-gradient(180deg, #f2f7ff 0%, #f7fbff 45%, #ffffff 100%);
+        border-bottom: 1px solid var(--color-mk-line);
+    }
+
+    .mk-hero__bg {
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+        overflow: hidden;
+    }
+
+    .mk-hero__blob {
+        position: absolute;
+        border-radius: 999px;
+        filter: blur(70px);
+    }
+
+    .mk-hero__blob--blue {
+        width: 34rem;
+        height: 34rem;
+        top: -12rem;
+        left: -10rem;
+        background: rgba(22, 119, 255, 0.16);
+    }
+
+    .mk-hero__blob--green {
+        width: 30rem;
+        height: 30rem;
+        top: 2rem;
+        right: -12rem;
+        background: rgba(24, 185, 129, 0.14);
+    }
+
+    /* A very faint dot grid. It gives the flat tint some texture and, more
+       usefully, makes the dashboard's shadow read as elevation rather than as a
+       smudge — a shadow needs a surface behind it to be a shadow of. */
+    .mk-hero__grid {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(rgba(11, 42, 91, 0.07) 1px, transparent 1px);
+        background-size: 22px 22px;
+        mask-image: radial-gradient(60rem 34rem at 40% 0%, #000 20%, transparent 72%);
+        -webkit-mask-image: radial-gradient(60rem 34rem at 40% 0%, #000 20%, transparent 72%);
+    }
+
+    .mk-hero__inner {
+        display: grid;
+        gap: clamp(2.5rem, 5vw, 3.5rem);
+        grid-template-columns: 1fr;
+        align-items: center;
+    }
+
+    @media (min-width: 64rem) {
+        .mk-hero__inner { grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); }
+    }
+
+    .mk-hero__copy { max-width: 36rem; }
+
+    .mk-hero__badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0.85rem 0.4rem 0.6rem;
+        border-radius: 999px;
+        border: 1px solid var(--color-mk-blue-200);
+        background: rgba(255, 255, 255, 0.85);
+        font-size: 0.76rem;
+        font-weight: 650;
+        color: var(--color-mk-blue-700);
+        box-shadow: var(--shadow-mk-sm);
+    }
+
+    .mk-hero__badgedot {
+        width: 0.45rem;
+        height: 0.45rem;
+        border-radius: 999px;
+        background: var(--color-mk-green-500);
+        box-shadow: 0 0 0 3px rgba(24, 185, 129, 0.18);
+        flex: none;
+    }
+
+    .mk-hero__title { margin-top: 1.15rem; }
+
+    /* The second sentence is the emphasis in the reference. Green rather than
+       blue, because the headline above it is already navy and a blue-on-navy
+       emphasis disappears; green is the third brand colour and it pops. */
+    .mk-hero__accent {
+        display: block;
+        color: var(--color-mk-green-500);
+    }
+
+    .mk-hero__lede { margin-top: 1.15rem; }
+
+    .mk-hero__ctas {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+        margin-top: 1.75rem;
+    }
+
+    @media (min-width: 30rem) {
+        .mk-hero__ctas { flex-direction: row; align-items: center; }
+    }
+
+    /* States the commercial model in one line, right under the primary CTA. The
+       brief is explicit that this must not read as free-to-start, and saying so
+       up front is better than a surprised visitor at the payment step. */
+    .mk-hero__micro {
+        margin-top: 0.9rem;
+        font-size: 0.8rem;
+        color: var(--color-mk-muted);
+    }
+
+    .mk-hero__microlink {
+        color: var(--color-mk-blue-500);
+        font-weight: 650;
+        text-decoration: none;
+        border-bottom: 1px solid rgba(22, 119, 255, 0.3);
+    }
+
+    .mk-hero__microlink:hover { border-bottom-color: var(--color-mk-blue-500); }
+
+    .mk-hero__benefits {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1rem;
+        margin: 2.25rem 0 0;
+        padding-top: 1.5rem;
+        border-top: 1px solid rgba(11, 42, 91, 0.08);
+    }
+
+    @media (min-width: 34rem) { .mk-hero__benefits { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.25rem; } }
+
+    .mk-hero__benefit {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.6rem;
+        min-width: 0;
+    }
+
+    .mk-hero__benefiticon {
+        display: grid;
+        place-items: center;
+        width: 1.9rem;
+        height: 1.9rem;
+        border-radius: 0.55rem;
+        background: #fff;
+        border: 1px solid var(--color-mk-line);
+        color: var(--color-mk-blue-500);
+        flex: none;
+        box-shadow: var(--shadow-mk-sm);
+    }
+
+    .mk-hero__benefittitle {
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--color-navy);
+        line-height: 1.3;
+    }
+
+    .mk-hero__benefittext {
+        font-size: 0.78rem;
+        color: var(--color-mk-muted);
+        line-height: 1.45;
+        margin: 0.05rem 0 0;
+    }
+
+    /*
+     | ------------------------------------------------------- dashboard mockup
+     */
+    .mk-hero__visual { position: relative; }
+
+    .mk-app__url {
+        margin-left: 0.5rem;
+        font-size: 0.68rem;
+        color: #9aa7b8;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .mk-app__live {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        font-size: 0.63rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--color-mk-green-600);
+    }
+
+    .mk-app__livedot {
+        width: 0.4rem;
+        height: 0.4rem;
+        border-radius: 999px;
+        background: var(--color-mk-green-500);
+        flex: none;
+    }
+
+    .mk-app__sidelogo {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.15rem 0.55rem 0.6rem;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        color: var(--color-navy);
+        white-space: nowrap;
+    }
+
+    .mk-app__head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 0.85rem;
+    }
+
+    .mk-app__greeting {
+        font-size: 0.83rem;
+        font-weight: 700;
+        color: var(--color-navy);
+        line-height: 1.3;
+    }
+
+    .mk-app__sub {
+        font-size: 0.68rem;
+        color: #8b97a8;
+        margin-top: 0.1rem;
+        line-height: 1.4;
+    }
+
+    .mk-app__avatar {
+        display: grid;
+        place-items: center;
+        width: 1.7rem;
+        height: 1.7rem;
+        border-radius: 999px;
+        background: var(--color-navy);
+        color: #fff;
+        font-size: 0.6rem;
+        font-weight: 700;
+        flex: none;
+    }
+
+    /* Two-up always. Four tiles across the inside of a half-width hero column
+       leaves each one ~60px wide at 1024px, which truncates "Expenses" to "Ex…". */
+    .mk-app__tiles {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.5rem;
+    }
+
+    .mk-tile__top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.35rem;
+    }
+
+    .mk-tile__icon {
+        width: 0.8rem;
+        height: 0.8rem;
+        color: #a9b4c4;
+        flex: none;
+    }
+
+    .mk-tile--blue .mk-tile__icon { color: rgba(22, 119, 255, 0.5); }
+    .mk-tile--green .mk-tile__icon { color: rgba(24, 185, 129, 0.6); }
+
+    .mk-tile__delta {
+        font-size: 0.6rem;
+        color: #94a3b8;
+        margin-top: 0.1rem;
+        line-height: 1.3;
+    }
+
+    .mk-tile--blue .mk-tile__delta { color: var(--color-mk-blue-700); }
+    .mk-tile--green .mk-tile__delta { color: var(--color-mk-green-700); }
+
+    .mk-app__lower {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    /* The side list only appears once the mockup is genuinely wide. At 340px the
+       chart needs the full width to stay readable. */
+    @media (min-width: 52rem) {
+        .mk-app__lower { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+    }
+
+    .mk-app__chart,
+    .mk-app__panel,
+    .mk-app__activity {
+        border: 1px solid var(--color-mk-line);
+        border-radius: 0.75rem;
+        padding: 0.6rem 0.7rem;
+        background: #fff;
+        min-width: 0;
+    }
+
+    .mk-app__charthead {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        font-size: 0.65rem;
+        font-weight: 700;
+        color: #55637a;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .mk-app__chartcap {
+        font-weight: 600;
+        color: #a3aebd;
+        text-transform: none;
+        letter-spacing: 0;
+    }
+
+    .mk-bars { margin-top: 0.6rem; }
+
+    .mk-bars__axis {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(0, 1fr);
+        gap: 0.35rem;
+        margin-top: 0.3rem;
+        font-size: 0.55rem;
+        color: #aab4c2;
+        text-align: center;
+    }
+
+    .mk-app__legend {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 0.5rem;
+        font-size: 0.58rem;
+        color: #8492a6;
+    }
+
+    .mk-app__legend span { display: inline-flex; align-items: center; gap: 0.25rem; }
+
+    .mk-app__swatch {
+        width: 0.5rem;
+        height: 0.5rem;
+        border-radius: 2px;
+        display: inline-block;
+    }
+
+    .mk-app__swatch--income { background: linear-gradient(135deg, var(--color-mk-green-500), var(--color-mk-blue-500)); }
+    .mk-app__swatch--expense { background: #d7e0ec; }
+
+    .mk-app__panelhead {
+        font-size: 0.65rem;
+        font-weight: 700;
+        color: #55637a;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 0.5rem;
+    }
+
+    .mk-app__event {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.3rem 0;
+    }
+
+    .mk-app__event + .mk-app__event { border-top: 1px dashed #eef2f7; }
+
+    .mk-app__eventdate {
+        flex: none;
+        font-size: 0.58rem;
+        font-weight: 700;
+        color: var(--color-mk-blue-700);
+        background: var(--color-mk-blue-50);
+        border-radius: 0.35rem;
+        padding: 0.2rem 0.35rem;
+        white-space: nowrap;
+    }
+
+    .mk-app__eventname {
+        font-size: 0.66rem;
+        font-weight: 650;
+        color: var(--color-navy);
+        line-height: 1.3;
+    }
+
+    .mk-app__eventmeta { font-size: 0.58rem; color: #9aa7b8; line-height: 1.3; }
+
+    .mk-app__activity { margin-top: 0.5rem; }
+
+    .mk-app__actrow {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.28rem 0;
+    }
+
+    .mk-app__acttext {
+        flex: 1;
+        min-width: 0;
+        font-size: 0.65rem;
+        color: #55637a;
+        line-height: 1.35;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .mk-app__acttime {
+        flex: none;
+        font-size: 0.58rem;
+        color: #aab4c2;
+        white-space: nowrap;
+    }
+
+    /*
+     | ------------------------------------------------------------- phone mockup
+     */
+    .mk-phone__screen { padding: 1.35rem 0.65rem 0.7rem; }
+
+    .mk-phone__head {
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        font-size: 0.62rem;
+        font-weight: 800;
+        color: var(--color-navy);
+        letter-spacing: -0.02em;
+    }
+
+    .mk-phone__greet {
+        font-size: 0.55rem;
+        color: #8b97a8;
+        margin-top: 0.6rem;
+        line-height: 1.35;
+    }
+
+    .mk-phone__tiles {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.3rem;
+        margin-top: 0.4rem;
+    }
+
+    .mk-phone__tile {
+        border-radius: 0.45rem;
+        padding: 0.35rem 0.3rem;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        gap: 0.05rem;
+    }
+
+    .mk-phone__tile--blue { background: var(--color-mk-blue-50); }
+    .mk-phone__tile--green { background: var(--color-mk-green-50); }
+
+    .mk-phone__tile b {
+        font-size: 0.72rem;
+        font-weight: 800;
+        color: var(--color-navy);
+        line-height: 1.1;
+    }
+
+    .mk-phone__tile i {
+        font-style: normal;
+        font-size: 0.48rem;
+        font-weight: 650;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #8b97a8;
+    }
+
+    .mk-phone__label {
+        font-size: 0.5rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #a3aebd;
+        margin: 0.7rem 0 0.25rem;
+    }
+
+    .mk-phone__rows { display: grid; gap: 0.18rem; }
+
+    .mk-phone__row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.4rem;
+        background: #f8fafc;
+        border-radius: 0.35rem;
+        padding: 0.28rem 0.35rem;
+    }
+
+    .mk-phone__row em {
+        font-style: normal;
+        font-size: 0.52rem;
+        color: #6b7a8f;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .mk-phone__row b {
+        font-size: 0.55rem;
+        font-weight: 800;
+        color: var(--color-navy);
+        flex: none;
+    }
+
+    .mk-phone__cta {
+        display: block;
+        margin-top: 0.6rem;
+        padding: 0.35rem;
+        border-radius: 0.4rem;
+        background: var(--color-mk-blue-500);
+        color: #fff;
+        font-size: 0.52rem;
+        font-weight: 700;
+        text-align: center;
+    }
+}@layer components {
+
+    /*
+     | ------------------------------------------------------- section rhythm
+     | One tinted band convention for the whole page: white, tint, white, tint.
+     | Alternating surfaces is what stops eleven stacked sections reading as one
+     | undifferentiated scroll.
+     */
+    .mk-section--tint {
+        background: #f7fafd;
+        border-block: 1px solid var(--color-mk-line);
+    }
+
+    /*
+     | ------------------------------------------------------------- challenge
+     */
+    .mk-challenge {
+        display: grid;
+        gap: clamp(2rem, 4vw, 3.25rem);
+        grid-template-columns: 1fr;
+        align-items: start;
+    }
+
+    @media (min-width: 64rem) {
+        .mk-challenge { grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); }
+    }
+
+    .mk-challenge__note {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.6rem;
+        margin-top: 1.5rem;
+        padding: 0.8rem 0.9rem;
+        border-radius: 0.75rem;
+        background: #fff;
+        border: 1px solid var(--color-mk-line);
+        color: var(--color-mk-muted);
+        box-shadow: var(--shadow-mk-sm);
+    }
+
+    .mk-challenge__note svg { color: var(--color-mk-green-500); flex: none; margin-top: 0.15rem; }
+
+    /* One bordered surface containing a divided list, rather than six detached
+       rows. Reads as a single finished component. */
+    .mk-challenge__grid {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0;
+        border-radius: var(--radius-mk-lg);
+        border: 1px solid var(--color-mk-line);
+        background: #fff;
+        box-shadow: var(--shadow-mk-md);
+        overflow: hidden;
+    }
+
+    @media (min-width: 44rem) {
+        .mk-challenge__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    .mk-problem {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 1.1rem 1.15rem;
+        border-bottom: 1px solid var(--color-mk-line);
+        min-width: 0;
+    }
+
+    .mk-problem:last-child { border-bottom: 0; }
+
+    @media (min-width: 44rem) {
+        .mk-problem:nth-child(odd) { border-right: 1px solid var(--color-mk-line); }
+        /* The last row may have one or two cells; drop the bottom border on
+           whichever cells actually sit in the final row. */
+        .mk-problem:nth-last-child(-n + 2) { border-bottom: 0; }
+    }
+
+    .mk-problem__text { min-width: 0; }
+
+    .mk-problem__title {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--color-navy);
+        line-height: 1.35;
+    }
+
+    .mk-problem__body {
+        font-size: 0.8rem;
+        color: var(--color-mk-muted);
+        line-height: 1.5;
+        margin-top: 0.2rem;
+    }
+
+    /*
+     | -------------------------------------------------------------- solution
+     */
+    .mk-solution__cta { margin-top: 1.75rem; }
+
+    .mk-solution__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+        gap: 0.9rem;
+        margin-top: 2.75rem;
+    }
+
+    .mk-solution__card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+        text-decoration: none;
+        height: 100%;
+    }
+
+    .mk-solution__title {
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: var(--color-navy);
+        line-height: 1.35;
+    }
+
+    .mk-solution__link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        margin-top: auto;
+        padding-top: 0.5rem;
+        font-size: 0.76rem;
+        font-weight: 650;
+        color: var(--color-mk-blue-500);
+    }
+
+    .mk-solution__link svg { transition: transform 0.18s ease; }
+    .mk-solution__card:hover .mk-solution__link svg { transform: translateX(3px); }
+
+    /*
+     | --------------------------------------------------------------- modules
+     */
+    .mk-modules {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 14.5rem), 1fr));
+        gap: 1rem;
+        margin-top: 2.75rem;
+    }
+
+    .mk-module {
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+        text-decoration: none;
+        height: 100%;
+    }
+
+    .mk-module__title {
+        font-size: 0.98rem;
+        font-weight: 700;
+        color: var(--color-navy);
+        letter-spacing: -0.015em;
+    }
+
+    .mk-module__text {
+        font-size: 0.84rem;
+        line-height: 1.55;
+        color: var(--color-mk-muted);
+    }
+
+    /*
+     | ----------------------------------------------------------------- steps
+     */
+    .mk-steps {
+        list-style: none;
+        margin: 2.75rem 0 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 12.5rem), 1fr));
+        gap: 1.15rem;
+    }
+
+    .mk-step__top {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .mk-step__num {
+        display: grid;
+        place-items: center;
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 0.75rem;
+        background: var(--color-navy);
+        color: #fff;
+        font-size: 0.85rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        flex: none;
+        box-shadow: 0 8px 18px -10px rgba(11, 42, 91, 0.85);
+    }
+
+    .mk-step__icon {
+        display: grid;
+        place-items: center;
+        width: 2.1rem;
+        height: 2.1rem;
+        border-radius: 0.6rem;
+        background: #fff;
+        border: 1px solid var(--color-mk-line);
+        color: var(--color-mk-blue-500);
+        flex: none;
+    }
+
+    .mk-step__title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--color-navy);
+        line-height: 1.3;
+    }
+
+    .mk-step__text {
+        font-size: 0.83rem;
+        line-height: 1.55;
+        color: var(--color-mk-muted);
+        margin-top: 0.35rem;
+    }
+
+    /* The connector is drawn per-step in the .mk-step rule earlier; this only
+       removes it where the steps wrap onto two rows on a narrow desktop, at
+       which point a horizontal connector would point at nothing. */
+    @media (min-width: 64rem) and (max-width: 74rem) {
+        .mk-step:nth-child(4)::after { display: none; }
+    }
+
+    .mk-steps__foot {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.6rem;
+        max-width: 46rem;
+        margin: 2.25rem auto 0;
+        padding: 0.85rem 1rem;
+        border-radius: 0.8rem;
+        background: var(--color-mk-green-50);
+        border: 1px solid var(--color-mk-green-200);
+        color: var(--color-mk-green-700);
+    }
+
+    .mk-steps__foot svg { flex: none; margin-top: 0.15rem; }
+}@layer components {
+
+    /*
+     | ------------------------------------------------------- feature explorer
+     */
+    .mk-explorer__tabs {
+        display: flex;
+        gap: 0.45rem;
+        margin-top: 2.5rem;
+        padding-bottom: 0.35rem;
+        overflow-x: auto;
+        /* Bleed the scroll area to the container edge on small screens so the
+           last tab is not half-cut behind the padding, then re-add the padding
+           inside the scroller. Without this the final tab looks broken. */
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .mk-explorer__tabs::-webkit-scrollbar { display: none; }
+
+    .mk-explorer__frame {
+        margin-top: 1.1rem;
+        border-radius: var(--radius-mk-lg);
+        border: 1px solid var(--color-mk-line);
+        background: #fff;
+        box-shadow: var(--shadow-mk-md);
+        overflow: hidden;
+    }
+
+    .mk-explorer__secure {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        font-size: 0.66rem;
+        font-weight: 650;
+        color: #94a3b8;
+        white-space: nowrap;
+    }
+
+    .mk-explorer__panel {
+        padding: clamp(1.1rem, 2.5vw, 1.75rem);
+    }
+
+    /* Focus ring for the tabpanel itself. tabindex="0" on a scrollable region
+       makes it keyboard-reachable, which is required — but it also means it can
+       take focus, so it needs a visible ring rather than none. */
+    .mk-explorer__panel:focus-visible {
+        outline: 2px solid var(--color-mk-blue-500);
+        outline-offset: -2px;
+    }
+
+    .mk-explorer__intro {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding-bottom: 1.1rem;
+        border-bottom: 1px solid var(--color-mk-line);
+    }
+
+    .mk-explorer__title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--color-navy);
+        letter-spacing: -0.015em;
+    }
+
+    .mk-explorer__headline {
+        font-size: 0.85rem;
+        color: var(--color-mk-muted);
+        line-height: 1.5;
+        margin-top: 0.15rem;
+    }
+
+    /* Horizontal scroll on a narrow screen rather than letting a four-column
+       table force the whole page wider than the viewport. */
+    .mk-explorer__tablewrap {
+        overflow-x: auto;
+        margin-top: 0.35rem;
+    }
+
+    .mk-explorer__note {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin-top: 0.9rem;
+        padding-top: 0.9rem;
+        border-top: 1px dashed var(--color-mk-line);
+        font-size: 0.73rem;
+        color: #94a3b8;
+    }
+
+    .mk-explorer__note svg { flex: none; color: var(--color-mk-blue-500); }
+
+    .mk-explorer__cta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem 0.6rem;
+        margin-top: 1.75rem;
+        font-size: 0.9rem;
+        color: var(--color-mk-muted);
+        text-align: center;
+    }
+}@layer components {
+
+    /*
+     | -------------------------------------------------------------- pricing
+     | Dark intro panel + plan grid. The intro is dark because it carries the
+     | commercial terms — the part a visitor should actually read — and putting
+     | them on the one dark surface in the section makes them the thing the eye
+     | lands on first, rather than the numbers.
+     */
+    .mk-pricing {
+        display: grid;
+        gap: 1.5rem;
+        grid-template-columns: 1fr;
+        align-items: start;
+        margin-top: 2.75rem;
+    }
+
+    @media (min-width: 68rem) {
+        .mk-pricing { grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr); gap: 2rem; }
+    }
+
+    .mk-pricing__intro {
+        padding: clamp(1.4rem, 3vw, 2rem);
+        position: relative;
+    }
+
+    @media (min-width: 68rem) {
+        .mk-pricing__intro { position: sticky; top: 6rem; }
+    }
+
+    .mk-pricing__introicon {
+        display: grid;
+        place-items: center;
+        width: 2.6rem;
+        height: 2.6rem;
+        border-radius: 0.8rem;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        color: var(--color-mk-green-500);
+        margin-bottom: 1rem;
+    }
+
+    .mk-pricing__introtitle {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #fff;
+        letter-spacing: -0.02em;
+    }
+
+    .mk-pricing__notes {
+        margin-top: 1.25rem;
+        color: rgba(255, 255, 255, 0.88);
+    }
+
+    .mk-pricing__journey {
+        margin-top: 1.5rem;
+        padding-top: 1.35rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .mk-pricing__journeyhead {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.55);
+        margin-bottom: 0.75rem;
+    }
+
+    /* Numbered chain. A vertical list, not a horizontal one, because it needs to
+       survive being 280px wide inside a two-column layout. */
+    .mk-pricing__chain {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 0.5rem;
+    }
+
+    .mk-pricing__chain li {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-size: 0.83rem;
+        color: rgba(255, 255, 255, 0.85);
+    }
+
+    .mk-pricing__stagedot {
+        display: grid;
+        place-items: center;
+        width: 1.4rem;
+        height: 1.4rem;
+        border-radius: 999px;
+        background: rgba(24, 185, 129, 0.18);
+        border: 1px solid rgba(24, 185, 129, 0.4);
+        color: #6ee7b7;
+        font-size: 0.66rem;
+        font-weight: 800;
+        flex: none;
+    }
+
+    .mk-pricing__fineprint {
+        margin-top: 1.35rem;
+        font-size: 0.72rem;
+        line-height: 1.55;
+        color: rgba(255, 255, 255, 0.5);
+    }
+
+    .mk-pricing__grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    @media (min-width: 40rem) {
+        .mk-pricing__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    /* Two-up until 68rem, then four across. auto-fit with a 15rem minimum would
+       give THREE columns at 900px, which orphans the fourth plan onto a second
+       row on its own — so the track count is written down explicitly instead. */
+    @media (min-width: 68rem) {
+        .mk-pricing__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (min-width: 82rem) {
+        .mk-pricing__grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+
+    .mk-plan {
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        padding-top: 1.5rem;
+    }
+
+    .mk-plan--featured {
+        border-color: var(--color-mk-blue-500);
+        box-shadow: 0 0 0 1px var(--color-mk-blue-500), var(--shadow-mk-lg);
+    }
+
+    .mk-plan__flag {
+        position: absolute;
+        top: -0.68rem;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 0.2rem 0.7rem;
+        border-radius: 999px;
+        background: var(--color-mk-blue-500);
+        color: #fff;
+        font-size: 0.66rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        box-shadow: var(--shadow-mk-sm);
+    }
+
+    .mk-plan__name {
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: var(--color-navy);
+        letter-spacing: -0.02em;
+    }
+
+    .mk-plan__tagline {
+        font-size: 0.79rem;
+        line-height: 1.5;
+        color: var(--color-mk-muted);
+        margin-top: 0.25rem;
+        min-height: 2.4rem;
+    }
+
+    .mk-plan__price {
+        display: flex;
+        align-items: baseline;
+        gap: 0.35rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--color-mk-line);
+        font-size: 1.4rem;
+        font-weight: 800;
+        color: var(--color-navy);
+        letter-spacing: -0.03em;
+    }
+
+    /* Deliberately not styled as a number. "Price on request" is a placeholder
+       state, and it must not be mistaken at a glance for a real price. */
+    .mk-plan__pricepending {
+        font-size: 0.95rem;
+        font-weight: 650;
+        color: var(--color-mk-muted);
+    }
+
+    .mk-plan__period {
+        font-size: 0.76rem;
+        font-weight: 550;
+        color: var(--color-mk-muted);
+    }
+
+    .mk-plan__features {
+        margin-top: 1rem;
+        flex: 1;
+        color: var(--color-mk-muted);
+    }
+
+    .mk-plan__cta { margin-top: 1.25rem; }
+}@layer components {
+
+    /*
+     | --------------------------------------------------------- testimonials
+     */
+    .mk-testimonials {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+        gap: 1.1rem;
+        margin-top: 2.5rem;
+    }
+
+    .mk-testimonials__notice {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.6rem;
+        max-width: 46rem;
+        margin: 2rem auto 0;
+        padding: 0.8rem 1rem;
+        border-radius: 0.8rem;
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        color: #92400e;
+    }
+
+    .mk-testimonials__notice svg { flex: none; margin-top: 0.15rem; }
+    .mk-testimonials__notice strong { font-weight: 700; }
+
+    .mk-testimonial {
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+        height: 100%;
+    }
+
+    .mk-testimonial__stars {
+        display: flex;
+        gap: 0.15rem;
+        color: #f59e0b;
+    }
+
+    .mk-testimonial__stars svg { width: 0.95rem; height: 0.95rem; }
+
+    .mk-testimonial__quote {
+        margin: 0;
+        font-size: 0.9rem;
+        line-height: 1.65;
+        color: #334155;
+        flex: 1;
+    }
+
+    .mk-testimonial__foot {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        padding-top: 0.9rem;
+        border-top: 1px solid var(--color-mk-line);
+    }
+
+    .mk-testimonial__avatar {
+        display: grid;
+        place-items: center;
+        width: 2.1rem;
+        height: 2.1rem;
+        border-radius: 999px;
+        background: var(--color-mk-blue-50);
+        color: var(--color-mk-blue-700);
+        font-size: 0.72rem;
+        font-weight: 800;
+        flex: none;
+    }
+
+    .mk-testimonial__name {
+        font-size: 0.84rem;
+        font-weight: 700;
+        color: var(--color-navy);
+        line-height: 1.3;
+    }
+
+    .mk-testimonial__role {
+        font-size: 0.75rem;
+        color: var(--color-mk-muted);
+        line-height: 1.3;
+    }
+
+    /*
+     | ------------------------------------------------------------------ FAQ
+     */
+    .mk-faqs {
+        display: grid;
+        gap: 0.65rem;
+        max-width: 52rem;
+        margin: 2.5rem auto 0;
+    }
+
+    .mk-faq { overflow: hidden; }
+
+    .mk-faqs__more {
+        margin-top: 1.75rem;
+        text-align: center;
+        font-size: 0.9rem;
+        color: var(--color-mk-muted);
+    }
+
+    /*
+     | ----------------------------------------------------------- CTA band
+     */
+    .mk-ctaband {
+        position: relative;
+        overflow: hidden;
+        border-radius: var(--radius-mk-lg);
+        padding: clamp(2rem, 5vw, 3.5rem);
+        box-shadow: var(--shadow-mk-lg);
+    }
+
+    /* A soft radial highlight in the top-left corner. Subtle on purpose — the
+       band's job is contrast against the white page, not spectacle. */
+    .mk-ctaband__glow {
+        position: absolute;
+        top: -6rem;
+        left: -4rem;
+        width: 22rem;
+        height: 22rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.07);
+        filter: blur(40px);
+        pointer-events: none;
+    }
+
+    .mk-ctaband__body {
+        position: relative;
+        max-width: 42rem;
+    }
+
+    .mk-ctaband__eyebrow {
+        color: var(--color-mk-green-200);
+    }
+
+    .mk-ctaband__eyebrow::before {
+        background: linear-gradient(90deg, var(--color-mk-green-500), rgba(255, 255, 255, 0.5));
+    }
+
+    .mk-ctaband__title {
+        font-size: clamp(1.7rem, 1.3rem + 1.8vw, 2.4rem);
+        font-weight: 800;
+        line-height: 1.1;
+        letter-spacing: -0.03em;
+        color: #fff;
+        margin-top: 0.85rem;
+        text-wrap: balance;
+    }
+
+    .mk-ctaband__text {
+        margin-top: 0.9rem;
+        font-size: 1rem;
+        line-height: 1.65;
+        color: rgba(255, 255, 255, 0.78);
+    }
+
+    .mk-ctaband__actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+        margin-top: 1.75rem;
+    }
+
+    @media (min-width: 34rem) {
+        .mk-ctaband__actions { flex-direction: row; align-items: center; }
+    }
+
+    .mk-ctaband__points {
+        list-style: none;
+        margin: 1.75rem 0 0;
+        padding: 1.25rem 0 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.14);
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.55rem;
+    }
+
+    @media (min-width: 48rem) {
+        .mk-ctaband__points { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+    }
+
+    .mk-ctaband__points li {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        font-size: 0.82rem;
+        color: rgba(255, 255, 255, 0.82);
+        line-height: 1.4;
+    }
+
+    .mk-ctaband__points svg { flex: none; color: var(--color-mk-green-500); }
+
+    /*
+     | ---------------------------------------------------------------- footer
+     */
+    .mk-footer {
+        background: var(--color-navy-950);
+        color: rgba(255, 255, 255, 0.62);
+        padding-top: clamp(2.5rem, 5vw, 3.75rem);
+    }
+
+    .mk-footer__inner {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+
+    @media (min-width: 40rem) {
+        .mk-footer__inner { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (min-width: 64rem) {
+        .mk-footer__inner { grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr)); gap: 2.5rem; }
+    }
+
+    .mk-footer__brand { max-width: 22rem; }
+
+    .mk-footer__tagline {
+        margin-top: 1rem;
+        font-size: 0.87rem;
+        line-height: 1.6;
+        color: rgba(255, 255, 255, 0.72);
+    }
+
+    .mk-footer__slogan {
+        margin-top: 0.4rem;
+        font-size: 0.78rem;
+        font-weight: 650;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--color-mk-green-500);
+    }
+
+    .mk-footer__social {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1.35rem;
+    }
+
+    .mk-footer__social a {
+        display: grid;
+        place-items: center;
+        width: 2.1rem;
+        height: 2.1rem;
+        border-radius: 0.6rem;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        color: rgba(255, 255, 255, 0.7);
+        transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+    }
+
+    .mk-footer__social a:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.3);
+        color: #fff;
+    }
+
+    .mk-footer__social svg { width: 1rem; height: 1rem; }
+
+    .mk-footer__col { display: flex; flex-direction: column; gap: 0.55rem; }
+
+    .mk-footer__head {
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #fff;
+        margin-bottom: 0.35rem;
+    }
+
+    .mk-footer__col a {
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.62);
+        text-decoration: none;
+        transition: color 0.16s ease;
+    }
+
+    .mk-footer__col a:hover { color: #fff; }
+
+    .mk-footer__base {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-top: clamp(2rem, 4vw, 3rem);
+        padding-block: 1.35rem 2rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        font-size: 0.79rem;
+    }
+
+    @media (min-width: 40rem) {
+        .mk-footer__base { flex-direction: row; align-items: center; justify-content: space-between; }
+    }
+
+    .mk-footer__legal { display: flex; gap: 1.35rem; }
+
+    .mk-footer__legal a {
+        color: rgba(255, 255, 255, 0.62);
+        text-decoration: none;
+    }
+
+    .mk-footer__legal a:hover { color: #fff; }
+}@layer components {
+
+    /*
+     | ------------------------------------------------------------ trust strip
+     */
+    .mk-trust {
+        padding-block: 1.5rem;
+        background: #fff;
+        border-bottom: 1px solid var(--color-mk-line);
+    }
+
+    .mk-trust__inner {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.1rem;
+    }
+
+    @media (min-width: 44rem) {
+        .mk-trust__inner { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
+    }
+
+    @media (min-width: 68rem) {
+        .mk-trust__inner { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+
+    .mk-trust__item {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.6rem;
+        min-width: 0;
+    }
+
+    /* Separators between items only once they are side by side; a horizontal
+       rule between two stacked items would read as a divider between sections. */
+    @media (min-width: 68rem) {
+        .mk-trust__item + .mk-trust__item {
+            padding-left: 1.25rem;
+            border-left: 1px solid var(--color-mk-line);
+        }
+    }
+
+    .mk-trust__icon {
+        display: grid;
+        place-items: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 0.6rem;
+        background: var(--color-mk-blue-50);
+        color: var(--color-mk-blue-500);
+        flex: none;
+    }
+
+    .mk-trust__title {
+        font-size: 0.83rem;
+        font-weight: 700;
+        color: var(--color-navy);
+        line-height: 1.3;
+    }
+
+    .mk-trust__text {
+        font-size: 0.76rem;
+        line-height: 1.45;
+        color: var(--color-mk-muted);
+        margin-top: 0.15rem;
+    }
+}@layer components {
+
+    /*
+     | ---------------------------------------------------------- page header
+     */
+    .mk-pagehead {
+        position: relative;
+        isolation: isolate;
+        overflow: hidden;
+        padding-block: clamp(2.5rem, 5vw, 4.25rem);
+        background: linear-gradient(180deg, #f2f7ff 0%, #ffffff 100%);
+        border-bottom: 1px solid var(--color-mk-line);
+    }
+
+    .mk-pagehead .mk-hero__blob { opacity: 0.75; }
+
+    .mk-pagehead__inner { max-width: 46rem; }
+
+    .mk-pagehead__title { margin-top: 0.9rem; }
+
+    .mk-pagehead__lede { margin-top: 1.1rem; }
+
+    .mk-pagehead__actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+        margin-top: 1.75rem;
+    }
+
+    @media (min-width: 30rem) {
+        .mk-pagehead__actions { flex-direction: row; align-items: center; }
+    }
+
+    /*
+     | ------------------------------------------------------- module index / nav
+     */
+    .mk-moduleindex {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+    }
+
+    .mk-moduleindex a {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.45rem 0.8rem;
+        border-radius: 999px;
+        border: 1px solid var(--color-mk-line);
+        background: #fff;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #475569;
+        text-decoration: none;
+        transition: border-color 0.16s ease, color 0.16s ease, background-color 0.16s ease;
+    }
+
+    .mk-moduleindex a:hover {
+        border-color: var(--color-mk-blue-200);
+        background: var(--color-mk-blue-50);
+        color: var(--color-navy);
+    }
+
+    /*
+     | ------------------------------------------------------------ feature block
+     */
+    .mk-featureblock {
+        display: grid;
+        gap: clamp(1.75rem, 4vw, 3rem);
+        grid-template-columns: 1fr;
+        align-items: start;
+    }
+
+    @media (min-width: 60rem) {
+        .mk-featureblock { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); }
+        /* Alternate the side each block leans to, so a run of eight identical
+           left-text/right-list blocks does not read as a template. */
+        .mk-featureblock--flip .mk-featureblock__lead { order: 2; }
+        .mk-featureblock--flip .mk-featureblock__points { order: 1; }
+    }
+
+    .mk-featureblock__title { margin-top: 1rem; }
+    .mk-featureblock__summary { margin-top: 0.85rem; }
+    .mk-featureblock__cta { margin-top: 1.25rem; }
+
+    .mk-featureblock__points {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.55rem;
+    }
+
+    /* Two columns only when there is real room; a two-column list of long
+       sentences at 700px is worse than one column. */
+    @media (min-width: 44rem) {
+        .mk-featureblock__points { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem 1.25rem; }
+    }
+
+    .mk-featureblock__points li {
+        display: grid;
+        grid-template-columns: 1.15rem minmax(0, 1fr);
+        gap: 0.55rem;
+        align-items: start;
+        font-size: 0.86rem;
+        line-height: 1.5;
+        color: #334155;
+    }
+
+    .mk-featureblock__tick {
+        display: grid;
+        place-items: center;
+        width: 1.15rem;
+        height: 1.15rem;
+        margin-top: 0.15rem;
+        border-radius: 999px;
+        background: var(--color-mk-green-100);
+        color: var(--color-mk-green-700);
+        flex: none;
+    }
+
+    /*
+     | ------------------------------------------------------------- billing note
+     */
+    .mk-billingnote {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.75rem;
+        margin-top: 2rem;
+        padding: clamp(1.25rem, 2.5vw, 1.75rem);
+        border-radius: var(--radius-mk);
+        border: 1px solid var(--color-mk-line);
+        background: #fff;
+        box-shadow: var(--shadow-mk-sm);
+    }
+
+    @media (min-width: 52rem) {
+        .mk-billingnote { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2.25rem; }
+    }
+
+    .mk-billingnote__head {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--color-navy);
+        margin-bottom: 1rem;
+    }
+
+    .mk-billingnote__head svg { color: var(--color-mk-blue-500); flex: none; }
+
+    .mk-billingnote__list { color: var(--color-mk-muted); }
+
+    .mk-billingnote__chain {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 0.5rem;
+    }
+
+    .mk-billingnote__chain li {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-size: 0.86rem;
+        color: #334155;
+    }
+
+    .mk-billingnote__dot {
+        display: grid;
+        place-items: center;
+        width: 1.5rem;
+        height: 1.5rem;
+        border-radius: 999px;
+        background: var(--color-mk-blue-50);
+        color: var(--color-mk-blue-700);
+        font-size: 0.7rem;
+        font-weight: 800;
+        flex: none;
+    }
+
+    .mk-billingnote__fine {
+        margin-top: 1rem;
+        font-size: 0.76rem;
+        line-height: 1.55;
+        color: var(--color-mk-muted);
+    }
+
+    /*
+     | ------------------------------------------------------------------ matrix
+     */
+    .mk-matrix__wrap {
+        margin-top: 2.25rem;
+        overflow-x: auto;
+        border-radius: var(--radius-mk);
+        border: 1px solid var(--color-mk-line);
+        background: #fff;
+        box-shadow: var(--shadow-mk-sm);
+    }
+
+    .mk-matrix {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+        min-width: 40rem; /* forces the scroller rather than squashing columns */
+    }
+
+    .mk-matrix th,
+    .mk-matrix td {
+        padding: 0.7rem 0.9rem;
+        border-bottom: 1px solid var(--color-mk-line);
+        text-align: center;
+    }
+
+    .mk-matrix thead th {
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: var(--color-navy);
+        background: #fafcff;
+        white-space: nowrap;
+    }
+
+    /* Highlight the recommended column so the eye lands on it. */
+    .mk-matrix .is-featured { background: rgba(22, 119, 255, 0.04); }
+
+    .mk-matrix tbody th {
+        text-align: left;
+        font-weight: 550;
+        color: #334155;
+        font-size: 0.83rem;
+    }
+
+    .mk-matrix tbody tr:last-child th,
+    .mk-matrix tbody tr:last-child td { border-bottom: 0; }
+
+    .mk-matrix__yes {
+        display: inline-grid;
+        place-items: center;
+        width: 1.4rem;
+        height: 1.4rem;
+        border-radius: 999px;
+        background: var(--color-mk-green-100);
+        color: var(--color-mk-green-700);
+    }
+
+    .mk-matrix__no { color: #cbd5e1; }
+
+    /*
+     | ------------------------------------------------------------------- about
+     */
+    .mk-about {
+        display: grid;
+        gap: clamp(1.75rem, 4vw, 3rem);
+        grid-template-columns: 1fr;
+        align-items: start;
+    }
+
+    @media (min-width: 62rem) {
+        .mk-about { grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.85fr); }
+    }
+
+    .mk-about__prose {
+        margin-top: 1.5rem;
+        display: grid;
+        gap: 1rem;
+        font-size: 0.95rem;
+        line-height: 1.7;
+        color: var(--color-mk-muted);
+    }
+
+    .mk-about__panel { padding: clamp(1.35rem, 3vw, 1.85rem); }
+
+    .mk-about__panelhead {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.62);
+        margin-bottom: 1.1rem;
+    }
+
+    .mk-about__panelhead svg { color: var(--color-mk-green-500); flex: none; }
+
+    .mk-about__list { color: rgba(255, 255, 255, 0.9); }
+
+    .mk-about__panelcta { margin-top: 1.35rem; }
+
+    .mk-principles {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+        gap: 1rem;
+        margin-top: 2.5rem;
+    }
+
+    .mk-principle {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        height: 100%;
+    }
+
+    .mk-principle__title {
+        font-size: 0.98rem;
+        font-weight: 700;
+        color: var(--color-navy);
+        letter-spacing: -0.015em;
+    }
+
+    .mk-principle__text {
+        font-size: 0.86rem;
+        line-height: 1.6;
+        color: var(--color-mk-muted);
+    }
+
+    /*
+     | -------------------------------------------------------------------- demo
+     */
+    .mk-demo {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+        align-items: start;
+    }
+
+    @media (min-width: 62rem) {
+        .mk-demo { grid-template-columns: 14rem minmax(0, 1fr); gap: 2rem; }
+    }
+
+    .mk-demo__nav {
+        display: flex;
+        gap: 0.35rem;
+        overflow-x: auto;
+        padding-bottom: 0.3rem;
+        scrollbar-width: none;
+    }
+
+    .mk-demo__nav::-webkit-scrollbar { display: none; }
+
+    @media (min-width: 62rem) {
+        .mk-demo__nav {
+            flex-direction: column;
+            overflow: visible;
+            position: sticky;
+            top: 6rem;
+        }
+    }
+
+    .mk-demo__navitem {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        padding: 0.6rem 0.75rem;
+        border-radius: 0.65rem;
+        border: 1px solid transparent;
+        background: transparent;
+        font: inherit;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #475569;
+        cursor: pointer;
+        white-space: nowrap;
+        text-align: left;
+        transition: background-color 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+    }
+
+    .mk-demo__navitem:hover { background: var(--color-mk-blue-50); color: var(--color-navy); }
+
+    .mk-demo__navitem[aria-selected='true'] {
+        background: #fff;
+        border-color: var(--color-mk-blue-200);
+        color: var(--color-navy);
+        box-shadow: var(--shadow-mk-sm);
+    }
+
+    .mk-demo__navicon {
+        display: grid;
+        place-items: center;
+        width: 1.65rem;
+        height: 1.65rem;
+        border-radius: 0.45rem;
+        background: var(--color-mk-blue-50);
+        color: var(--color-mk-blue-500);
+        flex: none;
+    }
+
+    .mk-demo__navitem[aria-selected='true'] .mk-demo__navicon {
+        background: var(--color-mk-blue-500);
+        color: #fff;
+    }
+
+    .mk-demo__panel:focus-visible {
+        outline: 2px solid var(--color-mk-blue-500);
+        outline-offset: -2px;
+        border-radius: var(--radius-mk);
+    }
+
+    .mk-demo__frame { box-shadow: var(--shadow-mk-md); }
+
+    .mk-demo__body { padding: clamp(1rem, 2.5vw, 1.5rem); }
+
+    .mk-demo__intro {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--color-mk-line);
+    }
+
+    .mk-demo__title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--color-navy);
+        letter-spacing: -0.015em;
+    }
+
+    .mk-demo__headline {
+        font-size: 0.85rem;
+        color: var(--color-mk-muted);
+        line-height: 1.5;
+        margin-top: 0.15rem;
+    }
+
+    .mk-demo__narration {
+        margin-top: 1rem;
+        font-size: 0.88rem;
+        line-height: 1.65;
+        color: #334155;
+        padding-left: 0.85rem;
+        border-left: 3px solid var(--color-mk-green-500);
+    }
+
+    .mk-demo__note {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin-top: 0.75rem;
+        font-size: 0.74rem;
+        color: #94a3b8;
+    }
+
+    .mk-demo__note svg { flex: none; color: var(--color-mk-blue-500); }
+
+    .mk-demo__actions {
+        display: flex;
+        justify-content: center;
+        margin-top: 1.75rem;
+    }
+
+    /*
+     | --------------------------------------------------------------- support
+     */
+    .mk-support__grid,
+    .mk-support__resources {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+        gap: 1rem;
+        margin-top: 2.25rem;
+    }
+
+    .mk-support__resources { margin-top: 2rem; }
+
+    .mk-support {
+        display: flex;
+        flex-direction: column;
+        gap: 0.7rem;
+        text-decoration: none;
+        height: 100%;
+    }
+
+    .mk-support__title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--color-navy);
+        letter-spacing: -0.015em;
+    }
+
+    .mk-support__text {
+        font-size: 0.85rem;
+        line-height: 1.6;
+        color: var(--color-mk-muted);
+    }
+
+    .mk-support__link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        margin-top: auto;
+        padding-top: 0.5rem;
+        font-size: 0.79rem;
+        font-weight: 650;
+        color: var(--color-mk-blue-500);
+    }
+
+    .mk-support__link svg { transition: transform 0.18s ease; }
+    .mk-support:hover .mk-support__link svg { transform: translateX(3px); }
+}@layer components {
+
+    /*
+     | --------------------------------------------------------------- contact
+     */
+    .mk-contact {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 2rem;
+        align-items: start;
+    }
+
+    @media (min-width: 62rem) {
+        .mk-contact { grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); gap: 3rem; }
+    }
+
+    .mk-contact__details {
+        margin: 1.25rem 0 0;
+        display: grid;
+        gap: 1rem;
+        font-size: 0.9rem;
+    }
+
+    .mk-contact__details dt {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: var(--color-mk-muted);
+        margin-bottom: 0.2rem;
+    }
+
+    .mk-contact__details dd { margin: 0; }
+
+    .mk-contact__details a {
+        color: var(--color-mk-blue-500);
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .mk-contact__actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+        margin-top: 1.75rem;
+    }
+
+    @media (min-width: 30rem) {
+        .mk-contact__actions { flex-direction: row; align-items: center; }
+    }
+
+    .mk-contact__side {
+        padding: clamp(1.25rem, 2.5vw, 1.6rem);
+        border-radius: var(--radius-mk);
+        border: 1px solid var(--color-mk-line);
+        background: #f7fafd;
+    }
+
+    .mk-contact__sidehead {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: var(--color-mk-muted);
+        margin-bottom: 1.1rem;
+    }
+
+    .mk-reasons {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 1rem;
+    }
+
+    .mk-reasons li { display: flex; gap: 0.65rem; align-items: flex-start; }
+
+    .mk-reason__title {
+        font-size: 0.86rem;
+        font-weight: 700;
+        color: var(--color-navy);
+        line-height: 1.3;
+    }
+
+    .mk-reason__text {
+        font-size: 0.8rem;
+        line-height: 1.5;
+        color: var(--color-mk-muted);
+        margin-top: 0.1rem;
+    }
+
+    .mk-contact__support {
+        display: inline-flex;
+        margin-top: 1.5rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--color-mk-line);
+        width: 100%;
+    }
+
+    /* Inline code in prose (used by the contact page's config notice). */
+    .mk-code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.85em;
+        padding: 0.1rem 0.35rem;
+        border-radius: 0.35rem;
+        background: rgba(11, 42, 91, 0.07);
+        color: var(--color-navy);
+        white-space: nowrap;
+    }
+
+    /*
+     | ----------------------------------------------------------------- legal
+     */
+    .mk-legal { max-width: 50rem; margin-inline: auto; }
+
+    .mk-legal .mk-alert { margin-bottom: 2rem; }
+
+    .mk-legal__body {
+        display: grid;
+        gap: 0.85rem;
+        font-size: 0.93rem;
+        line-height: 1.72;
+        color: #334155;
+    }
+
+    .mk-legal__updated {
+        font-size: 0.8rem;
+        color: var(--color-mk-muted);
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--color-mk-line);
+        margin-bottom: 0.5rem;
+    }
+
+    .mk-legal__body h2 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--color-navy);
+        letter-spacing: -0.02em;
+        margin-top: 1.5rem;
+    }
+
+    .mk-legal__body h3 {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--color-navy);
+        margin-top: 1rem;
+    }
+
+    .mk-legal__body ul {
+        margin: 0;
+        padding-left: 1.25rem;
+        display: grid;
+        gap: 0.45rem;
+    }
+
+    .mk-legal__body li { padding-left: 0.2rem; }
+
+    /*
+     | ------------------------------------------------------------- resources
+     */
+    .mk-empty {
+        max-width: 34rem;
+        margin-inline: auto;
+        text-align: center;
+        padding: clamp(2rem, 5vw, 3.25rem) 1.5rem;
+        border-radius: var(--radius-mk-lg);
+        border: 1px dashed var(--color-mk-line);
+        background: #fafcff;
+    }
+
+    .mk-empty__icon {
+        display: grid;
+        place-items: center;
+        width: 3rem;
+        height: 3rem;
+        margin: 0 auto 1.1rem;
+        border-radius: 999px;
+        background: var(--color-mk-blue-50);
+        color: var(--color-mk-blue-500);
+    }
+
+    .mk-empty__text {
+        margin-top: 0.75rem;
+        font-size: 0.9rem;
+        line-height: 1.65;
+        color: var(--color-mk-muted);
+    }
+
+    .mk-empty__actions {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.6rem;
+        margin-top: 1.75rem;
+    }
+
+    @media (min-width: 30rem) {
+        .mk-empty__actions { flex-direction: row; }
+    }
+
+    .mk-topics {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-top: 1.75rem;
+    }
+
+    .mk-help {
+        display: grid;
+        gap: clamp(2rem, 4vw, 3rem);
+    }
+
+    .mk-help__head {
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+        margin-bottom: 1.1rem;
+    }
+
+    .mk-help__title {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--color-navy);
+        letter-spacing: -0.02em;
+    }
+
+    /* No max-width here: inside a grouped help section the list should fill the
+       column, unlike the standalone FAQ which is centred and narrow. */
+    .mk-faqs--inline { margin-top: 0; max-width: none; }
+
+    .mk-guides {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+    }
+
+    @media (min-width: 60rem) {
+        .mk-guides { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    .mk-guide { display: flex; flex-direction: column; }
+
+    .mk-guide__head {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.85rem;
+        padding-bottom: 1.1rem;
+        border-bottom: 1px solid var(--color-mk-line);
+    }
+
+    .mk-guide__title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--color-navy);
+        letter-spacing: -0.02em;
+    }
+
+    .mk-guide__summary {
+        font-size: 0.84rem;
+        line-height: 1.55;
+        color: var(--color-mk-muted);
+        margin-top: 0.3rem;
+    }
+
+    .mk-guide__steps {
+        list-style: none;
+        margin: 1.25rem 0 0;
+        padding: 0;
+        display: grid;
+        gap: 0.7rem;
+        flex: 1;
+    }
+
+    .mk-guide__steps li {
+        display: grid;
+        grid-template-columns: 1.5rem minmax(0, 1fr);
+        gap: 0.7rem;
+        align-items: start;
+    }
+
+    .mk-guide__stepnum {
+        display: grid;
+        place-items: center;
+        width: 1.5rem;
+        height: 1.5rem;
+        border-radius: 999px;
+        border: 1px solid var(--color-mk-line);
+        background: #fff;
+        color: var(--color-mk-blue-700);
+        font-size: 0.68rem;
+        font-weight: 800;
+        flex: none;
+    }
+
+    .mk-guide__steptext {
+        font-size: 0.86rem;
+        line-height: 1.55;
+        color: #334155;
+        padding-top: 0.1rem;
+    }
+
+    .mk-guide__cta { margin-top: 1.35rem; }
+
+    .mk-posts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+
+    .mk-post { padding: 1.5rem; }
+
+    .mk-post__meta {
+        font-size: 0.72rem;
+        font-weight: 650;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--color-mk-blue-500);
+    }
+
+    .mk-post__title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin-top: 0.5rem;
+        letter-spacing: -0.02em;
+    }
+
+    .mk-post__title a { color: var(--color-navy); text-decoration: none; }
+    .mk-post__title a:hover { color: var(--color-mk-blue-500); }
+
+    .mk-post__excerpt {
+        margin-top: 0.6rem;
+        font-size: 0.86rem;
+        line-height: 1.6;
+        color: var(--color-mk-muted);
+    }
+
+    /* Four columns on the pricing page even at the width where the home page
+       section would drop to two — this is the dedicated comparison view. */
+    @media (min-width: 44rem) {
+        .mk-pricing__grid--page { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (min-width: 68rem) {
+        .mk-pricing__grid--page { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+}@layer components {
+
+    /*
+     | ------------------------------------------------------- auth handoff
+     | Centres the brand lockup above the auth card. The .cf-auth__brand class in
+     | the app stylesheet assumed a flex <a> with an initials block; this wrapper
+     | lets <x-ui.brand-logo> (an inline-flex component with its own type scale)
+     | sit in the same slot without fighting those rules.
+     */
+    .cf-auth__brandwrap {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 1.4rem;
+    }
+
+    /* The wordmark is sized for a nav bar; slightly larger reads better on an
+       auth screen where it is the only brand element on the page. */
+    .cf-auth__brandwrap .cf-brandlogo__text { font-size: 1.4rem; }
+}
+/* ==========================================================================
+   Dashboard skin (matches the ChurchFlow dashboard reference).
+   Namespaced `cfd-` so it never collides with the module pages' `cf-` classes.
+   The shell overrides below re-skin the sidebar/topbar for every page; they
+   only change colour and spacing, never the markup contract the 41 module
+   views depend on.
+   ========================================================================== */
+@layer components {
+    .cf-sidebar {
+        background: var(--color-navy);
+        border-right: 0;
+        --shell-sidebar-text: rgba(255, 255, 255, 0.78);
+    }
+    .cf-sidebar__brand { color: #fff; align-items: center; padding-bottom: 1.1rem; }
+    .cf-sidebar__mark { background: linear-gradient(135deg, var(--color-brand-blue), var(--color-brand-green)); }
+    .cf-sidebar__wordmark { display: grid; line-height: 1.1; }
+    .cf-sidebar__wordmark span { font-size: 1.15rem; font-weight: 800; }
+    .cf-sidebar__wordmark em { font-style: normal; color: var(--color-brand-green); }
+    .cf-sidebar__wordmark small { font-size: 0.55rem; font-weight: 500; opacity: 0.7; letter-spacing: 0; margin-top: 0.2rem; }
+    .cf-sidebar__label { color: rgba(255, 255, 255, 0.45); }
+    .cf-navlink { color: var(--shell-sidebar-text); border-radius: 0.6rem; padding: 0.55rem 0.65rem; }
+    .cf-navlink:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+    .cf-navlink.is-active {
+        background: var(--color-brand-blue);
+        color: #fff;
+        box-shadow: 0 6px 16px -6px rgba(22, 119, 255, 0.7);
+    }
+
+    .cfd-search {
+        display: flex; align-items: center; gap: 0.5rem;
+        flex: 1; max-width: 32rem;
+        background: var(--canvas); border: 1px solid var(--line);
+        border-radius: 0.7rem; padding: 0.5rem 0.8rem; color: var(--muted);
+    }
+    .cfd-search:focus-within { border-color: var(--color-brand-blue); box-shadow: 0 0 0 3px rgba(22, 119, 255, 0.15); }
+    .cfd-search input { flex: 1; border: 0; background: transparent; outline: 0; font: inherit; font-size: 0.88rem; color: var(--ink); min-width: 0; }
+    .cfd-topbar__right { display: flex; align-items: center; gap: 0.9rem; }
+    .cfd-iconbtn { position: relative; display: grid; place-items: center; width: 2.3rem; height: 2.3rem; border-radius: 0.6rem; color: var(--ink); }
+    .cfd-iconbtn:hover { background: var(--canvas); }
+    .cfd-iconbtn__count {
+        position: absolute; top: 0.1rem; right: 0.05rem; min-width: 1.05rem; height: 1.05rem; padding: 0 0.25rem;
+        border-radius: 999px; background: #ef4444; color: #fff; font-size: 0.62rem; font-weight: 700; display: grid; place-items: center;
+    }
+    .cfd-user { display: flex; align-items: center; gap: 0.6rem; }
+    .cfd-user__avatar {
+        width: 2.3rem; height: 2.3rem; border-radius: 999px; display: grid; place-items: center;
+        background: var(--color-navy); color: #fff; font-size: 0.78rem; font-weight: 700;
+    }
+    .cfd-user__meta { display: grid; line-height: 1.15; }
+    .cfd-user__meta strong { font-size: 0.82rem; }
+    .cfd-user__meta small { font-size: 0.7rem; color: var(--muted); }
+
+    .cfd-layout { display: grid; gap: 1.1rem; grid-template-columns: minmax(0, 1fr) 19rem; align-items: start; }
+    .cfd-stack { display: grid; gap: 1.1rem; min-width: 0; }
+    .cfd-kpis { display: grid; gap: 1rem; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .cfd-two { display: grid; gap: 1.1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+    .cfd-panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card); box-shadow: var(--shadow-sm); padding: 1.1rem 1.2rem; }
+    .cfd-panel__head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.9rem; }
+    .cfd-panel__head h2 { font-size: 0.98rem; font-weight: 700; color: var(--ink); display: flex; align-items: center; gap: 0.55rem; }
+    .cfd-panel__head a { font-size: 0.75rem; font-weight: 600; color: var(--color-brand-blue); }
+
+    .cfd-ico { flex: none; display: grid; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: 999px; }
+    .cfd-ico--sm { width: 2rem; height: 2rem; }
+    .cfd-ico--blue { background: var(--color-brand-light-blue); color: var(--color-brand-blue); }
+    .cfd-ico--green { background: var(--color-brand-light-green); color: var(--color-brand-green); }
+    .cfd-ico--purple { background: #f3e8ff; color: #9333ea; }
+    .cfd-ico--orange { background: #fff1e6; color: #f97316; }
+    .cfd-ico--pink { background: #ffe4e6; color: #f43f5e; }
+
+    .cfd-kpi { display: flex; gap: 0.85rem; align-items: center; }
+    .cfd-kpi > div { min-width: 0; } /* flex children don't shrink below content size by default — let long values wrap/ellipsize instead of overflowing the card */
+    .cfd-kpi__value { overflow-wrap: break-word; }
+    .cfd-kpi__label { font-size: 0.8rem; color: var(--muted); }
+    .cfd-kpi__value { font-size: 1.55rem; font-weight: 800; color: var(--color-navy); letter-spacing: -0.02em; line-height: 1.2; }
+    .cfd-trend { font-size: 0.72rem; font-weight: 600; }
+    .cfd-trend--up { color: var(--color-brand-green); }
+    .cfd-trend--down { color: #ef4444; }
+    .cfd-trend--flat { color: var(--muted); }
+
+    .cfd-chartbox { position: relative; height: 15rem; }
+
+    .cfd-list { display: grid; gap: 0.2rem; }
+    .cfd-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.55rem 0.4rem; border-radius: 0.6rem; color: inherit; text-decoration: none; }
+    a.cfd-row:hover { background: var(--canvas); }
+    .cfd-row__title { font-size: 0.84rem; font-weight: 600; color: var(--ink); }
+    .cfd-row__sub { font-size: 0.73rem; color: var(--muted); }
+
+    .cfd-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem; }
+    .cfd-action {
+        display: grid; justify-items: center; gap: 0.4rem; padding: 0.85rem 0.5rem; text-align: center;
+        border-radius: 0.8rem; background: var(--canvas); font-size: 0.78rem; font-weight: 600; color: var(--ink);
+        text-decoration: none; transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .cfd-action:hover { transform: translateY(-2px); box-shadow: 0 8px 18px -10px rgba(15, 23, 42, 0.35); }
+
+    .cfd-timeline { display: grid; gap: 0.9rem; }
+    .cfd-timeline__item { display: grid; grid-template-columns: 4.6rem 1fr; gap: 0.6rem; position: relative; }
+    .cfd-timeline__time { font-size: 0.76rem; font-weight: 600; color: var(--muted); }
+
+    .cfd-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.6rem; }
+    .cfd-metric { border: 1px solid var(--line); border-radius: 0.7rem; padding: 0.7rem; display: grid; gap: 0.15rem; }
+    .cfd-metric span { font-size: 0.7rem; color: var(--muted); }
+    .cfd-metric strong { font-size: 1.05rem; color: var(--color-navy); }
+
+    .cfd-depts { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: 0.7rem; }
+    .cfd-dept { display: flex; gap: 0.7rem; align-items: center; border: 1px solid var(--line); border-radius: 0.8rem; padding: 0.7rem; }
+
+    .cfd-promo { background: linear-gradient(135deg, var(--color-brand-light-blue), var(--color-brand-light-green)); border-radius: var(--radius-card); padding: 1.2rem; }
+    .cfd-promo h3 { font-size: 1rem; font-weight: 800; color: var(--color-navy); }
+    .cfd-promo p { font-size: 0.78rem; color: var(--muted); margin: 0.35rem 0 0.9rem; }
+
+    .cfd-empty { font-size: 0.8rem; color: var(--muted); padding: 0.6rem 0.2rem; }
+    .cfd-empty a { color: var(--color-brand-blue); font-weight: 600; }
+
+    @media (max-width: 1180px) { .cfd-layout { grid-template-columns: minmax(0, 1fr); } }
+    @media (max-width: 900px) {
+        .cfd-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .cfd-two { grid-template-columns: minmax(0, 1fr); }
+        .cfd-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .cfd-user__meta { display: none; }
+        .cf-topbar form[action*="logout"] button { padding-inline: 0.6rem; } /* "Sign out" → icon-sized tap target so it stops pushing the search box off-screen */
+    }
+    @media (max-width: 640px) {
+        .cfd-kpis { grid-template-columns: minmax(0, 1fr); } /* two-up still clips 6-7 digit Naira amounts on a phone; one column reads better than truncation */
+        .cfd-search input::placeholder { overflow: hidden; text-overflow: ellipsis; }
+    }
+    @media (prefers-reduced-motion: reduce) { .cfd-action { transition: none; } .cfd-action:hover { transform: none; } }
+}
+
+@layer components {
+    .cfd-gsearch { position: relative; flex: 1; min-width: 0; max-width: 32rem; }
+    .cfd-gsearch .cfd-search { max-width: none; }
+    .cfd-search__clear { border: 0; background: transparent; color: var(--muted); font-size: 1.1rem; line-height: 1; cursor: pointer; }
+    .cfd-gsearch__panel {
+        position: absolute; left: 0; right: 0; top: calc(100% + 0.4rem); z-index: 40; max-height: 26rem; overflow-y: auto;
+        background: var(--surface); border: 1px solid var(--line); border-radius: 0.8rem; padding: 0.4rem;
+        box-shadow: 0 18px 40px -16px rgba(15, 23, 42, 0.35);
+    }
+    .cfd-gsearch__heading { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0.5rem 0.6rem 0.2rem; }
+    .cfd-gsearch__item { display: grid; width: 100%; text-align: left; gap: 0.05rem; padding: 0.45rem 0.6rem; border: 0; background: transparent; border-radius: 0.5rem; color: var(--ink); text-decoration: none; font: inherit; font-size: 0.85rem; cursor: pointer; }
+    .cfd-gsearch__item:hover, .cfd-gsearch__item.is-active { background: var(--color-brand-light-blue); }
+    .cfd-gsearch__item mark, .cfd-row__title mark { background: #fef08a; color: inherit; border-radius: 0.15rem; padding: 0 0.05rem; }
+    .cfd-gsearch__all { display: block; text-align: center; padding: 0.55rem; font-size: 0.78rem; font-weight: 600; color: var(--color-brand-blue); border-top: 1px solid var(--line); margin-top: 0.3rem; }
+}
+/* ==========================================================================
+   Reusable data grid (§29–35). Namespaced `cfg-` — built for Members first,
+   but nothing here is Member-specific; a second module adopts it by
+   reusing these classes + the same Alpine `cfGridSelection()` component,
+   not by copying markup.
+   ========================================================================== */
+@layer components {
+    .cfg-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+    .cfg-toolbar__search { display: flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 12rem; max-width: 22rem;
+        background: var(--canvas); border: 1px solid var(--line); border-radius: 0.6rem; padding: 0.5rem 0.75rem; }
+    .cfg-toolbar__search input { flex: 1; min-width: 0; border: 0; background: transparent; outline: 0; font: inherit; font-size: 0.85rem; }
+    .cfg-select { border: 1px solid var(--line); border-radius: 0.6rem; padding: 0.5rem 0.7rem; font-size: 0.83rem; background: var(--surface); color: var(--ink); }
+    .cfg-toolbar__spacer { flex: 1; }
+
+    .cfg-tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface); }
+    .cfg-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .cfg-table th { text-align: left; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);
+        padding: 0.7rem 0.85rem; border-bottom: 1px solid var(--line); white-space: nowrap; background: var(--canvas); }
+    .cfg-table td { padding: 0.65rem 0.85rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
+    .cfg-table tbody tr:last-child td { border-bottom: 0; }
+    .cfg-table tbody tr:hover { background: var(--canvas); }
+    .cfg-sort { display: inline-flex; align-items: center; gap: 0.25rem; color: inherit; text-decoration: none; }
+    .cfg-sort:hover { color: var(--color-brand-blue, var(--brand-600)); }
+    .cfg-sort__arrow { font-size: 0.65rem; opacity: 0.5; }
+    .cfg-sort__arrow.is-active { opacity: 1; color: var(--brand-600); }
+    .cfg-checkbox-col { width: 2.2rem; }
+
+    .cfg-bulkbar { position: sticky; bottom: 0.8rem; display: flex; align-items: center; gap: 0.8rem;
+        background: var(--ink); color: #fff; border-radius: 0.7rem; padding: 0.6rem 0.9rem; margin-top: 0.8rem;
+        box-shadow: 0 12px 28px -12px rgba(15, 23, 42, 0.5); font-size: 0.82rem; }
+    .cfg-bulkbar select { font-size: 0.8rem; border-radius: 0.4rem; border: 0; padding: 0.35rem 0.5rem; }
+    .cfg-bulkbar button { font-size: 0.8rem; }
+    .cfg-bulkbar__clear { background: transparent; border: 0; color: rgba(255,255,255,0.7); cursor: pointer; font-size: 0.8rem; }
+
+    .cfg-empty { padding: 2.4rem 1rem; text-align: center; color: var(--muted); }
+    .cfg-empty a { color: var(--brand-600); font-weight: 600; }
+
+    /* Laravel's default Tailwind pagination partial — restyle rather than replace, so a
+       future `php artisan vendor:publish` for pagination views doesn't get silently undone. */
+    .cfg-pagination nav { font-size: 0.8rem; color: var(--muted); }
+    .cfg-pagination [aria-current="page"] span { background: var(--color-brand-blue, var(--brand-600)) !important; border-color: transparent !important; color: #fff !important; }
+    .cfg-pagination a, .cfg-pagination span { border-radius: 0.4rem !important; }
+
+    @media (max-width: 720px) {
+        .cfg-toolbar__search { max-width: none; order: -1; flex-basis: 100%; }
+    }
+}
+
+@layer components {
+    .cf-modal { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .cf-modal__backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.45); }
+    .cf-modal__panel { position: relative; width: 100%; max-height: 90vh; overflow-y: auto; }
 }

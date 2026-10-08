@@ -21,6 +21,25 @@ class User extends Authenticatable
         'church_id', 'name', 'email', 'password', 'is_platform_admin', 'is_active',
     ];
 
+    protected static function booted(): void
+    {
+        static::creating(function (User $user) {
+            // §14 max_admins. Only counts once a user is actually attached
+            // to a church — registration (Phase 1's RegisterController)
+            // creates the very first User with church_id still null, before
+            // any plan has even been chosen, so this never blocks signup
+            // itself. A staff member invited later (adding a second admin
+            // to an existing church) is exactly what this guards.
+            if ($user->church_id && !$user->is_platform_admin) {
+                app(\App\Domains\Subscriptions\Services\PlanLimitService::class)->assertCanAdd(
+                    Church::findOrFail($user->church_id),
+                    'admins',
+                    static::withoutGlobalScopes()->where('church_id', $user->church_id)->where('is_platform_admin', false)->count(),
+                );
+            }
+        });
+    }
+
     protected $hidden = ['password', 'remember_token'];
 
     protected function casts(): array

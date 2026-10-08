@@ -1,8 +1,10 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+// --- Phase 8 addition: merge into routes/console.php, do not overwrite ---
+// (Laravel 11+ registers the scheduler here rather than in a Kernel class;
+// if this project predates that, put the same line in
+// App\Console\Kernel::schedule() instead.)
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+use Illuminate\Support\Facades\Schedule;
+
+Schedule::command('subscriptions:process-billing-cycle')->daily();

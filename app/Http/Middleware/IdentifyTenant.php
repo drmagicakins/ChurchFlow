@@ -24,7 +24,17 @@ class IdentifyTenant
 
         abort_if(!$user, 401);
         abort_if($user->is_platform_admin, 403, 'Platform admins do not have an implicit church context.');
-        abort_if(!$user->church_id, 403, 'This account is not attached to a church.');
+
+        // §1/§2: a registered user with no church has not completed
+        // payment yet. That's the normal state of someone mid-signup, not
+        // an error — send them back into the plan/payment flow rather than
+        // showing a bare 403. API callers still get the 403.
+        if (!$user->church_id) {
+            abort_if($request->expectsJson(), 403, 'This account is not attached to a church.');
+
+            return redirect()->route('plans.index')
+                ->with('status', 'Choose a plan and complete payment to set up your church.');
+        }
 
         app()->instance('tenant.church_id', $user->church_id);
 

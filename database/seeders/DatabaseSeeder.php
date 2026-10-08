@@ -18,5 +18,10 @@ class DatabaseSeeder extends Seeder
         // system-default "Church Owner" role (church_id = null) that is
         // cloned into each new church on registration.
         $this->call(RolePermissionSeeder::class);
+
+        // Phase 8: the subscription plans a visitor chooses between. Seeded
+        // here so a fresh clone has a working /plans page and a checkout it
+        // can actually complete — placeholder prices, see PlanSeeder.
+        $this->call(PlanSeeder::class);
     }
 }

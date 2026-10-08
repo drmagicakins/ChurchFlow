@@ -38,6 +38,17 @@ return [
             'report' => false,
         ],
 
+        // §23/§43 (Phase 10): uploads (member photos, etc.) live here —
+        // outside the public webroot and never served directly by the web
+        // server. Files are streamed through FileDownloadController via a
+        // signed, time-limited URL instead.
+        'private' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private'),
+            'serve' => false,
+            'throw' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

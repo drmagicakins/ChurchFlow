@@ -23,6 +23,9 @@
 /_phase1_extract
 /_setup
 /database/database.sqlite
+# Legacy RCCG subvention app — reference material only (contains historical
+# credentials and a full DB dump). Never commit or deploy this.
+/legacy
 Homestead.json
 Homestead.yaml
 Thumbs.db
