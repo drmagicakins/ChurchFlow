@@ -102,12 +102,28 @@ class SubscriptionService
 
         return $this->renew($subscription);
     }
-
     public function changePlan(Subscription $subscription, Plan $newPlan): Subscription
     {
         $subscription->update(['plan_id' => $newPlan->id]);
 
         return $subscription;
+    }
+
+    /**
+     * The one public entry point for writing `churches.status`.
+     *
+     * Every lifecycle method above calls the private syncChurchStatus()
+     * directly, which is fine for the statuses they own. But a trial (and
+     * anything else added later) needs to write the cache from OUTSIDE this
+     * class without either duplicating the `$church->update(['status'=>...])`
+     * line everywhere or reaching into a private method. Exposing it keeps
+     * the original guarantee intact — this class is still the only thing
+     * that ever writes churches.status — while letting new lifecycle code
+     * live where it belongs.
+     */
+    public function syncStatus(Church $church, string $status): void
+    {
+        $this->syncChurchStatus($church, $status);
     }
 
     private function syncChurchStatus(Church $church, string $status): void

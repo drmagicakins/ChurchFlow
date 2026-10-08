@@ -4,9 +4,9 @@ namespace App\Domains\Subscriptions\Actions;
 
 use App\Domains\Subscriptions\Events\ChurchActivated;
 use App\Domains\Subscriptions\Services\SubscriptionService;
+use App\Domains\Subscriptions\Services\TrialService;
 use App\Models\Checkout;
 use App\Models\Church;
-use App\Models\Invoice;
 use App\Models\Role;
 use App\Models\UnitType;
 use Illuminate\Support\Facades\DB;
@@ -17,17 +17,35 @@ use Illuminate\Support\Str;
  * from a public signup. There is no other path from "someone registered"
  * to "a tenant exists" — registration (Phase 1's RegisterController) now
  * creates a User with no church_id at all; this action is what gives them
- * one, and only once a payment has been verified.
+ * one, and only once their 14-day trial has been started.
  *
  * Idempotency (§33): if the checkout is already 'completed', this is a
  * no-op that returns the existing church — a redelivered webhook or a
  * doubly-clicked "verify" button can never create two churches or two
  * subscriptions for the same checkout. The provider_reference UNIQUE
  * constraint on `invoices` is the second, DB-enforced backstop.
+ *
+ * PHASE 11 — TRIAL FIRST, NO CHARGE AT SIGNUP
+ * -------------------------------------------
+ * This used to call `SubscriptionService::createInitial()`, which wrote an
+ * `active` subscription and a `paid` invoice dated the moment of signup.
+ * That is now wrong: the 14-day trial means no money changes hands at
+ * signup at all. So this calls `TrialService::startTrial()` instead, which
+ * writes a `trialing` subscription and NO invoice — an invoice for a
+ * payment that never happened would be a false financial record, which is
+ * exactly the kind of thing §48 exists to prevent.
+ *
+ * The `checkouts.purpose === 'subscription'` gate is unchanged, and the
+ * checkout being marked `completed` still proves the plan choice was
+ * recorded. What changed is that "completed" now means "trial started",
+ * not "first month paid for".
  */
 class ActivateChurchFromCheckout
 {
-    public function __construct(private readonly SubscriptionService $subscriptions) {}
+    public function __construct(
+        private readonly SubscriptionService $subscriptions,
+        private readonly TrialService $trials,
+    ) {}
 
     public function handle(Checkout $checkout): Church
     {
@@ -48,9 +66,9 @@ class ActivateChurchFromCheckout
             $plan = $checkout->plan;
 
             $church = Church::create([
-                'name' => $user->name."'s Church", // placeholder — the setup wizard (not built in this phase) collects the real name
+                'name' => $user->name."'s Church", // placeholder — the setup wizard collects the real name
                 'slug' => Str::slug($user->name).'-'.Str::random(6),
-                'status' => 'pending', // SubscriptionService::createInitial flips this to 'active' below
+                'status' => 'pending', // TrialService::startTrial flips this to 'trial' below
             ]);
 
             $headquarters = UnitType::create(['church_id' => $church->id, 'name' => 'Headquarters', 'level' => 0]);
@@ -78,26 +96,11 @@ class ActivateChurchFromCheckout
 
             $user->roles()->attach($ownerRole);
 
-            $this->subscriptions->createInitial($church, $plan, $checkout->billing_interval);
-
-            // Copied verbatim from the checkout, NOT recalculated — the
-            // person was quoted and charged this exact subtotal/tax/total
-            // at checkout time (§4); the invoice must reflect that, even if
-            // the platform's tax rate setting has since changed.
-            Invoice::create([
-                'church_id' => $church->id,
-                'checkout_id' => $checkout->id,
-                'type' => 'subscription',
-                'amount' => $checkout->subtotal,
-                'tax_amount' => $checkout->tax_amount,
-                'tax_rate' => $checkout->tax_rate,
-                'currency' => $checkout->currency,
-                'status' => 'paid',
-                'description' => "{$plan->name} plan — {$checkout->billing_interval}",
-                'provider' => $checkout->provider,
-                'provider_reference' => $checkout->provider_reference,
-                'paid_at' => now(),
-            ]);
+            // PHASE 11: no charge at signup — 14 free days instead. This
+            // writes a `trialing` subscription and deliberately NO invoice;
+            // see the class docblock above. The plan the person chose is
+            // recorded on the subscription and is what the trial runs on.
+            $this->trials->startTrial($church, $plan, $checkout->billing_interval);
 
             $checkout->update(['church_id' => $church->id, 'status' => 'completed']);
 

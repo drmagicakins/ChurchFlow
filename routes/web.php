@@ -21,6 +21,16 @@ Route::get('/health', [\App\Http\Controllers\HealthController::class, 'show'])
     ->middleware('throttle:60,1')
     ->name('health');
 
+// --- Phase 10: the public landing page (§27-39) ---
+// This is the marketing landing page built for Phase 10 — a real route
+// backed by LandingController, NOT the default `laravel new` welcome view.
+// It replaces the earlier marketing-suite home page at "/"; anything else
+// that used to answer "/" now redirects here so there is exactly one page
+// owning that URI (two routes on one URI is a silent bug). The rest of the
+// marketing site (features, pricing, about, legal, resources) is still
+// registered from routes/marketing.php at the bottom of this file.
+Route::get('/', [\App\Http\Controllers\LandingController::class, 'index'])->name('landing');
+
 // --- Phase 8: public pricing (§36) + pre-tenant checkout (§1-8) ---
 Route::get('/plans', [\App\Http\Controllers\PlanController::class, 'index'])->name('plans.index');
 
@@ -185,6 +195,10 @@ Route::middleware(['auth', \App\Http\Middleware\IdentifyTenant::class, \App\Http
     // subscription-status restriction by EnsureSubscriptionAllowsAccess) ---
     Route::get('/billing', [\App\Http\Controllers\BillingController::class, 'show'])->name('billing.show');
     Route::get('/billing/invoices', [\App\Http\Controllers\BillingController::class, 'invoices'])->name('billing.invoices');
+    // Phase 11: the plan management screens — subscribe out of a trial, and
+    // the single upgrade/downgrade table for a paid subscription.
+    Route::get('/billing/plans', [\App\Http\Controllers\BillingController::class, 'plans'])->name('billing.plans');
+    Route::post('/billing/subscribe', [\App\Http\Controllers\BillingController::class, 'subscribeNow'])->name('billing.subscribe');
     Route::post('/billing/cancel', [\App\Http\Controllers\BillingController::class, 'requestCancellation'])->name('billing.cancel');
     Route::post('/billing/reactivate', [\App\Http\Controllers\BillingController::class, 'reactivate'])->name('billing.reactivate');
         Route::get('/billing/change-plan/preview', [\App\Http\Controllers\BillingController::class, 'previewPlanChange'])->name('billing.change-plan.preview');

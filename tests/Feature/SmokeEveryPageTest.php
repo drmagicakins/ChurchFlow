@@ -185,6 +185,14 @@ class SmokeEveryPageTest extends TestCase
             // Requires a ?plan= query parameter; with none it redirects back to
             // billing by design, so a 302 here is correct rather than a failure.
             'billing.change-plan.preview',
+            // POST-only in practice — the sweep only walks GET routes, and
+            // these exist to be submitted by a form, not opened in a browser.
+            'billing.subscribe',
+            // Requires a valid signed URL (Phase 10's secure download). With a
+            // bare /files/1 and no signature it correctly 403s, so a failure
+            // here would just be the sweep using a URL it cannot legitimately
+            // produce.
+            'files.show',
         ];
 
         $checked = 0;

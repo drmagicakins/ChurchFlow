@@ -71,7 +71,7 @@ class PaymentGatedSignupTest extends TestCase
         $this->assertSame(0, Subscription::withoutGlobalScopes()->count());
     }
 
-    public function test_verified_payment_creates_church_owner_subscription_and_invoice(): void
+    public function test_verified_payment_creates_church_owner_and_starts_a_14_day_trial(): void
     {
         $this->seed(RolePermissionSeeder::class);
         $user = User::factory()->create(['church_id' => null]);
@@ -83,15 +83,20 @@ class PaymentGatedSignupTest extends TestCase
         $this->assertNotNull($user->church_id);
 
         $church = Church::find($user->church_id);
-        $this->assertSame('active', $church->status);
+
+        // Phase 11: a new church starts on a 14-day trial, NOT on a paid
+        // subscription — signup takes no money.
+        $this->assertSame('trial', $church->status);
 
         $subscription = Subscription::withoutGlobalScopes()->where('church_id', $church->id)->first();
-        $this->assertSame('active', $subscription->status);
+        $this->assertSame('trialing', $subscription->status);
+        $this->assertNotNull($subscription->trial_ends_at);
+        $this->assertSame(14, (int) now()->startOfDay()->diffInDays($subscription->trial_ends_at->startOfDay()));
 
-        $invoice = Invoice::withoutGlobalScopes()->where('church_id', $church->id)->first();
-        $this->assertSame('subscription', $invoice->type);
-        $this->assertSame('paid', $invoice->status);
-        $this->assertSame($checkout->fresh()->provider_reference, $invoice->provider_reference);
+        // The defining guarantee of the trial: nothing was charged, so no
+        // invoice exists. An invoice here would be a false financial record.
+        $this->assertSame(0, Invoice::withoutGlobalScopes()->where('church_id', $church->id)->count(),
+            'Starting a trial must not create an invoice — no payment has happened.');
 
         $this->assertSame('completed', $checkout->fresh()->status);
         $this->assertSame(1, OrganizationalUnit::withoutGlobalScopes()->where('church_id', $church->id)->count());
@@ -114,7 +119,7 @@ class PaymentGatedSignupTest extends TestCase
 
         $this->assertSame(1, Church::count());
         $this->assertSame(1, Subscription::withoutGlobalScopes()->count());
-        $this->assertSame(1, Invoice::withoutGlobalScopes()->count());
+        $this->assertSame(0, Invoice::withoutGlobalScopes()->count(), 'A trial creates no invoice.');
     }
 
     public function test_two_different_events_racing_for_one_checkout_still_activate_exactly_once(): void
@@ -130,7 +135,7 @@ class PaymentGatedSignupTest extends TestCase
 
         $this->assertSame(1, Church::count());
         $this->assertSame(1, Subscription::withoutGlobalScopes()->count());
-        $this->assertSame(1, Invoice::withoutGlobalScopes()->count());
+        $this->assertSame(0, Invoice::withoutGlobalScopes()->count(), 'A trial creates no invoice.');
     }
 
     public function test_a_failed_payment_creates_nothing_and_leaves_the_checkout_retryable(): void
@@ -204,6 +209,14 @@ class PaymentGatedSignupTest extends TestCase
 
         $church = Church::first();
         $user = User::where('church_id', $church->id)->first();
+
+        // Phase 11: the subscription checkout above started a TRIAL and so
+        // wrote no subscription invoice. Convert it to a paid subscription
+        // first, so this test still compares two real revenue streams rather
+        // than accidentally asserting that a trial produced one.
+        app(\App\Domains\Subscriptions\Services\TrialService::class)
+            ->subscribeNow(Subscription::withoutGlobalScopes()->where('church_id', $church->id)->firstOrFail());
+
         [$smsCheckout] = app(CheckoutService::class)->startSmsCreditsCheckout($user, $church, 500, '2500.00');
         app(PaymentWebhookHandler::class)->handle($this->successEvent($smsCheckout, 'b'));
 

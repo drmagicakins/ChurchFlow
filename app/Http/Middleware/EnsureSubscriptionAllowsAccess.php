@@ -16,17 +16,26 @@ use Symfony\Component\HttpFoundation\Response;
  * restriction is purely routing, nothing is deleted or hidden from a
  * future reactivation.
  *
+ * `trial` and `pending` are both full-access statuses. A trialing church is
+ * a real, working tenant for its 14 free days — gating it would defeat the
+ * point of a trial — and `pending` covers the brief window inside
+ * ActivateChurchFromCheckout between the Church row being created and
+ * SubscriptionService writing the real status onto it.
+ *
  * Runs AFTER IdentifyTenant, so app('tenant.church_id') is already bound.
  */
 class EnsureSubscriptionAllowsAccess
 {
     private const ALWAYS_ALLOWED_ROUTE_PREFIXES = ['billing.', 'logout'];
 
+    /** Statuses that never restrict access at all. */
+    private const FULL_ACCESS_STATUSES = ['trial', 'trialing', 'active', 'past_due', 'grace_period', 'pending'];
+
     public function handle(Request $request, Closure $next): Response
     {
         $church = $request->user()->church;
 
-        if (!$church || in_array($church->status, ['active', 'past_due', 'grace_period', 'pending'], true)) {
+        if (!$church || in_array($church->status, self::FULL_ACCESS_STATUSES, true)) {
             return $next($request);
         }
 

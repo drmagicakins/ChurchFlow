@@ -62,6 +62,9 @@
         ['sms.campaigns.index', 'sms.manage', 'SMS campaigns', 'chat'],
         ['sms.wallet.show', 'sms.manage', 'SMS wallet', 'wallet'],
         ['notifications.index', null, 'Notifications', 'bell'],
+
+        ['__group' => 'Account'],
+        ['billing.show', 'billing.manage', 'Billing & plan', 'wallet'],
     ];
 
     // A menu row is kept only when its route actually exists in this build and the

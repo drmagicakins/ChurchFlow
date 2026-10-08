@@ -37,12 +37,21 @@ class RenewalAndDunningService
     public function __construct(
         private readonly SubscriptionService $subscriptions,
         private readonly PaymentGatewayInterface $gateway,
+        private readonly TrialService $trials,
     ) {}
 
-    /** @return array{renewed:int, past_due:int, grace_period:int, expired:int, cancelled:int} */
+    /** @return array{renewed:int, past_due:int, grace_period:int, expired:int, cancelled:int, trials_lapsed:int} */
     public function runDailyCycle(): array
     {
-        $counts = ['renewed' => 0, 'past_due' => 0, 'grace_period' => 0, 'expired' => 0, 'cancelled' => 0];
+        $counts = ['renewed' => 0, 'past_due' => 0, 'grace_period' => 0, 'expired' => 0, 'cancelled' => 0, 'trials_lapsed' => 0];
+
+        // Phase 11: a trial whose 14 days are up and which nobody chose to
+        // convert moves to past_due FIRST, so it then flows through the
+        // ordinary grace_period/expired chain below on the same timings a
+        // lapsed paid subscription gets. Doing this before the other passes
+        // means a trial that lapsed today is picked up by this same run
+        // rather than waiting a day.
+        $counts['trials_lapsed'] = $this->trials->expireExhaustedTrials();
 
         $this->finalizeRequestedCancellations($counts);
         $this->attemptRenewals($counts);

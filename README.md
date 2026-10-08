@@ -1,8 +1,19 @@
-# Church SaaS — Phase 1–9 (Foundation → … → SaaS Billing → Onboarding, Tours & Feature Flags)
+# ChurchFlow — Phase 1–11 (Foundation → SaaS Billing → Onboarding → Production Hardening → 14-Day Trial)
 
-This is not a full Laravel install (this sandbox has no access to Packagist, so
-`composer install` can't run here). It's the **source for Phase 1** — drop it
-into a fresh Laravel app on your own machine and it will run as-is.
+Product name: **ChurchFlow** (`APP_NAME`, the landing page's nav/footer and
+`<title>`). Earlier phase notes below sometimes say "Church SaaS"
+generically where they describe the *system* rather than the brand — a
+naming artifact of when those phases were written, not a second product.
+
+**Current state: Phase 10 integrated and verified, Phase 11 (14-day trial +
+plan self-service) built on top of it. 224 tests / 648 assertions passing.**
+
+Sections below, in order:
+- Phase 1–9 feature notes (unchanged, kept as the historical record)
+- **Phase 10 — production hardening** (`DEPLOYMENT.md`, `SECURITY.md`)
+- **Phase 11 — 14-day trial + subscribe/upgrade/downgrade**
+- **The integration itself** — what the Phase 1–10 drop-in got wrong when
+  applied to this codebase, and how that was resolved
 
 ## Setup
 
@@ -567,11 +578,236 @@ causes a real timing bug (e.g. an unrelated update resetting the clock).
   event; the client-tracking endpoint accepts an allow-listed event name
   and rejects anything else with a 422.
 
-## What's deliberately NOT built yet
+## Phase 10 — Production hardening (§23, §43-45, §49-50)
 
-The interactive landing page, the wider platform-admin area (system
-health, support tickets), and Phase 10 (security hardening, performance
-work, backups, monitoring, CI/CD) — plus the smaller Phase 8 gaps noted
-above (church-name setup step still only tracks completion, it doesn't
-yet collect the name itself; storage/feature-flag *plan* limits sit
-unused; invoice PDFs; real Paystack/Flutterwave network code).
+Phase 10 arrived as a drop-in package and is now integrated. Setup is
+documented in `DEPLOYMENT.md` and `SECURITY.md`; the code is:\n
+- **Secure file uploads.** `FileUploadService` sniffs MIME type from file
+  *content* (never the client's `Content-Type` or the filename extension —
+  the exact thing §43 warns against trusting), stores under a random on-disk
+  UUID (never the client's filename), on a `private` disk outside the public
+  webroot, behind a signed, time-limited URL. `FileDownloadController`
+  re-checks tenant ownership on every request even though the signature
+  already proves the link is legitimate; in practice isolation is enforced a
+  layer earlier still, because `UploadedFile` is tenant-scoped like
+  everything else — a cross-tenant request 404s at route-model-binding time
+  before the controller's own check runs. First real use: member photo
+  upload (`MemberPhotoController`), replacing Phase 2's `photo_path` column
+  (which was schema only, never wired to anything) with a proper
+  `photo_upload_id` FK and a `Member::photoUrl()` that mints a fresh signed
+  URL on every call, since a signed URL expires and must never be the thing
+  stored permanently.
+- **`SecurityHeaders` middleware**: `X-Frame-Options: DENY`,
+  `X-Content-Type-Options: nosniff`, a same-origin `Content-Security-Policy`,
+  HSTS on HTTPS requests, and a `Permissions-Policy` denying
+  camera/mic/geolocation outright.
+- **A health check that actually checks something**: `GET /health` probes the
+  database, cache and queue backends independently (Laravel's default `/up`
+  only proves the PHP process is alive) and returns 503 if any dependency is
+  down, with per-dependency latency/error detail. Verified live — see
+  "Verification" below.
+- **Docker + CI**: one `Dockerfile` reused by three services (web process,
+  queue worker, scheduler) running different commands against the same image,
+  so they cannot drift out of sync with each other's code.
+  `.github/workflows/ci.yml` runs the full suite against real MySQL on every
+  push/PR, and treats `TenantIsolationTest.php` as load-bearing enough to
+  fail the build separately and loudly if that file is ever missing or empty.
+- **`backup:database`** (scheduled daily) that is explicit in its own
+  docblock about not being a real production backup strategy — making the
+  limitation loud rather than letting a `routes/console.php` entry imply more
+  safety than it provides.
+- **`SECURITY.md`** / **`DEPLOYMENT.md`** — the security story phase by
+  phase, the processes a production deployment actually needs (the queue
+  worker is not optional), and an honest list of what still needs real
+  traffic data.
+
+### The landing page (§27-39)
+
+`GET /` is a real route (`LandingController` →
+`resources/views/landing/index.blade.php`). Pricing is genuinely dynamic —
+the page queries `Plan::where('is_active', true)`, the same source the
+checkout flow reads, so an admin price change appears with no template edit.
+Every CTA routes into the real flow: "Get Started" → `register`,
+"Sign in" → `login`, and each plan button is aware of a signed-in,
+not-yet-activated user, sending them straight to `checkout.review` for that
+exact plan instead of back through registration. The interactive
+feature-explorer is deliberately **static sample data** — it is marketing
+content a logged-out visitor sees, and wiring it to real church records
+would mean exposing database content with no authentication in front of it.
+
+---
+
+## Phase 11 — 14-day trial + subscribe / upgrade / downgrade
+
+**The decision, stated once:** every new church gets **14 days free**, and
+subscribes after that. Signup takes no money.
+
+### Why a trial is a real subscription row, not a special case
+
+It would have been easier to give a trial church no subscription at all and
+teach every other class to special-case "trialing". That is exactly the kind
+of branch that rots: plan limits (`PlanLimitService`), the access gate
+(`EnsureSubscriptionAllowsAccess`), the billing screen and the renewal cycle
+would each need their own `if (trialing)`, and each could disagree with the
+others.
+
+Instead a trial **is** a subscription whose `status` is `trialing`.
+`subscriptions.status` remains the single source of truth,
+`churches.status` remains the one denormalized cache written only by
+`SubscriptionService` (now via a public `syncStatus()` so new lifecycle code
+can live outside that class without duplicating the write), and every
+existing query keeps working unchanged. The only genuinely new state is
+`trial_ends_at`, and the only new rule is what happens when it passes.
+
+### What changes
+
+- **`TrialService`** (`startTrial`, `subscribeNow`, `convert`,
+  `expireExhaustedTrials`, `daysRemaining`) is the whole trial story, and
+  `TRIAL_DAYS = 14` is defined in exactly one place.
+- **`ActivateChurchFromCheckout` starts a trial, not a paid subscription.**
+  It previously called `createInitial()` and wrote a `paid` invoice dated
+the moment of signup. It now calls `startTrial()` and writes **no invoice at
+  all** — an invoice for a payment that never happened is a false financial
+  record, which is precisely what §48 exists to prevent. `completed` on a
+  checkout now means *"the trial started"*, not *"the first month was paid
+  for"*.
+- **`Subscribe now`** charges immediately through the same gateway
+  abstraction the renewal cycle uses, and starts a full paid period from
+  today. Making someone wait out their remaining trial days before they are
+  allowed to pay is worse than taking their money when they offer it — the
+  leftover days are simply kept, not burned.
+- **A trial that ends without payment becomes `past_due`, not `expired`.**
+  This is the deliberate one. Expiring the moment the trial ends gives a
+  church that simply forgot to pay a hard cut-off with no warning, while a
+  church whose card was declined gets a full grace period — two different
+  outcomes for the same "we owe money" state, which is unexplainable to a
+  customer. So the trial ends into `past_due` and the existing dunning
+  timings take it from there for everyone. `renewal cycle` gained a
+  `trials_lapsed` counter and runs this pass first, so a trial that lapsed
+  today is caught by the same run.
+- **`EnsureSubscriptionAllowsAccess` treats `trial` as full access.** A
+  trialing church is a working tenant, not a demo — gating it would defeat
+  the point of a trial.
+
+### Upgrade / downgrade, and the one place the trial is different
+
+A trialing church that chooses a different plan gets `pending_plan_id`
+recorded, and **the plan it is trialing on does not move**. Switching the
+plan mid-trial would move every limit (members, branches, admins) instantly,
+letting someone trial on the top plan and drop to the cheapest on day 13 —
+and because plan limits read from `plan_id`, a "downgrade" could instantly
+lock a church out of its own data. Intent is recorded; the switch happens at
+conversion, which is what the person is actually promising to pay for. The
+billing page states this plainly rather than leaving it to be discovered.
+
+For a **paid** subscription, upgrade and downgrade are the same screen with
+a different sign on the price difference. Both go through
+`previewPlanChange()` first, which shows the prorated credit and charge and
+the net result before anything is committed. A negative net is recorded as a
+credit line, never an immediate refund.
+
+### Where it lives in the UI
+
+- **`/dashboard`** leads with a subscription panel: during a trial it states
+  the deadline in *days* ("3 days left", not a date) with a `Subscribe now`
+  button; once subscribed it becomes a quiet entry point to
+  upgrade/downgrade. It is shown only to a user who can act on it — a
+  countdown to something you cannot fix is just noise.
+- **`/billing`** is the hub: trial banner with the subscribe CTA, current
+  plan and status, cancel/reactivate, the SMS wallet, and recent invoices.
+- **`/billing/plans`** is the single upgrade/downgrade table — current plan
+  marked, "Selected" for a pending choice, and `Upgrade`/`Downgrade`/
+  `Switch` labels derived from the price difference. One screen rather than
+  one per direction, because they are the same action and separate screens
+  are how they drift apart.
+- **`/billing/change-plan/preview`** shows the proration maths for a paid
+  change, and for a trial says *"no charge today"* instead — showing a
+  £0.00 breakdown during a trial would read as "this change is free", which
+  is a different and misleading statement.
+- The nav gained an **Account → Billing & plan** entry.
+
+### The tests that matter most in this phase
+
+- `tests/Feature/TrialAndPlanChangeTest.php` — a new church starts `trialing`
+  with **no invoice**; a trialing church has full access; a lapsed trial
+  becomes `past_due` and *not* `expired`, then flows through the ordinary
+  dunning chain; subscribing charges once and writes exactly one invoice;
+  converting an already-active subscription is refused; choosing a plan
+  during a trial records intent **without** switching the plan and without
+  writing an invoice; the pending plan is applied at conversion and consumed;
+  a *paid* plan change still prorates and records its own invoice; the plan
+  page renders; a user without `billing.manage` is forbidden from the plan
+  pages; the daily cycle reports lapsed trials; days-remaining never goes
+  negative.
+- `tests/Feature/SignupToTrialJourneyTest.php` — the whole journey over real
+  HTTP in order: register → plan selection → checkout → verify → trialing
+  tenant → dashboard shows the trial → plans page → change plan (intent only)
+  → subscribe → active paid tenant with one invoice → paid downgrade
+  previews. Each rule is proven in isolation by the test above; this proves
+  the order they happen in, which is where integration bugs actually live.
+- `tests/Feature/PaymentGatedSignupTest.php` — updated: the activation test
+  now asserts `trial`/`trialing` and **zero invoices**, and the revenue-split
+  test converts the trial first so it still compares two real revenue
+  streams rather than accidentally asserting that a trial produced one.
+
+---
+
+## The integration itself — what the Phase 1–10 drop-in got wrong
+
+Worth recording, because it was not a clean overlay. The Phase 1–10 package
+is the same source tree this project already came from, so overlaying it
+**regressed** files that had since been fixed here. Those were restored from
+the pre-integration checkpoint rather than accepted. Specifically:
+
+1. **`resources/views/components/layout.blade.php`** — the drop-in replaced
+   the real design-system layout (nav groups, permission-filtered links,
+   `@stack('scripts')`) with a 9-line stub titled "Church SaaS". Restored;
+   the Phase 11 nav entry was then added to *that*.
+2. **`routes/web.php`** — differed by a mangled docblock and a duplicated
+   `use` statement; the checkout routes had also lost their explanatory
+   comment. Restored, then extended with the Phase 11 routes.
+3. **Models and services** — the drop-in carried **older, buggier copies**.
+   E.g. `Plan::priceFor()` lost its `(string)` cast and `strtoupper`
+   handling, `NullPaymentGateway`, `ProrationCalculator`, `TaxCalculator`,
+   `BudgetService`, `SubventionSubmission` and the `SubventionSubmission`
+   controller all reverted to pre-fix versions. All restored, then
+   `Subscription` and `SubscriptionService` were extended for Phase 11.
+4. **`app/Http/Middleware/SecurityHeaders.php`** and
+   **`RolePermissionSeeder`** — the drop-in's older copies; restored.
+5. **`RegisterController.php`** — the drop-in's only change was deleting a
+   genuine 20-line docblock explaining the payment-gated flow. No code
+   change; restored.
+6. **The landing page route had two owners.** The drop-in registers `/` in
+   `routes/web.php` as `landing`, but `routes/marketing.php` *also* owned `/`
+   as `home` — and because marketing.php is required last, it silently won.
+   The `marketing.php` home page now lives at `/home` (keeping the `home`
+   route name so existing links still resolve) and `/` belongs to the landing
+   page. This was caught by `ExampleTest`, which is a good argument for
+   keeping a bare "`GET /` returns 200" test even when a richer test exists —
+   the richer test was passing, because it exercised the *other* route.
+7. **`ExampleTest.php`** had to gain `RefreshDatabase`: the landing page
+   queries `plans`, so the test was previously passing against whatever dev
+database happened to be lying around (or failing with "no such table:
+   plans" on a clean one).
+
+### Known gaps, unchanged
+
+Church-name setup collects completion but not the name itself;
+storage/feature-flag *plan* limits sit unused; no invoice PDFs; real
+Paystack/Flutterwave network code still throws (only its shape is real);
+no 2FA; no dependency scanning in CI. The dunning timer still uses
+`updated_at` as a proxy for "time in this status".
+
+---
+
+## Verification (what was actually run)
+
+- `php artisan migrate` — clean, including the Phase 11
+  `add_trial_and_pending_plan_to_churches_table` migration.
+- `php artisan db:seed` — `RolePermissionSeeder`, `PlanSeeder`, `TourSeeder`,
+  `FeatureFlagSeeder` all applied.
+- `php artisan test` — **224 tests, 648 assertions, all passing.**
+- Live HTTP smoke check against a running server: `/` (200, landing page),
+  `/register` (200), `/plans` (200), `/health` (200, reporting per-dependency
+  status).
+

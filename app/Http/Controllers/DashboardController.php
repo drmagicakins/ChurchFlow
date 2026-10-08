@@ -4,12 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Domains\Calendar\Services\CalendarService;
 use App\Domains\Dashboard\Services\DashboardMetricsService;
+use App\Domains\Subscriptions\Services\TrialService;
 use App\Models\Announcement;
 use App\Models\Approval;
 use App\Models\Event;
 use App\Models\FinancialAccount;
 use App\Models\Loan;
 use App\Models\Member;
+use App\Models\Subscription;
 use App\Models\SubventionSubmission;
 use App\Models\Task;
 use Illuminate\Http\Request;
@@ -25,10 +27,17 @@ use Illuminate\View\View;
  */
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request, CalendarService $calendar, DashboardMetricsService $metrics): View
+    public function __invoke(Request $request, CalendarService $calendar, DashboardMetricsService $metrics, TrialService $trials): View
     {
         $user = $request->user();
         $church = $user->church;
+
+        // Phase 11: the subscription panel. Only for someone who can actually
+        // act on it — showing a trial countdown to a user who cannot reach the
+        // billing page would be a countdown to something they can't fix.
+        $subscription = $user->hasPermission('billing.manage')
+            ? Subscription::query()->with(['plan', 'pendingPlan'])->latest()->first()
+            : null;
 
         $upcoming = $calendar
             ->itemsBetween(now()->startOfDay(), now()->addDays(30)->endOfDay())
@@ -50,6 +59,8 @@ class DashboardController extends Controller
 
         return view('dashboard', [
             'quickActions' => $quickActions,
+            'subscription' => $subscription,
+            'trialDaysRemaining' => $subscription ? $trials->daysRemaining($subscription) : 0,
             'memberStats' => $canMembers ? $metrics->memberStats() : null,
             'financeStats' => $canFinance ? $metrics->financeStats() : null,
             'financialSeries' => $canFinance ? $metrics->financialSeries(6) : null,

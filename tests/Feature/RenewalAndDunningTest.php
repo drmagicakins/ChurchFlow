@@ -76,7 +76,7 @@ class RenewalAndDunningTest extends TestCase
         $subscription = $this->subscriptionDueToday();
         $oldPeriodEnd = $subscription->current_period_end;
 
-        $service = new RenewalAndDunningService(new SubscriptionService(), $this->alwaysSucceedsGateway());
+        $service = new RenewalAndDunningService(new SubscriptionService(), $this->alwaysSucceedsGateway(), new \App\Domains\Subscriptions\Services\TrialService(new SubscriptionService(), $this->alwaysSucceedsGateway()));
         $counts = $service->runDailyCycle();
 
         $subscription = $subscription->fresh();
@@ -90,7 +90,7 @@ class RenewalAndDunningTest extends TestCase
     {
         $subscription = $this->subscriptionDueToday();
 
-        $service = new RenewalAndDunningService(new SubscriptionService(), $this->alwaysFailsGateway());
+        $service = new RenewalAndDunningService(new SubscriptionService(), $this->alwaysFailsGateway(), new \App\Domains\Subscriptions\Services\TrialService(new SubscriptionService(), $this->alwaysFailsGateway()));
         $counts = $service->runDailyCycle();
 
         $subscription = $subscription->fresh();
@@ -111,7 +111,7 @@ class RenewalAndDunningTest extends TestCase
             'current_period_end' => now()->addWeeks(2), // not due yet
         ]);
 
-        $service = new RenewalAndDunningService(new SubscriptionService(), $this->alwaysFailsGateway());
+        $service = new RenewalAndDunningService(new SubscriptionService(), $this->alwaysFailsGateway(), new \App\Domains\Subscriptions\Services\TrialService(new SubscriptionService(), $this->alwaysFailsGateway()));
         $counts = $service->runDailyCycle();
 
         $this->assertSame(0, $counts['past_due']);
@@ -123,7 +123,7 @@ class RenewalAndDunningTest extends TestCase
         $subscription = $this->subscriptionDueToday('past_due');
         $this->backdate($subscription, now()->subDays(6));
 
-        $service = new RenewalAndDunningService(new SubscriptionService(), $this->alwaysSucceedsGateway());
+        $service = new RenewalAndDunningService(new SubscriptionService(), $this->alwaysSucceedsGateway(), new \App\Domains\Subscriptions\Services\TrialService(new SubscriptionService(), $this->alwaysSucceedsGateway()));
         $counts = $service->runDailyCycle();
 
         $this->assertSame(1, $counts['grace_period']);
@@ -135,7 +135,7 @@ class RenewalAndDunningTest extends TestCase
         $subscription = $this->subscriptionDueToday('grace_period');
         $this->backdate($subscription, now()->subDays(11));
 
-        $service = new RenewalAndDunningService(new SubscriptionService(), $this->alwaysSucceedsGateway());
+        $service = new RenewalAndDunningService(new SubscriptionService(), $this->alwaysSucceedsGateway(), new \App\Domains\Subscriptions\Services\TrialService(new SubscriptionService(), $this->alwaysSucceedsGateway()));
         $counts = $service->runDailyCycle();
 
         $this->assertSame(1, $counts['expired']);
@@ -149,7 +149,7 @@ class RenewalAndDunningTest extends TestCase
         $subscription = $this->subscriptionDueToday('grace_period');
         $this->backdate($subscription, now()->subDays(2));
 
-        $service = new RenewalAndDunningService(new SubscriptionService(), $this->alwaysSucceedsGateway());
+        $service = new RenewalAndDunningService(new SubscriptionService(), $this->alwaysSucceedsGateway(), new \App\Domains\Subscriptions\Services\TrialService(new SubscriptionService(), $this->alwaysSucceedsGateway()));
         $counts = $service->runDailyCycle();
 
         $this->assertSame(0, $counts['expired']);
@@ -161,7 +161,7 @@ class RenewalAndDunningTest extends TestCase
         $subscription = $this->subscriptionDueToday();
         $subscription->update(['cancel_requested_at' => now()->subDays(3)]);
 
-        $service = new RenewalAndDunningService(new SubscriptionService(), $this->alwaysSucceedsGateway());
+        $service = new RenewalAndDunningService(new SubscriptionService(), $this->alwaysSucceedsGateway(), new \App\Domains\Subscriptions\Services\TrialService(new SubscriptionService(), $this->alwaysSucceedsGateway()));
         $counts = $service->runDailyCycle();
 
         $this->assertSame(1, $counts['cancelled']);
@@ -185,7 +185,7 @@ class RenewalAndDunningTest extends TestCase
             'cancel_requested_at' => now(),
         ]);
 
-        $service = new RenewalAndDunningService(new SubscriptionService(), $this->alwaysSucceedsGateway());
+        $service = new RenewalAndDunningService(new SubscriptionService(), $this->alwaysSucceedsGateway(), new \App\Domains\Subscriptions\Services\TrialService(new SubscriptionService(), $this->alwaysSucceedsGateway()));
         $counts = $service->runDailyCycle();
 
         $this->assertSame(0, $counts['cancelled']);

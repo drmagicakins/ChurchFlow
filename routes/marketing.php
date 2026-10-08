@@ -17,7 +17,16 @@ use Illuminate\Support\Facades\Route;
  | what makes it safe to move a page: renaming one line here updates every link.
  */
 
-Route::get('/', [HomeController::class, 'index'])->name('home');
+// "/" is owned by LandingController (see routes/web.php, Phase 10 landing
+// page). This used to be HomeController@index — the marketing-suite home
+// page — and two routes answering the same URI is a silent bug: whichever
+// was registered last won, so this one was shadowing the real landing page.
+//
+// Deleting it outright would break every `route('home')` link, and pointing
+// it back at "/" (a redirect to itself) is a loop. So the marketing-suite
+// home page keeps its own URL at /home and its own route name `home`, and
+// "/" belongs to the landing page.
+Route::get('/home', [HomeController::class, 'index'])->name('home');
 
 Route::get('/features', [HomeController::class, 'features'])->name('features');
 Route::get('/pricing', [HomeController::class, 'pricing'])->name('pricing');

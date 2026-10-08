@@ -18,9 +18,55 @@
         <p class="cf-small cf-muted">{{ $now->format('l, M j, Y') }}</p>
     </div>
 
+    {{-- Phase 11: the subscription panel. During a trial this is the one thing
+         a church owner needs to act on, so it leads the page and states the
+         deadline in days rather than a date. Once subscribed it stays as a
+         quiet entry point to subscribe/upgrade/downgrade. --}}
+    @if ($subscription)
+        @php $isTrial = $subscription->isTrialing(); @endphp
+        <div class="cf-card" style="margin-bottom:1.1rem;{{ $isTrial ? 'border-left:3px solid var(--cf-brand, #1677FF)' : '' }}">
+            <div class="cf-card__body" style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
+                <div>
+                    @if ($isTrial)
+                        <p style="margin:0;font-weight:700">
+                            Free trial — {{ $trialDaysRemaining }} {{ \Illuminate\Support\Str::plural('day', $trialDaysRemaining) }} left
+                        </p>
+                        <p class="cf-small cf-muted" style="margin:.25rem 0 0">
+                            You're trialing {{ $subscription->plan->name }} until {{ $subscription->trial_ends_at?->toFormattedDateString() }}.
+                            @if ($subscription->pendingPlan)
+                                Moving to {{ $subscription->pendingPlan->name }} when your subscription starts.
+                            @endif
+                        </p>
+                    @else
+                        <p style="margin:0;font-weight:700">
+                            {{ $subscription->plan->name }} plan
+                            <span class="cf-badge {{ in_array($subscription->status, ['active'], true) ? 'cf-badge--ok' : 'cf-badge--warn' }}" style="margin-left:.4rem">
+                                {{ str_replace('_', ' ', ucfirst($subscription->status)) }}
+                            </span>
+                        </p>
+                        <p class="cf-small cf-muted" style="margin:.25rem 0 0">
+                            Next billing date: {{ $subscription->current_period_end->toFormattedDateString() }}
+                        </p>
+                    @endif
+                </div>
+                <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+                    @if ($isTrial)
+                        <form method="POST" action="{{ route('billing.subscribe') }}">
+                            @csrf
+                            <button type="submit" class="cf-btn cf-btn--primary cf-btn--sm">Subscribe now</button>
+                        </form>
+                    @endif
+                    <a href="{{ route('billing.plans') }}" class="cf-btn cf-btn--secondary cf-btn--sm">
+                        {{ $isTrial ? 'Choose a plan' : 'Upgrade / downgrade' }}
+                    </a>
+                    <a href="{{ route('billing.show') }}" class="cf-btn cf-btn--secondary cf-btn--sm">Billing</a>
+                </div>
+            </div>
+        </div>
+    @endif
+
     @if ($memberStats || $financeStats)
-        <div class="cfd-kpis" style="margin-bottom:1.1rem">
-            @if ($memberStats)
+        <div class="cfd-kpis" style="margin-bottom:1.1rem">            @if ($memberStats)
                 <x-dashboard.kpi label="Total Members" :value="number_format($memberStats['total'])" icon="users" tone="blue" :pct="$memberStats['totalTrendPct']" />
                 <x-dashboard.kpi label="Active Members" :value="number_format($memberStats['active'])" icon="family" tone="green" :pct="$memberStats['activeTrendPct']" />
             @endif
