@@ -15,9 +15,14 @@
             </p>
         </div>
         @if($canCreate)
-            <button type="button" class="cf-btn cf-btn--primary cf-btn--sm" data-toggle="member-create" aria-expanded="false">
-                <x-ui.icon name="users" class="h-4 w-4" /> Add Member
-            </button>
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+                <button type="button" class="cf-btn cf-btn--secondary cf-btn--sm" data-toggle="member-import" aria-expanded="false">
+                    <x-ui.icon name="doc" class="h-4 w-4" /> Import from Excel
+                </button>
+                <button type="button" class="cf-btn cf-btn--primary cf-btn--sm" data-toggle="member-create" aria-expanded="false">
+                    <x-ui.icon name="users" class="h-4 w-4" /> Add Member
+                </button>
+            </div>
         @endif
     </div>
 
@@ -25,6 +30,20 @@
         <div class="cf-alert cf-alert--ok" role="status">
             <span class="cf-alert__icon"><x-ui.icon name="check" class="h-4 w-4" /></span>
             <div class="cf-alert__body"><p class="cf-alert__title">{{ session('status') }}</p></div>
+        </div>
+    @endif
+
+    @if(session('import_errors') && count(session('import_errors')))
+        <div class="cf-alert cf-alert--error" role="alert">
+            <span class="cf-alert__icon"><x-ui.icon name="alert" class="h-4 w-4" /></span>
+            <div class="cf-alert__body">
+                <p class="cf-alert__title">Some rows could not be imported</p>
+                <ul class="cf-alert__list">
+                    @foreach(session('import_errors') as $importError)
+                        <li>{{ $importError }}</li>
+                    @endforeach
+                </ul>
+            </div>
         </div>
     @endif
 
@@ -61,6 +80,46 @@
             </div>
         </div>
     </form>
+
+    @if($canCreate)
+        {{-- Bulk import. The sample sheet is generated from the same column list
+             the importer validates, so the downloaded file can never describe a
+             format the upload does not accept. --}}
+        <div data-panel="member-import" hidden style="margin-bottom:1.2rem">
+            <x-form.card
+                title="Import members from a spreadsheet"
+                description="Download the sample sheet, fill in one member per row, then upload it here. Column headings must stay as they are — the file is matched by name, not position."
+                :action="route('members.import')"
+                submit="Upload members"
+                submit-icon="doc"
+                method="POST"
+                enctype="multipart/form-data"
+                layout="inline"
+                data-cf-loading-text="Importing members…"
+            >
+                <div class="cf-field cf-field--wide">
+                    <span class="cf-label">Step 1 — the sample sheet</span>
+                    <p class="cf-hint" style="margin:.25rem 0 .5rem">
+                        A blank CSV with the right headings and two example rows you can replace.
+                    </p>
+                    <a href="{{ route('members.sample') }}" class="cf-btn cf-btn--secondary cf-btn--sm">
+                        <x-ui.icon name="doc" class="h-4 w-4" /> Download sample sheet (CSV)
+                    </a>
+                </div>
+
+                <div class="cf-field cf-field--wide">
+                    <label class="cf-label" for="member-import-file">Step 2 — upload the filled sheet</label>
+                    <input type="file" name="file" id="member-import-file" class="cf-input"
+                        accept=".csv,text/csv,text/plain" required>
+                    @error('file')
+                        <p class="cf-error" role="alert">{{ $message }}</p>
+                    @else
+                        <p class="cf-hint">CSV only, up to 10 MB. In Excel: File → Save As → CSV UTF-8.</p>
+                    @enderror
+                </div>
+            </x-form.card>
+        </div>
+    @endif
 
     @if($canCreate)
         <div data-panel="member-create" hidden style="margin-bottom:1.2rem">
@@ -172,27 +231,51 @@
         @push('scripts')
             <script nonce="{{ \App\Http\Middleware\SecurityHeaders::nonce() }}">
                 (function () {
-                    var btn = document.querySelector('[data-toggle="member-create"]');
-                    var panel = document.querySelector('[data-panel="member-create"]');
-                    // No create panel for this user — nothing to wire up.
-                    if (!btn || !panel) return;
+                    // Both panels share one handler: member-create and the
+                    // spreadsheet import. Each toggle owns the panel named after
+                    // it, and opening one closes the other so the page never
+                    // shows two large forms at once.
+                    var ids = ['member-create', 'member-import'];
+                    var hasErrors = false;
 
-                    btn.addEventListener('click', function () {
-                        var isOpen = !panel.hasAttribute('hidden');
-                        if (isOpen) {
-                            panel.setAttribute('hidden', '');
-                        } else {
-                            panel.removeAttribute('hidden');
-                            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }
-                        btn.setAttribute('aria-expanded', String(!isOpen));
-                    });
+                    ids.forEach(function (id) {
+                        var btn = document.querySelector('[data-toggle="' + id + '"]');
+                        var panel = document.querySelector('[data-panel="' + id + '"]');
+                        if (!btn || !panel) return;
 
-                    // A validation failure must not leave the user's input and
-                    // the errors hidden behind a collapsed toggle.
-                    if (panel.querySelector('[aria-invalid="true"]')) {
+                        btn.addEventListener('click', function () {
+                            var isOpen = !panel.hasAttribute('hidden');
+
+                            ids.forEach(function (other) {
+                                if (other === id) return;
+                                var op = document.querySelector('[data-panel="' + other + '"]');
+                                var ob = document.querySelector('[data-toggle="' + other + '"]');
+                                if (op) op.setAttribute('hidden', '');
+                                if (ob) ob.setAttribute('aria-expanded', 'false');
+                            });
+
+                            if (isOpen) {
+                                panel.setAttribute('hidden', '');
+                            } else {
+                                panel.removeAttribute('hidden');
+                                panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }
+                            btn.setAttribute('aria-expanded', String(!isOpen));
+                        });
+
+                        // A failed submit must not leave its message hidden
+                        // behind a collapsed toggle: that looked like "the
+                        // upload did nothing".
+                        var err = panel.querySelector('[aria-invalid="true"], .cf-error, .cf-alert--error');
+                        if (!err) return;
+                        hasErrors = true;
                         panel.removeAttribute('hidden');
                         btn.setAttribute('aria-expanded', 'true');
+                    });
+
+                    if (hasErrors) {
+                        var target = document.querySelector('[data-panel]:not([hidden])');
+                        if (target) target.scrollIntoView({ block: 'start' });
                     }
                 })();
             </script>

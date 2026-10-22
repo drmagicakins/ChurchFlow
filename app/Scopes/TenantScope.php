@@ -36,5 +36,38 @@ class TenantScope implements Scope
         }
 
         $builder->where($model->getTable().'.church_id', $churchId);
+
+        // §14/§37 parish scoping. When a parish is bound for this request (the
+        // signed-in user belongs to one and is not the registrar), any model
+        // that carries an organizational_unit_id column is narrowed to that
+        // parish. Models with no such column (transactions, families, ...) are
+        // unaffected — they are church-wide records, not parish-owned ones.
+        $parishId = app()->bound('tenant.organizational_unit_id')
+            ? app('tenant.organizational_unit_id')
+            : null;
+
+        if ($parishId !== null && $this->hasColumn($model, 'organizational_unit_id')) {
+            $builder->where($model->getTable().'.organizational_unit_id', $parishId);
+        }
+    }
+
+    /**
+     * Does this model's table carry the given column?
+     *
+     * Resolved once per table and cached for the request, because the answer
+     * cannot change mid-request and the schema lookup is not free. This keeps
+     * parish scoping generic: a model opts in simply by having the column,
+     * with no per-model registration to forget.
+     */
+    private function hasColumn(Model $model, string $column): bool
+    {
+        $table = $model->getTable();
+        $cacheKey = 'tenant.columns.'.$table;
+
+        if (! app()->bound($cacheKey)) {
+            app()->instance($cacheKey, \Illuminate\Support\Facades\Schema::hasColumn($table, $column));
+        }
+
+        return app($cacheKey);
     }
 }

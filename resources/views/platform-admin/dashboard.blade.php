@@ -24,6 +24,12 @@
             </a>
             <a href="{{ route('platform-admin.settings.edit') }}" class="cf-btn cf-btn--secondary cf-btn--sm">Settings</a>
             <a href="{{ route('platform-admin.feature-flags.index') }}" class="cf-btn cf-btn--secondary cf-btn--sm">Feature flags</a>
+            <a href="{{ route('platform-admin.support.index') }}" class="cf-btn cf-btn--secondary cf-btn--sm">
+                Support
+                @if(($openTicketCount ?? 0) > 0)
+                    <span class="cf-badge {{ ($urgentTicketCount ?? 0) > 0 ? 'cf-badge--danger' : 'cf-badge--brand' }}" style="margin-left:.35rem">{{ $openTicketCount }}</span>
+                @endif
+            </a>
         </div>
     </div>
 
@@ -70,6 +76,26 @@
             </div>
         </div>
     </div>
+
+    @if(($openTicketCount ?? 0) > 0)
+        <a href="{{ route('platform-admin.support.index') }}" class="cf-card"
+           style="display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1.4rem;border-left:3px solid {{ ($urgentTicketCount ?? 0) > 0 ? '#dc2626' : 'var(--cf-brand, #1677FF)' }}">
+            <div class="cf-card__body" style="display:flex;align-items:center;gap:.8rem">
+                <x-ui.icon name="chat" class="h-5 w-5" />
+                <div>
+                    <strong>{{ number_format($openTicketCount) }} open support {{ \Illuminate\Support\Str::plural('ticket', $openTicketCount) }}</strong>
+                    <p class="cf-small cf-muted" style="margin:.15rem 0 0">
+                        @if(($urgentTicketCount ?? 0) > 0)
+                            {{ $urgentTicketCount }} marked urgent — worth answering first.
+                        @else
+                            Waiting on a reply from the team.
+                        @endif
+                    </p>
+                </div>
+            </div>
+            <span class="cf-small" style="white-space:nowrap;padding-right:1.2rem">Open queue →</span>
+        </a>
+    @endif
 
     <div class="cf-grid cf-grid--2">
         {{-- Recent signups: what an operator checks after a signup wave. --}}

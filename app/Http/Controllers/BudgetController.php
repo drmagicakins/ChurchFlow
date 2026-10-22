@@ -55,4 +55,39 @@ class BudgetController extends Controller
             'variance' => $budgetService->varianceReport($budget->load('items')),
         ]);
     }
+
+    /** Add one planned line to an existing budget. */
+    public function storeItem(Request $request, Budget $budget): RedirectResponse
+    {
+        $this->authorize('update', $budget);
+
+        $data = $request->validate([
+            'category' => [
+                'required', 'string', 'max:255',
+                // The budget_items unique index is (budget_id, category);
+                // without this the second add of the same category would be an
+                // unhandled 500 rather than a field error.
+                \Illuminate\Validation\Rule::unique('budget_items', 'category')->where('budget_id', $budget->id),
+            ],
+            'planned_amount' => ['required', 'numeric', 'gt:0'],
+        ], [
+            'category.unique' => 'This budget already has a line for that category.',
+        ]);
+
+        $budget->items()->create($data);
+
+        return back()->with('status', 'Planned line added.');
+    }
+
+    /** Remove a planned line from a budget. */
+    public function destroyItem(Budget $budget, \App\Models\BudgetItem $item): RedirectResponse
+    {
+        $this->authorize('update', $budget);
+
+        abort_unless($item->budget_id === $budget->id, 404);
+
+        $item->delete();
+
+        return back()->with('status', 'Planned line removed.');
+    }
 }

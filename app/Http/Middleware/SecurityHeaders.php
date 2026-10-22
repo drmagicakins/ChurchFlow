@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Vite;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -65,6 +66,29 @@ use Symfony\Component\HttpFoundation\Response;
  * that injects a script without the nonce (a third-party widget, a cached
  * prebuilt asset) would otherwise break in dev with no obvious cause. In
  * production the nonce is the only inline allowance.
+ *
+ * THE VITE DEV-SERVER GAP — SAME BUG, SECOND APPEARANCE
+ * ----------------------------------------------------
+ * `npm run dev` does not serve assets from this origin. Vite serves them from
+ * its own dev server (http://localhost:5173, and http://[::1]:5173 when the
+ * browser resolves "localhost" to IPv6), and the Blade layouts point at it.
+ * The policy above allows only 'self', so in dev the browser refused ALL of
+ * them:
+ *
+ *     Loading the stylesheet 'http://[::1]:5173/resources/css/app.css'
+ *     violates the following Content-Security-Policy directive:
+ *     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com"
+ *
+ * The visible symptom was not an error page. The dashboard returned 200 with
+ * its markup complete, but arrived with no stylesheet, no Alpine and no
+ * Chart.js — so the KPI tiles, the finance chart and every interactive panel
+ * rendered as unstyled, inert text. That is the "dashboard shows nothing
+ * useful" report: the figures were in the HTML the whole time.
+ *
+ * The dev origins are therefore allowed, but ONLY under `local`. `testing`
+ * and production keep the strict policy, so this cannot widen what ships —
+ * which is also what SecurityHeadersCspTest asserts when it requires
+ * `script-src` to contain no `http` origin at all.
  */
 class SecurityHeaders
 {
@@ -80,6 +104,31 @@ class SecurityHeaders
         // request can read it and stamp it onto its own <script> tags.
         $nonce = rtrim(strtr(base64_encode(random_bytes(16)), '+/', '-_'), '=');
         app()->instance('csp.nonce', $nonce);
+
+        /*
+         | The Vite bundle must carry the SAME per-request nonce.
+         |
+         | This policy declares `script-src … 'nonce-…'`. Per the CSP spec, the
+         | presence of a nonce or hash makes 'unsafe-inline' IGNORED — browsers
+         | say so explicitly in the violation message. So every <script> that does
+         | not carry THIS request's nonce is refused, even in local dev.
+         |
+         | @vite emits `<script type="module" src=…>` with no nonce by default.
+         | The file downloaded fine (200, correct MIME) and ran when imported by
+         | hand, but the tag itself was blocked, so app.js never executed and
+         | `window.Alpine` stayed undefined on every page. Everything Alpine-
+         | driven was therefore inert: the confirm dialog's Cancel button, the
+         | reminder popup, the mobile nav. The visible symptom was a confirm box
+         | whose Cancel did nothing while the submit loader spun "Working…"
+         | forever, because nothing had registered to clear it.
+         |
+         | It has to be set HERE rather than in a service provider: this
+         | middleware is appended late, so its nonce is the one written into the
+         | header. A provider reading app('csp.nonce') at boot gets a different
+         | (or null) value, and the tag then carries a nonce the policy does not
+         | recognise — which fails exactly the same way.
+         */
+        Vite::useCspNonce($nonce);
 
         $response = $next($request);
 
@@ -99,14 +148,36 @@ class SecurityHeaders
             $scriptSrc .= " 'unsafe-inline'";
         }
 
+        // The Vite dev server is a different origin, so `npm run dev` needs it
+        // named explicitly or every asset it serves is blocked and the pages
+        // render unstyled and inert. Scoped to `local` only: `testing` and
+        // production must not carry a remote origin (SecurityHeadersCspTest
+        // asserts script-src contains no `http`).
+        //
+        // Only the two hostnames are listed, deliberately. A bracketed IPv6
+        // literal (`http://[::1]:5173`) is NOT a valid CSP source — the browser
+        // rejects it outright with "contains an invalid source ... It will be
+        // ignored", so it cannot be relied on even though Vite listens there.
+        // `localhost` is listed alongside `127.0.0.1` because a browser may
+        // resolve the former to either stack; when it resolves to ::1 the
+        // request is made against the `localhost` origin, which IS allowed.
+        $viteOrigins = '';
+        $viteConnect = '';
+
+        if (app()->environment('local')) {
+            $viteOrigins = ' http://localhost:5173 http://127.0.0.1:5173';
+            // HMR talks over a websocket, which `connect-src` governs.
+            $viteConnect = ' ws://localhost:5173 ws://127.0.0.1:5173';
+        }
+
         $response->headers->set(
             'Content-Security-Policy',
             "default-src 'self'; "
-            ."script-src {$scriptSrc}; "
-            ."style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-            ."font-src 'self' https://fonts.gstatic.com data:; "
+            ."script-src {$scriptSrc}{$viteOrigins}; "
+            ."style-src 'self' 'unsafe-inline' https://fonts.googleapis.com{$viteOrigins}; "
+            ."font-src 'self' https://fonts.gstatic.com data:{$viteOrigins}; "
             ."img-src 'self' data:; "
-            ."connect-src 'self'; "
+            ."connect-src 'self'{$viteConnect}; "
             ."frame-ancestors 'none';"
         );
 

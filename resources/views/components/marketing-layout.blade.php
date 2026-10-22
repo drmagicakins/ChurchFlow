@@ -116,5 +116,10 @@
     </main>
 
     <x-marketing.footer />
+
+    {{-- The submit-loader overlay. Every form on the public site (get-started,
+         register, checkout review) gets it for free; it is opt-OUT, so a new
+         form is protected by default. --}}
+    @include('partials.loader')
 </body>
 </html>

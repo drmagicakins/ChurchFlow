@@ -23,7 +23,13 @@ class SmsCampaignService
     public function audienceFor(SmsCampaign $campaign): Collection
     {
         return match ($campaign->audience_type) {
-            'church' => Member::query()->whereNotNull('phone')->get(),
+            // Both spellings mean "the whole church" — the form posts
+            // church_wide while older campaign rows and the column default use
+            // 'church'. Recognising only one of them made a church-wide
+            // campaign resolve to an EMPTY audience (see the default arm),
+            // so confirming it failed with "No recipients ... match this
+            // audience" no matter how many members had a phone number.
+            'church', 'church_wide' => Member::query()->whereNotNull('phone')->get(),
             'branch' => Member::query()->whereNotNull('phone')
                 ->where('organizational_unit_id', $campaign->organizational_unit_id)->get(),
             'department' => Member::query()->whereNotNull('phone')

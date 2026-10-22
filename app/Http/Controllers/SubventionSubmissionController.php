@@ -16,13 +16,32 @@ class SubventionSubmissionController extends Controller
     {
         $this->authorize('viewAny', SubventionSubmission::class);
 
-        $submissions = SubventionSubmission::query()
+        $user = $request->user();
+
+        // §21/§14 parish scoping + registrar oversight:
+        //
+        //  - The registrar (super-admin) sees EVERY submission from every
+        //    parish — they are the one who receives and approves them.
+        //  - A pastor attached to a parish sees only their own parish's
+        //    submissions, and only the ones they are entitled to see (their
+        //    own plus any already approved by the registrar).
+        //  - A church-wide user with no parish sees the whole church's, the
+        //    same as today.
+        $query = SubventionSubmission::query()
+            ->when($user->isParishScoped(), function ($q) use ($user) {
+                $q->where('organizational_unit_id', $user->organizational_unit_id);
+            })
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
             ->with(['organizationalUnit', 'period', 'latestCalculation'])
-            ->latest()
-            ->paginate(25);
+            ->latest();
 
-        return view('subvention.submissions.index', compact('submissions'));
+        $submissions = $query->paginate(25);
+
+        return view('subvention.submissions.index', [
+            'submissions' => $submissions,
+            'isRegistrar' => $user->can('review', new SubventionSubmission),
+            'isParishScoped' => $user->isParishScoped(),
+        ]);
     }
 
     public function store(Request $request): RedirectResponse

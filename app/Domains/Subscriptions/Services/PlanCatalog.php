@@ -41,18 +41,53 @@ class PlanCatalog
     public function forDisplay(): array
     {
         $tiers = config('marketing.plans', []);
+        $fallbacks = config('billing.plans', []);
         $rows = Plan::whereIn('slug', array_column($tiers, 'key'))->get()->keyBy('slug');
 
-        return array_map(function (array $tier) use ($rows) {
+        return array_map(function (array $tier) use ($rows, $fallbacks) {
             $plan = $rows->get($tier['key']);
+
+            // Fall back to config('billing.plans') ONLY when the tier has no row.
+            //
+            // This is the documented precedence (database wins, config fills
+            // gaps) and it is load-bearing: on a fresh install where PlanSeeder
+            // has not run — or if every row is later deleted — reading only the
+            // `plans` table would resolve every price to null and render the
+            // whole pricing page as "Custom"/blank. A price that is written down
+            // in config is a better answer than a blank page, and it is the same
+            // number checkout would use once the seeder runs.
+            //
+            // The key detail: when a ROW EXISTS, its values are used verbatim,
+            // including a deliberate null. `$plan->monthly_price ?? $config[...]`
+            // would have treated a row that says "this tier is quoted, not
+            // listed" (null price) as "no row" and resurrected the config
+            // number — so clearing a yearly price in the database would not have
+            // removed the annual toggle, and nulling Enterprise's price would
+            // have quoted it anyway. A row's null is a decision; the config is
+            // only the default for a tier nobody has defined yet.
+            $config = $fallbacks[$tier['key']] ?? null;
+
+            if ($plan) {
+                $monthly = $plan->monthly_price;
+                $yearly = $plan->yearly_price;
+                $currency = $plan->currency;
+            } else {
+                $monthly = $config['monthly_price'] ?? null;
+                $yearly = $config['yearly_price'] ?? null;
+                $currency = 'NGN';
+            }
 
             return $tier + [
                 // Resolved price strings, ready to render. Null monthly_price
                 // (Enterprise) intentionally yields "Custom" rather than a
                 // number — a bespoke agreement has no honest sticker price.
-                'price' => $plan?->displayPrice('monthly'),
-                'yearly_price' => $plan?->yearly_price !== null ? $plan->displayPrice('yearly') : null,
-                'is_self_serve' => $plan?->isSelfServe() ?? false,
+                'price' => $monthly === null
+                    ? 'Custom'
+                    : Plan::currencySymbol($currency).number_format((float) $monthly),
+                'yearly_price' => $yearly !== null
+                    ? Plan::currencySymbol($currency).number_format((float) $yearly)
+                    : null,
+                'is_self_serve' => $monthly !== null,
                 'plan_id' => $plan?->id,
             ];
         }, $tiers);

@@ -36,7 +36,12 @@
 
 @php
     $id = 'field-' . $name;
-    $hasError = $errors->has($name);
+    // Same guard as form/input.blade.php. An auth field can be rendered where no
+    // error bag exists — an error page (errors/419) is the case that surfaced
+    // this, and it 500'd trying to render the very page meant to explain a
+    // failure.
+    $errorBag = isset($errors) ? $errors : new Illuminate\Support\ViewErrorBag();
+    $hasError = $errorBag->has($name);
     $resolved = old($name, $value);
 @endphp
 
@@ -64,7 +69,7 @@
     @if ($hasError)
         <span id="{{ $id }}-error" class="cf-tiny"
             style="display:block;margin-top:.3rem;color:var(--danger, #dc2626)">
-            {{ $errors->first($name) }}
+            {{ $errorBag->first($name) }}
         </span>
     @endif
 </div>

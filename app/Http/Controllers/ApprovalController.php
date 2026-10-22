@@ -16,9 +16,22 @@ class ApprovalController extends Controller
     {
         $this->authorize('viewAny', Approval::class);
 
-        $approvals = Approval::query()->where('status', 'pending')->with('approvable')->paginate(25);
+        $approvals = Approval::query()
+            ->where('status', 'pending')
+            ->with(['approvable', 'submitter'])
+            ->oldest('submitted_at')
+            ->paginate(25);
 
-        return view('approvals.index', compact('approvals'));
+        // Recently decided, so an approver can see what has just happened
+        // without leaving the queue — and confirm their own decision landed.
+        $recent = Approval::query()
+            ->whereIn('status', ['approved', 'rejected'])
+            ->with(['approvable', 'submitter', 'decider'])
+            ->latest('decided_at')
+            ->limit(10)
+            ->get();
+
+        return view('approvals.index', compact('approvals', 'recent'));
     }
 
     public function approve(Request $request, Approval $approval): RedirectResponse

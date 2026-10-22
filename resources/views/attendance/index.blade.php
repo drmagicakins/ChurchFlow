@@ -28,22 +28,46 @@
     @endif
 
     @if ($canTake)
-        <div data-panel="session-create" hidden style="margin-bottom:1.2rem">
+        <div data-panel="session-create" hidden style="margin-bottom:1.2rem"
+            x-data="{ stype: '{{ old('type', 'service') }}' }">
             <x-form.card title="Start an attendance session"
                 description="A session is one occasion you are taking attendance for. Once created you can mark the whole roster in a single submit."
                 :action="route('attendance.store')" submit="Start session" layout="inline">
                 <x-form.input name="name" label="Session name" required placeholder="e.g. Sunday First Service" />
 
-                <x-form.select name="type" label="Session type" :value="'service'" :options="[
+                <x-form.select name="type" label="Session type" :value="old('type', 'service')" :options="[
                     'service' => 'Service',
                     'event' => 'Event',
                     'department' => 'Department meeting',
                     'group' => 'Group meeting',
-                ]" />
+                ]" hint="Choosing a type reveals the matching link below, so the roster knows who to list."
+                    x-model="stype" />
 
-                <x-form.input name="session_date" label="Date" type="date" :value="now()->toDateString()" required />
+                <x-form.input name="session_date" label="Date" type="date" :value="old('session_date', now()->toDateString())" required />
 
-                <x-form.textarea name="notes" label="Notes" rows="2" wide />
+                {{-- Which roster this session is taken against. Only the selector
+                     matching the chosen type is shown; each is optional to the
+                     server (nullable), so leaving one blank simply means "everyone". --}}
+                <div x-show="stype === 'event'" x-cloak class="cf-field--wide">
+                    <x-form.select name="event_id" label="Linked event" :value="old('event_id')" placeholder="Choose an event..."
+                        :options="$events->map(fn ($e) => ['value' => $e->id, 'label' => $e->title . ' — ' . $e->starts_at?->format('d M Y')])->all()" />
+                </div>
+
+                <div x-show="stype === 'department'" x-cloak class="cf-field--wide">
+                    <x-form.select name="department_id" label="Department" :value="old('department_id')" placeholder="Choose a department..."
+                        :options="$departments->map(fn ($d) => ['value' => $d->id, 'label' => $d->name])->all()" />
+                </div>
+
+                <div x-show="stype === 'group'" x-cloak class="cf-field--wide">
+                    <x-form.select name="group_id" label="Group" :value="old('group_id')" placeholder="Choose a group..."
+                        :options="$groups->map(fn ($g) => ['value' => $g->id, 'label' => $g->name])->all()" />
+                </div>
+
+                <div x-show="stype === 'service'" x-cloak class="cf-field--wide">
+                    <x-form.select name="organizational_unit_id" label="Branch" :value="old('organizational_unit_id')"
+                        placeholder="Whole church"
+                        :options="$branches->map(fn ($b) => ['value' => $b->id, 'label' => $b->name])->all()" />
+                </div>
             </x-form.card>
         </div>
     @endif

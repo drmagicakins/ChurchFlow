@@ -26,6 +26,24 @@ class Announcement extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /** The branch this announcement targets, when audience_type = branch. */
+    public function organizationalUnit()
+    {
+        return $this->belongsTo(OrganizationalUnit::class);
+    }
+
+    /** The department this announcement targets, when audience_type = department. */
+    public function department()
+    {
+        return $this->belongsTo(Department::class);
+    }
+
+    /** The group this announcement targets, when audience_type = group. */
+    public function group()
+    {
+        return $this->belongsTo(Group::class);
+    }
+
     public function scopePublished($query)
     {
         return $query->where(fn ($q) => $q->whereNull('publish_at')->orWhere('publish_at', '<=', now()));
@@ -38,7 +56,12 @@ class Announcement extends Model
     public function isVisibleToMember(Member $member): bool
     {
         return match ($this->audience_type) {
-            'church' => true,
+            // 'church_wide' is the value the announcements form has always
+            // posted (and the column default is the older 'church'), so both
+            // spellings mean "everyone" here. Recognising only one of them
+            // silently dropped church-wide announcements from every member's
+            // feed — the announcement existed and emailed nobody.
+            'church', 'church_wide' => true,
             'branch' => $member->organizational_unit_id === $this->organizational_unit_id,
             'department' => $member->departments()->where('departments.id', $this->department_id)->exists(),
             'group' => $member->groups()->where('groups.id', $this->group_id)->exists(),

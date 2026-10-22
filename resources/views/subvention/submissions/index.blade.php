@@ -2,8 +2,16 @@
     @php
         $canSubmit = auth()->user()->hasPermission('subvention.submit');
         $canManage = auth()->user()->hasPermission('subvention.manage');
+        $isRegistrar = $isRegistrar ?? auth()->user()->can('review', new \App\Models\SubventionSubmission);
+        $isParishScoped = $isParishScoped ?? auth()->user()->isParishScoped();
         $symbol = '₦';
-        $branches = \App\Models\OrganizationalUnit::query()->orderBy('name')->get();
+        // §14: the "new submission" branch picker must not offer a parish a
+        // pastor cannot file for. A parish-scoped user sees only their own
+        // parish; a registrar sees every parish.
+        $branches = \App\Models\OrganizationalUnit::query()
+            ->when($isParishScoped, fn ($q) => $q->where('id', auth()->user()->organizational_unit_id))
+            ->orderBy('name')
+            ->get();
         $periods = \App\Models\SubventionPeriod::query()->latest('id')->get();
         $ruleSets = \App\Models\SubventionRuleSet::query()->orderBy('name')->get();
     @endphp
@@ -12,8 +20,15 @@
         <div>
             <h1>Subvention submissions</h1>
             <p class="cf-small cf-muted" style="margin-top:.3rem">
-                Calculations are versioned, never overwritten — re-running one always creates a new
-                record, so a previous figure can't silently change.
+                @if ($isRegistrar)
+                    Every subvention submitted by your pastors, across all parishes. You receive, review and approve them here.
+                @elseif ($isParishScoped)
+                    Subventions for <strong>{{ auth()->user()->organizationalUnit?->name ?? 'your parish' }}</strong>. Once the
+                    registrar approves a submission you will see it marked <strong>Approved</strong>.
+                @else
+                    Calculations are versioned, never overwritten — re-running one always creates a new record,
+                    so a previous figure can't silently change.
+                @endif
             </p>
         </div>
         @if ($canSubmit)
@@ -48,12 +63,24 @@
                         :options="$branches->map(fn($b) => ['value' => $b->id, 'label' => $b->name])->all()" />
                 @endif
 
+                {{-- The figures the RCCG rule set is applied against. Every field a
+                     seeded rule names (general_tithe, minister_tithe, admin_base,
+                     salary — see RccgLegacyRuleSetSeeder) has its own input, plus
+                     the offering lines the brief calls out. A figure with no rule
+                     still belongs on the submission: it is the branch's record of
+                     what was actually collected that period. --}}
                 <x-form.input name="figures[general_tithe]" label="General tithe" type="number" step="0.01"
-                    min="0" :value="'0'" hint="The figures the rule set is applied against." />
+                    min="0" :value="'0'" hint="Total tithe collected across the branch for the period." />
+                <x-form.input name="figures[minister_tithe]" label="Minister tithe" type="number" step="0.01"
+                    min="0" :value="'0'" hint="Tithe remitted by ministers, where the rule set retains against it." />
+                <x-form.input name="figures[offering]" label="Offerings" type="number" step="0.01"
+                    min="0" :value="'0'" hint="Combined service offerings for the period." />
+                <x-form.input name="figures[special_offering]" label="Special / thanksgiving" type="number" step="0.01"
+                    min="0" :value="'0'" hint="Named, one-off offerings (thanksgiving, project, harvest)." />
+                <x-form.input name="figures[admin_base]" label="Administrative base" type="number" step="0.01"
+                    min="0" :value="'0'" hint="The base the administrative fee percentage is applied to (often the general tithe)." />
                 <x-form.input name="figures[salary]" label="Salary total" type="number" step="0.01" min="0"
-                    :value="'0'" />
-                <x-form.input name="figures[admin_figure]" label="Administrative figure" type="number" step="0.01"
-                    min="0" :value="'0'" />
+                    :value="'0'" hint="Passed through as a deduction by the seeded rule set." />
             </x-form.card>
         </div>
     @elseif($canSubmit)

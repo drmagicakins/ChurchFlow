@@ -192,6 +192,12 @@ class PlatformAdminDashboardTest extends TestCase
             ->assertOk()
             ->assertSee('Create a feature flag')
             ->assertSee('name="key"', false)
-            ->assertSee('name="is_globally_enabled"', false);
+            // The form posts `label`, which is what FeatureFlagController::store()
+            // validates as required. It used to post name="name" (and an
+            // is_globally_enabled checkbox the controller never read), so every
+            // create attempt failed validation with "label is required" — this
+            // assertion used to lock in that mismatch.
+            ->assertSee('name="label"', false)
+            ->assertSee('name="description"', false);
     }
 }

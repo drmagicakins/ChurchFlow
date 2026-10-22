@@ -136,6 +136,34 @@ class HealthAndSecurityHeadersTest extends TestCase
     }
 
     /**
+     * ...and the endpoint can be made NOT to count a failure, per check.
+     *
+     * `severity_causing` is documented in config/health.php and the README as
+     * the way a deployment runs without a dependency configured without going
+     * red. That claim needs a test, or it is just a comment — this is it, for
+     * the case `force_severity` cannot express: forcing severity off while the
+     * check is genuinely failing.
+     */
+    public function test_severity_can_be_switched_off_per_check_for_a_real_failure(): void
+    {
+        $this->seedRuntimeHeartbeats();
+
+        // Make the only thing wrong be payments, with no override in either
+        // direction, so the config flag is the sole decision maker.
+        config()->set('health.force_severity.payments', null);
+        config()->set('health.severity_causing.payments', false);
+        config()->set('services.payments.webhook_secret', null);
+
+        $response = $this->getJson('/health.json');
+
+        // The probe still reports the truth...
+        $response->assertJsonPath('checks.payments.ok', false);
+
+        // ...but it does not make the platform degraded.
+        $response->assertOk()->assertJsonPath('status', 'ok');
+    }
+
+    /**
      * An unconfigured dependency must never make a dev machine report as
      * degraded. This is the behaviour a fresh install depends on: with no
      * payment credentials and no worker running, `/health` has to say healthy,

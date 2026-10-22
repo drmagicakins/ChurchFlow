@@ -22,4 +22,10 @@ class TaskPolicy extends BaseTenantPolicy
         return $this->sameTenant($user, $task)
             && ($user->id === $task->assigned_to || $user->id === $task->created_by || $user->hasPermission('settings.manage'));
     }
+
+    public function delete(User $user, Task $task): bool
+    {
+        return $this->sameTenant($user, $task)
+            && ($user->id === $task->created_by || $user->hasPermission('settings.manage'));
+    }
 }

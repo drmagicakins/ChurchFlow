@@ -127,23 +127,47 @@
             overlay.setAttribute('aria-hidden', 'false');
         }
 
+        // Undoes busy() AND hides the overlay. Used when a submit turns out not
+        // to be a navigation after all (the confirm dialog was declined), on
+        // bfcache restore, and by window.cfLoader.reset().
         function reset(form) {
-            form.classList.remove('is-submitting');
-            form.removeAttribute('aria-busy');
-            form.querySelectorAll('[data-cf-busy]').forEach(function(btn) {
-                btn.classList.remove('is-busy');
-                btn.disabled = false;
-                btn.removeAttribute('aria-disabled');
-                var sp = btn.querySelector('.cf-spinner');
-                if (sp) sp.remove();
-                var lbl = btn.querySelector('.cf-btn__label');
-                if (lbl) lbl.hidden = false;
-            });
+            if (form) {
+                form.classList.remove('is-submitting');
+                form.removeAttribute('aria-busy');
+                form.querySelectorAll('[data-cf-busy]').forEach(function(btn) {
+                    btn.classList.remove('is-busy');
+                    btn.disabled = false;
+                    btn.removeAttribute('aria-disabled');
+                    btn.removeAttribute('data-cf-busy');
+                    var sp = btn.querySelector('.cf-spinner');
+                    if (sp) sp.remove();
+                    var busyText = btn.querySelector('.cf-btn__busytext');
+                    if (busyText) busyText.remove();
+                    var lbl = btn.querySelector('.cf-btn__label');
+                    if (lbl) lbl.hidden = false;
+                });
+            }
+
             if (overlay) {
                 overlay.hidden = true;
                 overlay.setAttribute('aria-hidden', 'true');
             }
         }
+
+        // Reset every form the page marked busy. A submit can be cancelled
+        // AFTER this listener has already run (see the submit handler below),
+        // so the recovery path must not depend on knowing which form it was.
+        function resetAll() {
+            document.querySelectorAll('form.is-submitting').forEach(reset);
+            // Belt and braces: if a form somehow lost its class, the overlay
+            // must still not be left covering the page.
+            if (overlay) {
+                overlay.hidden = true;
+                overlay.setAttribute('aria-hidden', 'true');
+            }
+        }
+
+        window.cfLoaderResetAll = resetAll;
 
         function busy(form) {
             form.classList.add('is-submitting');
@@ -183,24 +207,50 @@
             if (!(form instanceof HTMLFormElement)) return;
             if (form.hasAttribute('data-cf-no-loading')) return;
 
-            // Never interfere with a submit the page itself cancelled — e.g.
-            // Alpine's @submit.prevent on the global search box.
-            if (e.defaultPrevented) return;
-
             // A form the browser will handle natively (method="dialog", or
             // target=_blank) is not a navigation, so a full-page overlay would
             // be wrong.
             if (form.getAttribute('target')) return;
 
+            // A CONFIRMABLE form is never submitted on this pass. The confirm
+            // dialog prevents the submit and re-submits only if the user
+            // accepts, so showing "Working…" here would mean showing it for a
+            // form that has not been approved — and nothing would ever clear it
+            // when the user pressed Cancel.
+            //
+            // `e.defaultPrevented` alone is NOT enough to detect this: this
+            // listener is registered before partials.confirm's (loader is
+            // included first in the layout), so at this moment the dialog has
+            // not yet called preventDefault() and the flag is still false. That
+            // gap is exactly what left the overlay stuck on screen after Cancel.
+            if (form.hasAttribute('data-confirm')) return;
+
+            // Never interfere with a submit the page itself cancelled — e.g.
+            // Alpine's @submit.prevent on the global search box.
+            if (e.defaultPrevented) return;
+
             busy(form);
             showOverlay(form);
+        });
+
+        // The last line of defence: if a submit is cancelled after this
+        // listener has already started the spinner (any interceptor that runs
+        // later than this file), put everything back. Scheduled as a
+        // microtask so every other submit listener — regardless of include
+        // order — has had the chance to call preventDefault() first.
+        document.addEventListener('submit', function(e) {
+            var form = e.target;
+            if (!(form instanceof HTMLFormElement)) return;
+            queueMicrotask(function() {
+                if (e.defaultPrevented) reset(form);
+            });
         });
 
         // Browser back/forward can restore a page with the button still
         // disabled from a previous submit. Without this, that button is dead.
         window.addEventListener('pageshow', function(e) {
             if (!e.persisted) return;
-            document.querySelectorAll('form.is-submitting').forEach(reset);
+            resetAll();
         });
 
         // Exposed so a page can drive the same state from its own async work

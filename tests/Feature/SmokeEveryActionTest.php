@@ -76,6 +76,8 @@ class SmokeEveryActionTest extends TestCase
             'name' => 'Growth', 'slug' => 'growth-actions',
             'monthly_price' => 25000, 'yearly_price' => 250000, 'currency' => 'NGN',
             'max_members' => null, 'max_branches' => null, 'max_admins' => null, 'storage_mb' => 10240,
+            // §30: the reports export is gated on this feature.
+            'features' => ['api_access' => true, 'custom_domain' => true, 'advanced_reports' => true],
         ]);
 
         app(\App\Domains\Subscriptions\Services\SubscriptionService::class)
@@ -203,7 +205,7 @@ class SmokeEveryActionTest extends TestCase
                 'records' => [['member_id' => $member->id, 'status' => 'present']],
             ]],
             ['announcements.store', '/announcements', [
-                'title' => 'Harvest', 'body' => 'Come one come all.', 'audience_type' => 'church',
+                'title' => 'Harvest', 'body' => 'Come one come all.', 'audience_type' => 'church_wide',
             ]],
             ['tasks.store', '/tasks', [
                 'title' => 'Print bulletins', 'due_date' => now()->addDays(5)->toDateString(),
@@ -272,7 +274,7 @@ class SmokeEveryActionTest extends TestCase
             ], 'PUT'],
             ['sms.campaigns.store', '/sms/campaigns', [
                 'name' => 'Harvest Invite', 'message' => 'Join us this Sunday!',
-                'audience_type' => 'church',
+                'audience_type' => 'church_wide',
             ]],
             ['sms.campaigns.confirm', "/sms/campaigns/{$campaign->id}/confirm", []],
             ['sms.wallet.credit', '/sms/wallet/credit', ['units' => 500, 'reference' => 'manual-topup']],

@@ -15,6 +15,7 @@ use App\Models\Announcement;
 use App\Models\Appointment;
 use App\Models\Approval;
 use App\Models\AttendanceSession;
+use App\Models\BankAccount;
 use App\Models\Budget;
 use App\Models\Department;
 use App\Models\Event;
@@ -26,6 +27,7 @@ use App\Models\Member;
 use App\Models\PastoralCase;
 use App\Models\PrayerRequest;
 use App\Models\SmsCampaign;
+use App\Models\SupportTicket;
 use App\Models\SubventionRuleSet;
 use App\Models\SubventionSubmission;
 use App\Models\Task;
@@ -34,6 +36,7 @@ use App\Policies\AnnouncementPolicy;
 use App\Policies\AppointmentPolicy;
 use App\Policies\ApprovalPolicy;
 use App\Policies\AttendanceSessionPolicy;
+use App\Policies\BankAccountPolicy;
 use App\Policies\BudgetPolicy;
 use App\Policies\DepartmentPolicy;
 use App\Policies\EventPolicy;
@@ -45,6 +48,7 @@ use App\Policies\MemberPolicy;
 use App\Policies\PastoralCasePolicy;
 use App\Policies\PrayerRequestPolicy;
 use App\Policies\SmsCampaignPolicy;
+use App\Policies\SupportTicketPolicy;
 use App\Policies\SubventionRuleSetPolicy;
 use App\Policies\SubventionSubmissionPolicy;
 use App\Policies\TaskPolicy;
@@ -83,6 +87,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Announcement::class, AnnouncementPolicy::class);
         Gate::policy(Task::class, TaskPolicy::class);
         Gate::policy(FinancialAccount::class, FinancialAccountPolicy::class);
+        Gate::policy(BankAccount::class, BankAccountPolicy::class);
         Gate::policy(Transaction::class, TransactionPolicy::class);
         Gate::policy(Budget::class, BudgetPolicy::class);
         Gate::policy(Loan::class, LoanPolicy::class);
@@ -93,6 +98,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(PastoralCase::class, PastoralCasePolicy::class);
         Gate::policy(Appointment::class, AppointmentPolicy::class);
         Gate::policy(SmsCampaign::class, SmsCampaignPolicy::class);
+        Gate::policy(SupportTicket::class, SupportTicketPolicy::class);
 
         // Stored in approvable_type instead of the raw class name: keeps
         // the approvals table stable across future namespace refactors and

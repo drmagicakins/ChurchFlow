@@ -29,10 +29,12 @@
         ['__group' => 'Overview'],
         ['dashboard', null, 'Dashboard', 'grid'],
         ['calendar.index', null, 'Calendar', 'calendar'],
+        ['reports.index', null, 'Reports', 'chart-up'],
 
         ['__group' => 'People'],
         ['members.index', 'members.view', 'Members', 'users'],
         ['families.index', 'members.view', 'Families', 'family'],
+        ['branches.index', 'members.view', 'Branches', 'branches'],
         ['departments.index', 'members.view', 'Departments', 'building'],
         ['groups.index', 'members.view', 'Groups', 'branches'],
 
@@ -44,8 +46,9 @@
 
         ['__group' => 'Finance'],
         ['finance.accounts.index', 'finance.view', 'Accounts', 'wallet'],
+        ['finance.bank-accounts.index', 'finance.view', 'Bank accounts', 'wallet'],
         ['finance.budgets.index', 'finance.view', 'Budgets', 'pie'],
-        ['finance.loans.index', 'loans.manage', 'Loans', 'naira'],
+        ['finance.loans.index', null, 'Loans', 'naira'],
         ['approvals.index', 'finance.approve', 'Approvals', 'shield'],
 
         ['__group' => 'Subvention'],
@@ -65,6 +68,8 @@
 
         ['__group' => 'Account'],
         ['billing.show', 'billing.manage', 'Billing & plan', 'wallet'],
+        ['settings.index', 'settings.manage', 'Settings', 'sliders'],
+        ['support.index', null, 'Support', 'chat'],
     ];
 
     // A menu row is kept only when its route actually exists in this build and the
@@ -284,6 +289,14 @@
     </div>
 
     @include('partials.loader')
+
+    {{-- One custom confirmation dialog for every destructive action in the app,
+         replacing the browser's native confirm(). See partials/confirm. --}}
+    @include('partials.confirm')
+
+    {{-- §24: the task reminder popup + chime. Polls for tasks whose reminder
+         moment has passed and pops them up once. See partials/task-reminders. --}}
+    @include('partials.task-reminders')
 
     <script nonce="{{ \App\Http\Middleware\SecurityHeaders::nonce() }}">
         document.addEventListener('alpine:init', () => {

@@ -47,4 +47,16 @@ class OrganizationalUnit extends Model
     {
         return $this->hasMany(OrganizationalUnit::class, 'parent_id');
     }
+
+    /** Members whose home branch is this unit (Member::organizational_unit_id). */
+    public function members()
+    {
+        return $this->hasMany(Member::class, 'organizational_unit_id');
+    }
+
+    /** Departments attached to this unit (Department::organizational_unit_id). */
+    public function departments()
+    {
+        return $this->hasMany(Department::class, 'organizational_unit_id');
+    }
 }

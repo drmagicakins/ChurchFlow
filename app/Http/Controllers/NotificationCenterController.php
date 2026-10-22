@@ -14,12 +14,24 @@ class NotificationCenterController extends Controller
 
     public function index(Request $request): View
     {
-        $items = AppNotification::query()
-            ->where('user_id', $request->user()->id)
-            ->latest()
-            ->paginate(25);
+        $user = $request->user();
 
-        return view('notifications.index', ['items' => $items]);
+        $filter = $request->string('filter', 'all')->toString();
+
+        $items = AppNotification::query()
+            ->where('user_id', $user->id)
+            ->when($filter === 'unread', fn ($q) => $q->unread())
+            ->when($filter === 'read', fn ($q) => $q->whereNotNull('read_at'))
+            ->latest('id')
+            ->paginate(25)
+            ->withQueryString();
+
+        return view('notifications.index', [
+            'items' => $items,
+            'filter' => $filter,
+            'unreadCount' => AppNotification::query()->where('user_id', $user->id)->unread()->count(),
+            'totalCount' => AppNotification::query()->where('user_id', $user->id)->count(),
+        ]);
     }
 
     public function markRead(Request $request, AppNotification $notification): RedirectResponse
@@ -29,5 +41,16 @@ class NotificationCenterController extends Controller
         $this->notifications->markRead($notification);
 
         return back();
+    }
+
+    /** Mark every unread notification for this user as read in one action. */
+    public function markAllRead(Request $request): RedirectResponse
+    {
+        AppNotification::query()
+            ->where('user_id', $request->user()->id)
+            ->unread()
+            ->update(['read_at' => now()]);
+
+        return back()->with('status', 'All notifications marked as read.');
     }
 }

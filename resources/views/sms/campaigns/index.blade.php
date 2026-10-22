@@ -43,20 +43,47 @@
     </div>
 
     @if ($canSend)
-        <div data-panel="sms-create" hidden style="margin-bottom:1.2rem">
+        <div data-panel="sms-create" hidden style="margin-bottom:1.2rem"
+            x-data="{ audience: '{{ old('audience_type', 'church_wide') }}' }">
             <x-form.card title="Start a campaign"
                 description="Nothing is sent yet. Creating a campaign only saves the message and audience — you'll see the exact recipient count and unit cost before confirming."
                 :action="route('sms.campaigns.store')" submit="Save campaign" submit-icon="chat" layout="inline">
                 <x-form.input name="name" label="Campaign name" required
                     placeholder="e.g. Easter service reminder" />
 
-                <x-form.select name="audience_type" label="Who receives it" :value="'church_wide'" :options="[
+                <x-form.select name="audience_type" label="Who receives it" :value="old('audience_type', 'church_wide')" :options="[
                     'church_wide' => 'Entire church',
                     'branch' => 'A specific branch',
                     'department' => 'A department',
                     'group' => 'A group',
                 ]"
-                    hint="Only members with a phone number are counted." />
+                    hint="Only members with a phone number are counted." x-model="audience" data-audience-select />
+
+                {{-- §19/§21: choosing an audience reveals WHICH branch/department/
+                     group — exactly the same reveal pattern as the announcements
+                     form, so the two composers behave identically. Every field is
+                     present but hidden, so switching audience never loses a value
+                     and required_if only fires for the chosen one. --}}
+                <div x-show="audience === 'branch'" x-cloak>
+                    <x-form.select name="organizational_unit_id" label="Branch"
+                        :value="old('organizational_unit_id')" placeholder="Choose a branch..."
+                        :required="old('audience_type') === 'branch'"
+                        :options="$branches->map(fn ($b) => ['value' => $b->id, 'label' => $b->name])->all()" />
+                </div>
+
+                <div x-show="audience === 'department'" x-cloak>
+                    <x-form.select name="department_id" label="Department"
+                        :value="old('department_id')" placeholder="Choose a department..."
+                        :required="old('audience_type') === 'department'"
+                        :options="$departments->map(fn ($d) => ['value' => $d->id, 'label' => $d->name])->all()" />
+                </div>
+
+                <div x-show="audience === 'group'" x-cloak>
+                    <x-form.select name="group_id" label="Group"
+                        :value="old('group_id')" placeholder="Choose a group..."
+                        :required="old('audience_type') === 'group'"
+                        :options="$groups->map(fn ($g) => ['value' => $g->id, 'label' => $g->name])->all()" />
+                </div>
 
                 <x-form.textarea name="message" label="Message" rows="5" required wide
                     placeholder="Keep it under 160 characters to stay within one SMS unit."

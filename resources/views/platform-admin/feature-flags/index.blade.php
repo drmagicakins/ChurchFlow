@@ -26,11 +26,14 @@
             layout="inline"
         >
             <x-form.input name="key" label="Key" required placeholder="e.g. advanced_reporting"
-                hint="Lowercase, underscores. This is the string code checks with isEnabled()." />
-            <x-form.input name="name" label="Display name" placeholder="e.g. Advanced reporting" />
-            <x-form.checkbox name="is_globally_enabled" label="Enable globally"
-                hint="Leave off to create it dark, then enable per church." />
-            <x-form.textarea name="description" label="What it controls" rows="2" wide />
+                hint="Lowercase letters, numbers and underscores. This is the string code checks with isEnabled()." />
+            <x-form.input name="label" label="Display name" required placeholder="e.g. Advanced reporting"
+                hint="A human-readable name shown here only. The key is what code uses." />
+            <x-form.textarea name="description" label="What it controls" rows="2" wide
+                hint="Optional. A note for the next operator so the flag's purpose is not lost." />
+            <p class="cf-small cf-muted cf-field--wide" style="margin:0">
+                A new flag is created <strong>disabled</strong>. Turn it on globally, or per church, from the list below.
+            </p>
         </x-form.card>
     </div>
 
@@ -88,6 +91,35 @@
                                         <button type="submit" class="cf-btn cf-btn--secondary cf-btn--sm">
                                             Turn {{ $flag->is_globally_enabled ? 'off' : 'on' }}
                                         </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {{-- Per-church override. This form existed as a route with no
+                                 way to reach it — the screen listed overrides but offered
+                                 no control to set one, so the feature was unreachable from
+                                 the UI. It sits in its own row under the flag it targets. --}}
+                            <tr>
+                                <td colspan="4" style="background:var(--surface-sunken, #f8fafc);padding:.7rem 1rem">
+                                    <form method="POST" action="{{ route('platform-admin.feature-flags.override', $flag) }}"
+                                        style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:flex-end">
+                                        @csrf
+                                        <div class="cf-field" style="min-width:14rem;margin:0">
+                                            <label class="cf-label cf-tiny" for="override-church-{{ $flag->id }}">Set a per-church override</label>
+                                            <select name="church_id" id="override-church-{{ $flag->id }}" class="cf-select" required>
+                                                <option value="">Choose a church…</option>
+                                                @foreach($churches as $church)
+                                                    <option value="{{ $church->id }}">{{ $church->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="cf-field" style="margin:0">
+                                            <label class="cf-label cf-tiny" for="override-state-{{ $flag->id }}">State</label>
+                                            <select name="enabled" id="override-state-{{ $flag->id }}" class="cf-select">
+                                                <option value="1">On</option>
+                                                <option value="0">Off</option>
+                                            </select>
+                                        </div>
+                                        <button type="submit" class="cf-btn cf-btn--secondary cf-btn--sm">Save override</button>
                                     </form>
                                 </td>
                             </tr>

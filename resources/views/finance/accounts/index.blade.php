@@ -14,9 +14,14 @@
             </p>
         </div>
         @if($canRecord)
-            <button type="button" class="cf-btn cf-btn--primary cf-btn--sm" data-toggle="account-create" aria-expanded="false">
-                <x-ui.icon name="wallet" class="h-4 w-4" /> Add Account
-            </button>
+            <div style="display:flex;gap:.5rem;align-items:center">
+                <a href="{{ route('finance.bank-accounts.index') }}" class="cf-btn cf-btn--secondary cf-btn--sm">
+                    <x-ui.icon name="wallet" class="h-4 w-4" /> Bank accounts
+                </a>
+                <button type="button" class="cf-btn cf-btn--primary cf-btn--sm" data-toggle="account-create" aria-expanded="false">
+                    <x-ui.icon name="wallet" class="h-4 w-4" /> Add Account
+                </button>
+            </div>
         @endif
     </div>
 
@@ -55,11 +60,26 @@
                     'bank' => 'Bank account',
                     'cash' => 'Cash',
                     'mobile_money' => 'Mobile money',
+                    'general' => 'General fund',
+                    'building' => 'Building fund',
+                    'missions' => 'Missions',
+                    'welfare' => 'Welfare',
                     'other' => 'Other',
                 ]" />
 
-                <x-form.input name="opening_balance" label="Opening balance" type="number" step="0.01"
+                <x-form.input name="opening_balance" label="Opening balance" type="number" step="0.01" min="0"
                     hint="Optional. Recorded as a starting transaction, never as a hidden adjustment." />
+
+                {{-- Bank details are optional — a cash box or mobile-money account
+                     has none — but when the account IS a bank account they let the
+                     church record where money actually sits. --}}
+                <x-form.select name="bank_name" label="Bank" placeholder="Not a bank account"
+                    :options="collect(config('nigerian_banks.banks', []))->map(fn ($n) => ['value' => $n, 'label' => $n])->values()->all()"
+                    hint="Optional. Only relevant for a bank account." />
+
+                <x-form.input name="bank_account_name" label="Account name (as held by the bank)" placeholder="e.g. Grace Chapel" />
+                <x-form.input name="bank_account_number" label="Account number" inputmode="numeric" maxlength="10"
+                    placeholder="0123456789" hint="Optional. 10 digits for a Nigerian account." />
 
                 <x-form.textarea name="description" label="Description" rows="2" wide />
             </x-form.card>

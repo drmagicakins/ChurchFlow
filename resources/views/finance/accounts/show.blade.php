@@ -227,7 +227,7 @@
                         ? '<span class="cf-tiny cf-muted">voided</span>'
                         : '<form method="POST" action="' .
                             route('finance.transactions.void', $t) .
-                            '" onsubmit="return confirm(\'Void this transaction? The row stays in the ledger and a reason is required.\')" style="display:inline" data-cf-no-loading>' .
+                            '" data-confirm="Void this transaction? The row stays in the ledger and a reason is required." data-confirm-title="Void transaction?" data-confirm-ok="Void" style="display:inline" data-cf-no-loading>' .
                             csrf_field() .
                             '<input type="hidden" name="reason" value="Corrected in error">' .
                             '<button type="submit" class="cf-btn cf-btn--secondary cf-btn--sm">Void</button>' .

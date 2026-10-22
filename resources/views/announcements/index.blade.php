@@ -23,7 +23,11 @@
     @endif
 
     @if($canManage)
-        <div data-panel="ann-create" hidden style="margin-bottom:1.2rem">
+        {{-- x-data carries the audience model the conditional selects below bind to.
+             Initialised from old() so a failed submit keeps the audience the user chose
+             (and the field that was flagged as missing stays visible). --}}
+        <div data-panel="ann-create" hidden style="margin-bottom:1.2rem"
+            x-data="{ audience: '{{ old('audience_type', 'church_wide') }}' }">
             <x-form.card
                 title="Post an announcement"
                 description="Choosing an audience decides who sees this and who is emailed — church-wide goes to everyone with an email address."
@@ -34,12 +38,40 @@
             >
                 <x-form.input name="title" label="Title" required placeholder="e.g. Service time change this Sunday" />
 
-                <x-form.select name="audience_type" label="Audience" :value="'church_wide'" :options="[
+                <x-form.select name="audience_type" label="Audience" :value="old('audience_type', 'church_wide')" :options="[
                     'church_wide' => 'Entire church',
                     'branch' => 'A specific branch',
                     'department' => 'A department',
                     'group' => 'A group',
-                ]" hint="Emails are sent to every member in this audience who has an address." />
+                ]" hint="Emails are sent to every member in this audience who has an address."
+                    x-model="audience" data-audience-select />
+
+                {{-- §19: the audience dropdown chooses WHICH extra field applies.
+                     Only the matching select is ever required (the controller uses
+                     required_if), and every field is present in the DOM but hidden,
+                     so switching audience never loses a value the user already typed
+                     and the browser's own required-attribute validation can't fire on
+                     a field that is not the current audience. --}}
+                <div x-show="audience === 'branch'" x-cloak>
+                    <x-form.select name="organizational_unit_id" label="Branch"
+                        :value="old('organizational_unit_id')" placeholder="Choose a branch..."
+                        :required="old('audience_type') === 'branch'"
+                        :options="$branches->map(fn ($b) => ['value' => $b->id, 'label' => $b->name])->all()" />
+                </div>
+
+                <div x-show="audience === 'department'" x-cloak>
+                    <x-form.select name="department_id" label="Department"
+                        :value="old('department_id')" placeholder="Choose a department..."
+                        :required="old('audience_type') === 'department'"
+                        :options="$departments->map(fn ($d) => ['value' => $d->id, 'label' => $d->name])->all()" />
+                </div>
+
+                <div x-show="audience === 'group'" x-cloak>
+                    <x-form.select name="group_id" label="Group"
+                        :value="old('group_id')" placeholder="Choose a group..."
+                        :required="old('audience_type') === 'group'"
+                        :options="$groups->map(fn ($g) => ['value' => $g->id, 'label' => $g->name])->all()" />
+                </div>
 
                 <x-form.textarea name="body" label="Message" rows="5" required
                     placeholder="Write the announcement as you would say it out loud." wide />
@@ -77,7 +109,18 @@
                                 <td><span class="cf-badge">{{ str_replace('_', ' ', $a->audience_type) }}</span></td>
                                 <td class="cf-small cf-muted" style="white-space:nowrap">{{ $a->created_at?->diffForHumans() }}</td>
                                 <td style="text-align:right">
-                                    <a href="{{ route('announcements.show', $a) }}" class="cf-btn cf-btn--secondary cf-btn--sm">View</a>
+                                    <div style="display:inline-flex;gap:.4rem;align-items:center">
+                                        <a href="{{ route('announcements.show', $a) }}" class="cf-btn cf-btn--secondary cf-btn--sm">View</a>
+                                        @if($canManage)
+                                            <form method="POST" action="{{ route('announcements.destroy', $a) }}" style="display:inline"
+                                                data-confirm="Delete the announcement “{{ $a->title }}”? This cannot be undone."
+                                                data-confirm-title="Delete announcement?" data-confirm-ok="Delete">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="cf-btn cf-btn--danger cf-btn--sm">Delete</button>
+                                            </form>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach

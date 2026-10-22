@@ -30,7 +30,22 @@ class FamilyController extends Controller
     {
         $this->authorize('view', $family);
 
-        return view('families.show', compact('family'));
+        // §11: the show page is where a family is actually built — attaching
+        // members and labelling their relationship. It needs the members who
+        // are NOT already in this family to offer as candidates, so the
+        // dropdown cannot suggest a duplicate link. Tenant-scoped by the global
+        // scope on Member, so this is never another church's people.
+        $attachedIds = $family->members()->pluck('members.id')->all();
+        $availableMembers = \App\Models\Member::query()
+            ->when($attachedIds !== [], fn ($q) => $q->whereNotIn('id', $attachedIds))
+            ->orderBy('full_name')
+            ->limit(500)
+            ->get();
+
+        return view('families.show', [
+            'family' => $family->load('members'),
+            'availableMembers' => $availableMembers,
+        ]);
     }
 
     /** Attach a member to a family with a relationship label (§11). */
@@ -63,5 +78,20 @@ class FamilyController extends Controller
         $family->delete();
 
         return redirect()->route('families.index');
+    }
+
+    /** §11: remove one member from a household, keeping the member's own record. */
+    public function detachMember(Family $family, \App\Models\Member $member): RedirectResponse
+    {
+        $this->authorize('update', $family);
+
+        // The relation is many-to-many; detach only removes the pivot row.
+        // Re-assert tenancy explicitly for the same reason attachMember does —
+        // the exists/route binding must never let two churches' records meet.
+        abort_unless($member->church_id === $family->church_id, 403);
+
+        $family->members()->detach($member->id);
+
+        return back()->with('status', "{$member->full_name} removed from the household.");
     }
 }

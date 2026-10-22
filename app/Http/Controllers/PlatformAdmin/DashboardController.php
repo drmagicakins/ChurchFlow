@@ -7,6 +7,7 @@ use App\Models\Church;
 use App\Models\Invoice;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Models\SupportTicket;
 use App\Models\User;
 use Illuminate\View\View;
 
@@ -75,6 +76,17 @@ class DashboardController extends Controller
                 ->latest('updated_at')
                 ->limit(8)
                 ->get(),
+
+            // §54: the support queue, counted but not listed — the dashboard is
+            // a daily glance, and the full ticket list lives on its own screen.
+            // A ticket is "open" while it is anything other than resolved/closed.
+            'openTicketCount' => SupportTicket::query()
+                ->whereNotIn('status', ['resolved', 'closed'])
+                ->count(),
+            'urgentTicketCount' => SupportTicket::query()
+                ->where('priority', 'urgent')
+                ->whereNotIn('status', ['resolved', 'closed'])
+                ->count(),
         ]);
     }
 }

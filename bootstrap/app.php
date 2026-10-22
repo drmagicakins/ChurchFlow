@@ -21,6 +21,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // globally so even public routes (marketing, /health) are covered.
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
 
+        // §46: the alias the versioned public API routes use to authenticate a
+        // bearer token and bind the tenant from it. Named rather than used as a
+        // class string so the route file stays readable and the ability
+        // parameter (route middleware 'api.token:read') is possible.
+        $middleware->alias([
+            'api.token' => \App\Http\Middleware\AuthenticateApiToken::class,
+        ]);
+
         // Without this, IdentifyTenant isn't in Laravel's default middleware
         // priority list, so it was running AFTER SubstituteBindings (which
         // resolves route-model-bound parameters like {member} in `members.show`).
@@ -36,6 +44,22 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(
             before: \Illuminate\Routing\Middleware\SubstituteBindings::class,
             prepend: \App\Http\Middleware\IdentifyTenant::class,
+        );
+
+        // The same ordering problem, for the platform-admin routes.
+        //
+        // PlatformAdminOnly is what sets 'tenant.disabled', and every
+        // tenant-scoped model's global scope reads that flag. Left in the
+        // default order it ran AFTER SubstituteBindings, so binding a
+        // tenant-owned parameter (platform-admin.support.show's {ticket}) was
+        // filtered by the tenant scope while no tenant was bound — the scope
+        // emitted `where 1 = 0`, the model came back null, and the route 404'd
+        // even though the ticket existed and the admin could see it in the
+        // queue. Billing's {church} binding never exposed this because Church
+        // is not a BelongsToTenant model.
+        $middleware->prependToPriorityList(
+            before: \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            prepend: \App\Http\Middleware\PlatformAdminOnly::class,
         );
     })
     ->withExceptions(function (Exceptions $exceptions): void {

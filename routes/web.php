@@ -84,25 +84,39 @@ Route::middleware(['auth', \App\Http\Middleware\IdentifyTenant::class, \App\Http
 
     // --- Phase 2: People ---
     Route::get('/members/export', [\App\Http\Controllers\MemberImportExportController::class, 'export'])->name('members.export');
+    // The blank sheet a church fills in for a bulk import. Declared here, next to
+    // the import route, so `members/{member}` below can never swallow it.
+    Route::get('/members/sample-sheet', [\App\Http\Controllers\MemberImportExportController::class, 'sample'])->name('members.sample');
     Route::post('/members/import', [\App\Http\Controllers\MemberImportExportController::class, 'import'])->name('members.import');
     Route::post('/members/bulk-status', [\App\Http\Controllers\MemberController::class, 'bulkUpdateStatus'])->name('members.bulk-status');
     // Phase 10: member photo upload (§23/§43) — uploads via FileUploadService,
     // served back only through a signed, time-limited download URL.
     Route::post('/members/{member}/photo', [\App\Http\Controllers\MemberPhotoController::class, 'store'])->name('members.photo');
     Route::resource('members', \App\Http\Controllers\MemberController::class)->except(['create', 'edit']);
-
     Route::resource('families', \App\Http\Controllers\FamilyController::class)->only(['index', 'store', 'show', 'destroy']);
     Route::post('/families/{family}/members', [\App\Http\Controllers\FamilyController::class, 'attachMember'])->name('families.members.attach');
+    Route::delete('/families/{family}/members/{member}', [\App\Http\Controllers\FamilyController::class, 'detachMember'])->name('families.members.detach');
 
     Route::resource('departments', \App\Http\Controllers\DepartmentController::class)->only(['index', 'store', 'show', 'destroy']);
     Route::post('/departments/{department}/members', [\App\Http\Controllers\DepartmentController::class, 'attachMember'])->name('departments.members.attach');
+    Route::delete('/departments/{department}/members/{member}', [\App\Http\Controllers\DepartmentController::class, 'detachMember'])->name('departments.members.detach');
 
     Route::resource('groups', \App\Http\Controllers\GroupController::class)->only(['index', 'store', 'show', 'destroy']);
     Route::post('/groups/{group}/members', [\App\Http\Controllers\GroupController::class, 'attachMember'])->name('groups.members.attach');
+    Route::delete('/groups/{group}/members/{member}', [\App\Http\Controllers\GroupController::class, 'detachMember'])->name('groups.members.detach');
+
+    // --- §4/§14: Branches (organisational units) ---
+    // The model and its plan limit existed from the start, but nothing let a
+    // church owner add one — so max_branches was unenforceable and every branch
+    // picker elsewhere was permanently empty.
+    Route::get('/branches', [\App\Http\Controllers\OrganizationalUnitController::class, 'index'])->name('branches.index');
+    Route::post('/branches', [\App\Http\Controllers\OrganizationalUnitController::class, 'store'])->name('branches.store');
+    Route::delete('/branches/{branch}', [\App\Http\Controllers\OrganizationalUnitController::class, 'destroy'])->name('branches.destroy');
 
     // --- Phase 3: Activities ---
     Route::resource('events', \App\Http\Controllers\EventController::class)->only(['index', 'store', 'show', 'destroy']);
     Route::post('/events/{event}/register', [\App\Http\Controllers\EventController::class, 'register'])->name('events.register');
+    Route::post('/events/{event}/registrations/remove', [\App\Http\Controllers\EventController::class, 'cancelRegistration'])->name('events.registrations.cancel');
 
     Route::resource('attendance', \App\Http\Controllers\AttendanceController::class)
         ->parameters(['attendance' => 'session'])
@@ -111,9 +125,26 @@ Route::middleware(['auth', \App\Http\Middleware\IdentifyTenant::class, \App\Http
 
     Route::resource('announcements', \App\Http\Controllers\AnnouncementController::class)->only(['index', 'store', 'show', 'destroy']);
 
-    Route::resource('tasks', \App\Http\Controllers\TaskController::class)->only(['index', 'store', 'update']);
+    Route::resource('tasks', \App\Http\Controllers\TaskController::class)->only(['index', 'store', 'update', 'destroy']);
+    // §24: reminder popup. `due` returns the reminders the signed-in user should
+    // see now (JSON, polled by the layout); `dismiss` stamps one as shown so it
+    // does not re-appear. Declared before the resource-less routes so the paths
+    // stay unambiguous.
+    Route::get('/tasks/reminders/due', [\App\Http\Controllers\TaskController::class, 'dueReminders'])->name('tasks.reminders.due');
+    Route::post('/tasks/{task}/reminder/dismiss', [\App\Http\Controllers\TaskController::class, 'dismissReminder'])->name('tasks.reminders.dismiss');
 
     Route::get('/calendar', [\App\Http\Controllers\CalendarController::class, 'index'])->name('calendar.index');
+
+    // --- §30: Advanced reports ---
+    // Listing, a per-report page and a CSV of exactly what the page shows.
+    // The {report} parameter is a report KEY (attendance_summary, giving_summary,
+    // ...) — see ReportsService::catalogue() — not a row id.
+    Route::get('/reports', [\App\Http\Controllers\ReportController::class, 'index'])->name('reports.index');
+    // The export route is declared BEFORE the bare {report} route so the more
+    // specific path wins regardless of framework ordering: /reports/x/export
+    // must never be parsed as report "x/export".
+    Route::get('/reports/{report}/export', [\App\Http\Controllers\ReportController::class, 'export'])->name('reports.export');
+    Route::get('/reports/{report}', [\App\Http\Controllers\ReportController::class, 'show'])->name('reports.show');
 
     // --- Phase 10: secure file downloads (§23, §43) ---
     // `signed` proves the link wasn't tampered with and hasn't expired;
@@ -128,10 +159,18 @@ Route::middleware(['auth', \App\Http\Middleware\IdentifyTenant::class, \App\Http
         ->only(['index', 'store', 'show'])
         ->names('finance.accounts');
 
-    Route::post('/finance/accounts/{account}/income', [\App\Http\Controllers\TransactionController::class, 'storeIncome'])->name('finance.transactions.income');
-    Route::post('/finance/accounts/{account}/expense', [\App\Http\Controllers\TransactionController::class, 'storeExpense'])->name('finance.transactions.expense');
+    Route::post('/finance/accounts/{account}/income', [\App\Http\Controllers\TransactionController::class, 'storeIncome'])->name('finance.transactions.income');    Route::post('/finance/accounts/{account}/expense', [\App\Http\Controllers\TransactionController::class, 'storeExpense'])->name('finance.transactions.expense');
     Route::post('/finance/transfer', [\App\Http\Controllers\TransactionController::class, 'storeTransfer'])->name('finance.transactions.transfer');
     Route::post('/finance/transactions/{transaction}/void', [\App\Http\Controllers\TransactionController::class, 'void'])->name('finance.transactions.void');
+
+    // --- Settlement bank accounts (pastor's account, readable by the registrar) ---
+    // The pastor records where a subvention/remittance should be paid; the
+    // super-admin/registrar reads the same list to make the transfer. The
+    // policy scopes a pastor to their own row and an admin to all of them.
+    Route::get('/finance/bank-accounts', [\App\Http\Controllers\BankAccountController::class, 'index'])->name('finance.bank-accounts.index');
+    Route::post('/finance/bank-accounts', [\App\Http\Controllers\BankAccountController::class, 'store'])->name('finance.bank-accounts.store');
+    Route::post('/finance/bank-accounts/{bankAccount}/verify', [\App\Http\Controllers\BankAccountController::class, 'verify'])->name('finance.bank-accounts.verify');
+    Route::delete('/finance/bank-accounts/{bankAccount}', [\App\Http\Controllers\BankAccountController::class, 'destroy'])->name('finance.bank-accounts.destroy');
 
     Route::get('/approvals', [\App\Http\Controllers\ApprovalController::class, 'index'])->name('approvals.index');
     Route::post('/approvals/{approval}/approve', [\App\Http\Controllers\ApprovalController::class, 'approve'])->name('approvals.approve');
@@ -141,6 +180,8 @@ Route::middleware(['auth', \App\Http\Middleware\IdentifyTenant::class, \App\Http
         ->parameters(['budgets' => 'budget'])
         ->only(['index', 'store', 'show'])
         ->names('finance.budgets');
+    Route::post('/finance/budgets/{budget}/items', [\App\Http\Controllers\BudgetController::class, 'storeItem'])->name('finance.budgets.items.store');
+    Route::delete('/finance/budgets/{budget}/items/{item}', [\App\Http\Controllers\BudgetController::class, 'destroyItem'])->name('finance.budgets.items.destroy');
 
     Route::resource('finance/loans', \App\Http\Controllers\LoanController::class)
         ->parameters(['loans' => 'loan'])
@@ -149,9 +190,12 @@ Route::middleware(['auth', \App\Http\Middleware\IdentifyTenant::class, \App\Http
     Route::post('/finance/loans/{loan}/payments', [\App\Http\Controllers\LoanController::class, 'recordPayment'])->name('finance.loans.payments');
 
     // --- Phase 5: Subvention ---
+    // 'update' is included so a rule set can be edited after creation — the
+    // policy already allowed it (SubventionRuleSetPolicy::update) but there was
+    // no route and no form, so once a set was created its rules were frozen.
     Route::resource('subvention/rule-sets', \App\Http\Controllers\SubventionRuleSetController::class)
         ->parameters(['rule-sets' => 'ruleSet'])
-        ->only(['index', 'store', 'show'])
+        ->only(['index', 'store', 'show', 'update'])
         ->names('subvention.rule-sets');
 
     Route::resource('subvention/periods', \App\Http\Controllers\SubventionPeriodController::class)
@@ -190,8 +234,27 @@ Route::middleware(['auth', \App\Http\Middleware\IdentifyTenant::class, \App\Http
         ->only(['index', 'store', 'update'])
         ->names('pastoral.appointments');
 
+    // --- Church settings (§14, §37) ---
+    // The church's own profile, team and credentials, and role/permission
+    // matrix. Inside the tenant group so IdentifyTenant binds the church these
+    // settings belong to; the controller re-checks settings.manage on every
+    // action rather than trusting the route alone.
+    Route::get('/settings', [\App\Http\Controllers\SettingsController::class, 'index'])->name('settings.index');
+    Route::post('/settings/profile', [\App\Http\Controllers\SettingsController::class, 'updateProfile'])->name('settings.profile.update');
+    Route::post('/settings/team', [\App\Http\Controllers\SettingsController::class, 'storeTeamMember'])->name('settings.team.store');
+    Route::post('/settings/team/{member}/role', [\App\Http\Controllers\SettingsController::class, 'updateTeamMemberRole'])->name('settings.team.role');
+    Route::post('/settings/team/{member}/parish', [\App\Http\Controllers\SettingsController::class, 'updateTeamMemberParish'])->name('settings.team.parish');
+    // §14: the owner ticks which capabilities a parish pastor has. Owner-only in
+    // the controller; the route exists for everybody so the 403 is explicit
+    // rather than a missing-route 404 that looks like a broken link.
+    Route::post('/settings/team/{member}/permissions', [\App\Http\Controllers\SettingsController::class, 'updateTeamMemberPermissions'])->name('settings.team.permissions');
+    Route::post('/settings/team/{member}/password', [\App\Http\Controllers\SettingsController::class, 'resetTeamMemberPassword'])->name('settings.team.password');
+    Route::post('/settings/team/{member}/toggle', [\App\Http\Controllers\SettingsController::class, 'toggleTeamMember'])->name('settings.team.toggle');
+    Route::delete('/settings/team/{member}', [\App\Http\Controllers\SettingsController::class, 'destroyTeamMember'])->name('settings.team.destroy');
+
     // --- Phase 7: Communication ---
     Route::get('/notifications', [\App\Http\Controllers\NotificationCenterController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/read-all', [\App\Http\Controllers\NotificationCenterController::class, 'markAllRead'])->name('notifications.read-all');
     Route::post('/notifications/{notification}/read', [\App\Http\Controllers\NotificationCenterController::class, 'markRead'])->name('notifications.read');
 
     Route::resource('sms/campaigns', \App\Http\Controllers\SmsCampaignController::class)
@@ -201,7 +264,24 @@ Route::middleware(['auth', \App\Http\Middleware\IdentifyTenant::class, \App\Http
     Route::post('/sms/campaigns/{campaign}/confirm', [\App\Http\Controllers\SmsCampaignController::class, 'confirm'])->name('sms.campaigns.confirm');
 
     Route::get('/sms/wallet', [\App\Http\Controllers\SmsWalletController::class, 'show'])->name('sms.wallet.show');
+    Route::post('/sms/wallet/purchase', [\App\Http\Controllers\SmsWalletController::class, 'purchase'])->name('sms.wallet.purchase');
     Route::post('/sms/wallet/credit', [\App\Http\Controllers\SmsWalletController::class, 'credit'])->name('sms.wallet.credit');
+
+    // --- Phase 12: Support tickets (§54), church side ---
+    // A church raises an issue (with an optional screenshot) and follows it up;
+    // platform staff answer from the admin area. Kept in the tenant group so
+    // every ticket is scoped to the raising church by the global tenant scope.
+    //
+    // The URI is /help, NOT /support: the public marketing site already owns
+    // `GET /support` (routes/marketing.php, name `support`), and two routes on
+    // one URI is a silent bug — whichever registers last wins, so the church's
+    // own ticket list would have been unreachable behind the marketing page.
+    // The route NAME stays `support.*`, which is what every internal link uses.
+    Route::resource('help', \App\Http\Controllers\SupportTicketController::class)
+        ->parameters(['help' => 'ticket'])
+        ->only(['index', 'store', 'show'])
+        ->names('support');
+    Route::post('/help/{ticket}/reply', [\App\Http\Controllers\SupportTicketController::class, 'reply'])->name('support.reply');
 
     // --- Phase 8: Billing center (billing.* names are exempt from the
     // subscription-status restriction by EnsureSubscriptionAllowsAccess) ---
@@ -253,6 +333,16 @@ Route::middleware(['auth', \App\Http\Middleware\IdentifyTenant::class, \App\Http
             Route::post('/feature-flags', [\App\Http\Controllers\PlatformAdmin\FeatureFlagController::class, 'store'])->name('feature-flags.store');
             Route::post('/feature-flags/{featureFlag}/toggle', [\App\Http\Controllers\PlatformAdmin\FeatureFlagController::class, 'toggleGlobal'])->name('feature-flags.toggle');
             Route::post('/feature-flags/{featureFlag}/override', [\App\Http\Controllers\PlatformAdmin\FeatureFlagController::class, 'setChurchOverride'])->name('feature-flags.override');
+
+            // --- Phase 12: Support tickets (§54), platform-admin side ---
+            // PlatformAdminOnly sets 'tenant.disabled', so these queries see
+            // every church's tickets without any withoutGlobalScopes() call.
+            Route::get('/support', [\App\Http\Controllers\PlatformAdmin\SupportTicketController::class, 'index'])->name('support.index');
+            Route::get('/support/{ticket}', [\App\Http\Controllers\PlatformAdmin\SupportTicketController::class, 'show'])->name('support.show');
+            Route::post('/support/{ticket}/reply', [\App\Http\Controllers\PlatformAdmin\SupportTicketController::class, 'reply'])->name('support.reply');
+            Route::post('/support/{ticket}/assign', [\App\Http\Controllers\PlatformAdmin\SupportTicketController::class, 'assign'])->name('support.assign');
+            Route::post('/support/{ticket}/resolve', [\App\Http\Controllers\PlatformAdmin\SupportTicketController::class, 'resolve'])->name('support.resolve');
+            Route::post('/support/{ticket}/close', [\App\Http\Controllers\PlatformAdmin\SupportTicketController::class, 'close'])->name('support.close');
         });
 
 // --- Marketing / public site ---

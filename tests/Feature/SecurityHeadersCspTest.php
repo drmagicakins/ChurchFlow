@@ -94,9 +94,44 @@ class SecurityHeadersCspTest extends TestCase
         );
     }
 
-    public function test_no_third_party_script_origin_is_allowed(): void
+    /**
+     * The Vite module bundle is a <script> like any other, and the policy's
+     * nonce makes 'unsafe-inline' irrelevant: a tag without the matching nonce
+     * is refused even in local dev.
+     *
+     * This is not theoretical. @vite emitted the module tag with no nonce, so
+     * app.js never executed, `window.Alpine` was undefined on every page, and
+     * everything Alpine-driven was inert — including the confirm dialog's
+     * Cancel button, which then did nothing while the submit loader displayed
+     * "Working…" forever because the click handler had never been bound.
+     */
+    public function test_the_vite_bundle_tag_carries_the_response_nonce(): void
     {
-        // Chart.js used to load from cdn.jsdelivr.net; it is now bundled by
+        $response = $this->get('/login');
+
+        $csp = $response->headers->get('Content-Security-Policy');
+        preg_match("/'nonce-([A-Za-z0-9_-]+)'/", $csp, $m);
+        $nonce = $m[1] ?? null;
+
+        $this->assertNotNull($nonce, 'No nonce in the CSP header.');
+
+        $html = $response->getContent();
+
+        preg_match_all('/<script[^>]*type="module"[^>]*>/', $html, $tags);
+        $this->assertNotEmpty($tags[0], 'Expected at least one module script (the Vite bundle).');
+
+        foreach ($tags[0] as $tag) {
+            $this->assertStringContainsString(
+                'nonce="'.$nonce.'"',
+                $tag,
+                'A module <script> without the response nonce is blocked by this policy, '
+                    .'so the bundle would never run. Tag was: '.$tag,
+            );
+        }
+    }
+
+    public function test_no_third_party_script_origin_is_allowed(): void
+    {        // Chart.js used to load from cdn.jsdelivr.net; it is now bundled by
         // Vite (see the note in resources/js/app.js). A standing allowance for
         // a host nothing loads from is attack surface with no upside, so the
         // policy must not carry one. Asserting its ABSENCE is the point: a

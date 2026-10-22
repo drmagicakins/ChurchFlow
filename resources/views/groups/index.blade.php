@@ -5,7 +5,7 @@
         <div>
             <h1>Groups</h1>
             <p class="cf-small cf-muted" style="margin-top:.3rem">
-                {{ number_format($groups->count()) }} {{ \Illuminate\Support\Str::plural('group', $groups->count()) }} ·
+                {{ number_format($groups->total()) }} {{ \Illuminate\Support\Str::plural('group', $groups->total()) }} ·
                 groups are looser than departments — fellowships, cells, ministry teams.
             </p>
         </div>
@@ -59,9 +59,20 @@
                         @foreach($groups as $item)
                             <tr>
                                 <td><a href="{{ route('groups.show', $item) }}">{{ $item->name }}</a></td>
-                                <td class="cf-mono" style="text-align:right">{{ $item->members->count() }}</td>
+                                <td class="cf-mono" style="text-align:right">{{ $item->members_count }}</td>
                                 <td style="text-align:right">
-                                    <a href="{{ route('groups.show', $item) }}" class="cf-btn cf-btn--secondary cf-btn--sm">View</a>
+                                    <div style="display:inline-flex;gap:.4rem;align-items:center">
+                                        <a href="{{ route('groups.show', $item) }}" class="cf-btn cf-btn--secondary cf-btn--sm">View</a>
+                                        @if($canManage)
+                                            <form method="POST" action="{{ route('groups.destroy', $item) }}" style="display:inline"
+                                                data-confirm="Remove the {{ $item->name }} group? Its members stay on record — they simply stop being grouped here."
+                                                data-confirm-title="Remove group?" data-confirm-ok="Remove group">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="cf-btn cf-btn--secondary cf-btn--sm">Remove</button>
+                                            </form>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach
@@ -70,6 +81,10 @@
             </div>
         @endif
     </div>
+
+    @if($groups->hasPages())
+        <div style="padding:1rem 1.35rem">{{ $groups->links() }}</div>
+    @endif
 
     @push('scripts')
         <script nonce="{{ \App\Http\Middleware\SecurityHeaders::nonce() }}">

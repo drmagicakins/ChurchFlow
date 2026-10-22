@@ -419,21 +419,62 @@
             <script nonce="{{ \App\Http\Middleware\SecurityHeaders::nonce() }}">
                 (function () {
                     const data = @json($financialSeries);
-                    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-                    const fmt = (v) => new Intl.NumberFormat(undefined, { notation: 'compact' }).format(v);
-                    new Chart(document.getElementById('cfd-finance-chart'), {
-                        type: 'bar',
-                        data: { labels: data.labels, datasets: [
-                            { label: 'Income', data: data.income, backgroundColor: '#18B981', borderRadius: 4 },
-                            { label: 'Expenses', data: data.expenses, backgroundColor: '#1677FF', borderRadius: 4 },
-                        ]},
-                        options: {
-                            responsive: true, maintainAspectRatio: false,
-                            animation: reduce ? false : undefined,
-                            plugins: { legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8 } } },
-                            scales: { y: { beginAtZero: true, ticks: { callback: fmt } }, x: { grid: { display: false } } },
-                        },
-                    });
+
+                    /*
+                     | Chart.js is exposed on `window` by resources/js/app.js,
+                     | which Vite emits as a deferred module bundle from <head>.
+                     | This inline script sits at the end of <body> and is a
+                     | CLASSIC script, so it runs BEFORE that deferred bundle.
+                     | Calling `new Chart(...)` here unconditionally therefore
+                     | threw "Chart is not defined", and because the whole thing
+                     | is an IIFE the error escaped to nowhere: the panel stayed
+                     | an empty 300x150 box with a clean console and a 200 page.
+                     |
+                     | Rather than assume the bundle has loaded, wait for it —
+                     | bounded, so a genuinely missing bundle leaves the empty
+                     | state visible instead of hanging forever.
+                     */
+                    let waited = 0;
+                    const ready = () => typeof window.Chart !== 'undefined';
+
+                    const boot = () => {
+                        const canvas = document.getElementById('cfd-finance-chart');
+                        if (!canvas) return;
+
+                        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                        const fmt = (v) => new Intl.NumberFormat(undefined, { notation: 'compact' }).format(v);
+
+                        new Chart(canvas, {
+                            type: 'bar',
+                            data: { labels: data.labels, datasets: [
+                                { label: 'Income', data: data.income, backgroundColor: '#18B981', borderRadius: 4 },
+                                { label: 'Expenses', data: data.expenses, backgroundColor: '#1677FF', borderRadius: 4 },
+                            ]},
+                            options: {
+                                responsive: true, maintainAspectRatio: false,
+                                animation: reduce ? false : undefined,
+                                plugins: { legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8 } } },
+                                scales: { y: { beginAtZero: true, ticks: { callback: fmt } }, x: { grid: { display: false } } },
+                            },
+                        });
+                    };
+
+                    if (ready()) {
+                        boot();
+                        return;
+                    }
+
+                    const timer = setInterval(() => {
+                        waited += 100;
+                        if (ready()) {
+                            clearInterval(timer);
+                            boot();
+                        } else if (waited >= 10000) {
+                            // Give up quietly: the panel keeps its "no data yet"
+                            // presentation rather than becoming a blank box.
+                            clearInterval(timer);
+                        }
+                    }, 100);
                 })();
             </script>
         @endpush

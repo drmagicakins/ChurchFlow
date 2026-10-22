@@ -36,7 +36,13 @@
     'bulkActions' => [], // [['name'=>..,'label'=>..,'options'=>[value=>label], ..], ..]
     'empty' => 'No records yet.',
     'emptyHint' => null,
-    'rowActions' => null, // slot: per-row links/buttons
+    // NOT a prop. `rowActions` must remain an undeclared slot: declaring it as
+    // a prop makes Blade hand the slot object to the component as a variable,
+    // so `$rowActions` became a ComponentSlot and the per-row call on the
+    // "Actions" cell threw "Object of type Illuminate\View\ComponentSlot is
+    // not callable" — a 500 on every page using this grid (finance.accounts.show
+    // and others). The guards below use the auto-available $rowActions slot
+    // variable via isset(), which is null when the caller passes no slot.
     'counter' => null, // e.g. "4,312 members" — shown in the toolbar
     'filters' => null, // slot: toolbar selects/date inputs, rendered inline
 ])
@@ -79,9 +85,12 @@
              array here is echoed through e() and throws
              "htmlspecialchars(): Argument #1 ($string) must be of type string,
              array given", which 500s the whole page for every caller that
-             simply did not pass a filters slot. The is_string guard keeps a
-             caller who hands it a rendered Htmlable or an array from taking the
-             page down with them. --}}
+             simply did not pass a filters slot.
+
+             Verified by re-introducing the bug: with the default back to []
+             AND this guard removed, SmokeEveryPageTest fails on
+             finance.accounts.show naming the exception. So both layers are
+             load-bearing, and this is the second one. --}}
         @if (is_string($filters) || $filters instanceof \Illuminate\Contracts\Support\Htmlable)
             {{ $filters }}
         @endif
@@ -138,7 +147,7 @@
                         </th>
                     @endforeach
 
-                    @if ($rowActions)
+                    @if (isset($rowActions) && ! $rowActions->isEmpty())
                         <th style="text-align:right;width:1%">Actions</th>
                     @endif
                 </tr>
@@ -176,13 +185,13 @@
                             </td>
                         @endforeach
 
-                        @if ($rowActions)
+                        @if (isset($rowActions) && ! $rowActions->isEmpty())
                             <td style="text-align:right;white-space:nowrap">{{ $rowActions($row) }}</td>
                         @endif
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ count($columns) + ($bulk ? 1 : 0) + ($rowActions ? 1 : 0) }}">
+                        <td colspan="{{ count($columns) + ($bulk ? 1 : 0) + (isset($rowActions) && ! $rowActions->isEmpty() ? 1 : 0) }}">
                             <div class="cf-empty">
                                 <p class="cf-empty__title">{{ $empty }}</p>
                                 @if ($emptyHint)
@@ -198,7 +207,7 @@
                      match 'xyz'" are different situations and telling someone
                      the wrong one wastes their time. --}}
                 <tr x-show="filter && visible === 0" x-cloak>
-                    <td colspan="{{ count($columns) + ($bulk ? 1 : 0) + ($rowActions ? 1 : 0) }}">
+                    <td colspan="{{ count($columns) + ($bulk ? 1 : 0) + (isset($rowActions) && ! $rowActions->isEmpty() ? 1 : 0) }}">
                         <div class="cf-empty">
                             <p class="cf-empty__title">No rows match “<span x-text="filter"></span>” on this page</p>
                             <p class="cf-small cf-muted">

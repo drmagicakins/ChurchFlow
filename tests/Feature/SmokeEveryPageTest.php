@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Announcement;
 use App\Models\Appointment;
+use App\Models\BankAccount;
 use App\Models\Budget;
 use App\Models\Church;
 use App\Models\Department;
@@ -19,6 +20,7 @@ use App\Models\PrayerRequest;
 use App\Models\Role;
 use App\Models\SmsCampaign;
 use App\Models\SmsWallet;
+use App\Models\SupportTicket;
 use App\Models\SubventionPeriod;
 use App\Models\SubventionRuleSet;
 use App\Models\SubventionSubmission;
@@ -28,14 +30,32 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Throwaway smoke sweep: render EVERY authenticated GET page as a user holding
- * every permission, and assert none of them 500.
+ * Walks EVERY authenticated GET route and asserts none of them error.
  *
- * The per-phase feature tests each exercise the pages their own phase owns. What
- * none of them do is walk the whole route table, so a view that references a
- * variable its controller never passes — or a Blade directive that only breaks
- * with real data — stays invisible until someone clicks it in a browser. This
- * test is the cheapest way to make that class of bug fail loudly here instead.
+ * WHY THIS EXISTS, AND WHY IT IS NOT "THROWAWAY"
+ * ---------------------------------------------
+ * The per-phase feature tests each exercise the pages their own phase owns.
+ * What none of them do is walk the whole route table, so a view that
+ * references a variable its controller never passes — or a Blade directive
+ * that only breaks with real data — stays invisible until someone clicks it in
+ * a browser.
+ *
+ * That is not hypothetical. A {{ $slot }} whose @props default was an array
+ * threw "htmlspecialchars(): Argument #1 must be of type string, array given"
+ * for every caller that did not pass the slot, 500ing finance/accounts/show
+ * unconditionally. The entire per-phase suite passed while that page was
+ * broken. THIS test was the only thing that caught it.
+ *
+ * So it is a maintained regression net, not a scratch file. Two consequences:
+ *
+ *  1. It runs with exception handling OFF. With it on, a broken page returns a
+ *     bare 500 and the report says "finance.accounts.show -> 500" — which
+ *     names the page but not the reason, and the reason is the whole point.
+ *     Failing with the real exception and stack trace is what makes this test
+ *     worth having.
+ *  2. Real fixtures are built for each module below rather than relying on
+ *     factories the sweep does not control, because a page that only breaks
+ *     with non-empty data would otherwise pass on an empty database.
  */
 class SmokeEveryPageTest extends TestCase
 {
@@ -75,6 +95,10 @@ class SmokeEveryPageTest extends TestCase
             'name' => 'Growth', 'slug' => 'growth-smoke',
             'monthly_price' => 25000, 'yearly_price' => 250000, 'currency' => 'NGN',
             'max_members' => null, 'max_branches' => null, 'max_admins' => null, 'storage_mb' => 10240,
+            // §30: the reports export route is gated on this plan feature, so
+            // without it the sweep reports a 403 that is really just an
+            // incomplete fixture — not a broken page.
+            'features' => ['api_access' => true, 'custom_domain' => true, 'advanced_reports' => true],
         ]);
 
         app(\App\Domains\Subscriptions\Services\SubscriptionService::class)
@@ -161,6 +185,18 @@ class SmokeEveryPageTest extends TestCase
         SmsWallet::withoutGlobalScopes()->create(['church_id' => $church->id, 'balance_units' => 100]);
         SmsCampaign::factory()->for($church, 'church')->create(['created_by' => $admin->id]);
 
+        // The pastor's settlement bank account — so /finance/bank-accounts/{id}
+        // routes bind to a real row during the sweep.
+        BankAccount::create([
+            'church_id' => $church->id, 'user_id' => $admin->id,
+            'bank_code' => '000013', 'bank_name' => 'Guaranty Trust Bank (GTBank)',
+            'account_name' => 'Smoke Test', 'account_number' => '0123456789',
+        ]);
+
+        // §54: support is swept like any other module — a ticket must exist or
+        // support.show's route-model binding 404s on the sample id.
+        SupportTicket::factory()->for($church, 'church')->create(['created_by' => $admin->id]);
+
         // Phase 9: the only swept GET tour route is tours.should-show, which
         // looks a tour up by slug. Without a matching row it correctly 404s, so
         // the sweep needs the same 'welcome' tour TourSeeder ships.
@@ -177,6 +213,16 @@ class SmokeEveryPageTest extends TestCase
 
         // Every named GET route, walked rather than listed by hand, so a route
         // added in a later phase is picked up automatically.
+        //
+        // Sample values for routes whose bound parameter is NOT a row id but a
+        // fixed key — /reports/attendance/{report} binds on a report KEY, and
+        // substituting the sweep's default '1' produced a 404 that looked like
+        // a broken page but was only a wrong sample value. Same reasoning as the
+        // 'slug' case in sampleIdFor().
+        $sampleByParameter = [
+            'report' => 'attendance_summary',
+        ];
+
         $skip = [
             'home', 'features', 'pricing', 'about', 'demo', 'contact', 'support',
             'resources.blog', 'resources.help-center', 'resources.guides',
@@ -214,12 +260,22 @@ class SmokeEveryPageTest extends TestCase
                 continue;
             }
 
-            $uri = '/'.ltrim(preg_replace('/\{[^}]+\}/', $this->sampleIdFor($route), $route->uri()), '/');
+            $uri = '/'.ltrim(preg_replace_callback(
+                '/\{([^}]+)\}/',
+                function ($m) use ($route, $sampleByParameter) {
+                    $parameter = rtrim($m[1], '?');
 
-            $status = $this->actingAs($admin)->get($uri)->getStatusCode();
+                    return $sampleByParameter[$parameter]
+                        ?? $this->sampleIdFor($route);
+                },
+                $route->uri()
+            ), '/');
+
+            $response = $this->actingAs($admin)->get($uri);
+            $status = $response->getStatusCode();
 
             if ($status !== 200) {
-                $failures[] = "{$name} ({$uri}) -> {$status}";
+                $failures[] = $this->describeFailure($name, $uri, $status, $response);
             }
 
             $checked++;
@@ -227,7 +283,67 @@ class SmokeEveryPageTest extends TestCase
 
         $this->assertSame([], $failures, "These GET pages did not return 200:\n".implode("\n", $failures));
         $this->assertGreaterThan(20, $checked, 'The sweep should have covered most of the route table.');
-        fwrite(STDERR, "\n[smoke] swept {$checked} authenticated GET pages\n");
+    }
+
+    /**
+     * Explain a non-200 in terms a human can act on.
+     *
+     * The response object is the only place the reason exists. When a view
+     * throws, the HTTP kernel catches it INSIDE $kernel->handle() and renders
+     * the exception handler's response — so the test never sees a throwable to
+     * try/catch, only a completed 500. `TestResponse::$exception` (set by the
+     * framework in the testing environment) is therefore the way in, and it
+     * turns "some.page -> 500" into the message plus the first frame inside
+     * this application, which is the line that actually needs fixing.
+     */
+    private function describeFailure(string $name, string $uri, int $status, $response): string
+    {
+        $e = $response->exception ?? null;
+
+        if (! $e instanceof \Throwable) {
+            return "{$name} ({$uri}) -> {$status}";
+        }
+
+        return sprintf(
+            "%s (%s) -> %d\n    %s: %s\n    at %s:%d",
+            $name,
+            $uri,
+            $status,
+            $e::class,
+            $e->getMessage(),
+            $this->firstAppFrame($e),
+            $this->firstAppLine($e),
+        );
+    }
+
+    /**
+     * The first frame of a stack trace inside this application — the view or
+     * controller that actually broke, rather than a line in vendor/.
+     */
+    private function firstAppFrame(\Throwable $e): string
+    {
+        foreach ($e->getTrace() as $frame) {
+            $file = $frame['file'] ?? null;
+
+            if ($file && str_starts_with(str_replace('\\', '/', $file), str_replace('\\', '/', base_path()))) {
+                return str_replace(base_path().DIRECTORY_SEPARATOR, '', $file);
+            }
+        }
+
+        return $e->getFile();
+    }
+
+    private function firstAppLine(\Throwable $e): int
+    {
+        foreach ($e->getTrace() as $frame) {
+            $file = $frame['file'] ?? null;
+
+            if ($file && str_starts_with(str_replace('\\', '/', $file), str_replace('\\', '/', base_path()))) {
+                return (int) ($frame['line'] ?? 0);
+            }
+        }
+
+        return $e->getLine();
     }
 
     /** A real row id for the route's bound model, so route-model binding resolves. */
@@ -255,9 +371,11 @@ class SmokeEveryPageTest extends TestCase
             'case' => (string) PastoralCase::query()->value('id'),
             'appointment' => (string) Appointment::query()->value('id'),
             'campaign' => (string) SmsCampaign::query()->value('id'),
+            'ticket' => (string) SupportTicket::query()->value('id'),
             'notification' => '1',
             'transaction' => '1',
             'approval' => '1',
+            'bankAccount' => (string) (\App\Models\BankAccount::query()->value('id') ?? 1),
             // Tours bind on {slug}, not id — substituting '1' produced a 404
             // that looked like a broken page but was only a wrong sample value.
             'slug' => (string) (\App\Models\Tour::query()->value('slug') ?? 'welcome'),

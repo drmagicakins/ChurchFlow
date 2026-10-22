@@ -5,7 +5,7 @@ Product name: **ChurchFlow** (`APP_NAME`, the landing page's nav/footer and
 generically where they describe the *system* rather than the brand — a
 naming artifact of when those phases were written, not a second product.
 
-**Current state: 252 tests / 784 assertions passing.** Phases 10 and 11 are
+**Current state: 371 tests passing.** Phases 10 and 11 are
 integrated and verified; Phase 12 (stated pricing across the four tiers, and
 styled forms across both dashboards) and Phase 13 (the public platform status
 page, the data-grid component, and the health-check severity model) are built
@@ -795,13 +795,18 @@ the pre-integration checkpoint rather than accepted. Specifically:
 database happened to be lying around (or failing with "no such table:
    plans" on a clean one).
 
-### Known gaps, unchanged
+### Known gaps
 
 Church-name setup collects completion but not the name itself;
 storage/feature-flag *plan* limits sit unused; no invoice PDFs; real
 Paystack/Flutterwave network code still throws (only its shape is real);
 no 2FA; no dependency scanning in CI. The dunning timer still uses
 `updated_at` as a proxy for "time in this status".
+
+One gap that *was* closed in Phase 13: `SmokeEveryPageTest` used to call itself
+"throwaway" while being the only cover for whole-route-table breakage. It is now
+a maintained test that reports the cause of a failure, not just the failing URL
+(see Phase 13).
 
 ---
 
@@ -1097,18 +1102,42 @@ opposed to "no records yet" — telling someone the wrong one wastes their time.
 The third is the interesting one: it was invisible to the entire per-phase suite,
 which exercises each page its own phase owns. It was caught by
 `SmokeEveryPageTest`, a sweep that walks the whole route table as a
-fully-permissioned user asserting no GET page 500s. (That test's own docblock
-still calls itself "throwaway" — worth promoting to a maintained test, since it
-is the only thing currently covering this class of bug.)
+fully-permissioned user asserting no GET page errors.
+
+**That sweep has since been promoted from scratch file to maintained test**, and
+the promotion was verified rather than assumed. It originally reported a broken
+page as a bare `finance.accounts.show -> 500` — naming the page but never the
+cause. The fix reads the throwable off the response (`TestResponse::$exception`)
+rather than wrapping the request in `try/catch`, because the HTTP kernel catches
+a view exception *inside* `$kernel->handle()` and renders a completed 500, so an
+outer catch never fires. Re-introducing the `$filters` bug on purpose (with the
+`@if` guard also removed, since otherwise the guard masks it) confirmed the
+sweep now fails with:
+
+```
+finance.accounts.show (/finance/accounts/1) -> 500
+    Illuminate\View\ViewException: htmlspecialchars(): Argument #1 ($string) must be of type string, array given
+    (View: ...resources/views/components/grid/data-table.blade.php)
+```
+
+That experiment also settled a question about the fix itself: **both layers are
+load-bearing.** The `null` default alone fixes it; the `@if (is_string(...) ||
+... Htmlable)` guard alone fixes it; each masks the other when only one is
+ removed. Neither is a no-op, which is worth knowing before someone "simplifies"
+one of them away.
 
 ### The tests that matter most in this phase
 
 - `tests/Feature/HealthAndSecurityHeadersTest.php` — the `/health.json` contract
   (all seven checks present by name), `status` agreeing with the HTTP code in
   both directions, a severity-causing failure producing a real 503, local not
-  reporting degraded without worker/payment config, `force_severity` restoring
-  the strict behaviour per check, a `GET /health` writing no incident rows, and
-  the security headers (including HSTS only on HTTPS).
+  reporting degraded without worker/payment config, `force_severity` forcing a
+  check ON, `severity_causing` switching a genuinely-failing check OFF without
+  making the probe lie (it still reports `ok: false`), a `GET /health` writing no
+  incident rows, and the security headers (including HSTS only on HTTPS).
+- `tests/Feature/SmokeEveryPageTest.php` — walks the whole route table asserting
+  no authenticated GET page errors, and reports *why* when one does. It is the
+  regression net for the bug class that the per-phase tests structurally miss.
 - `tests/Feature/SecurityHeadersCspTest.php` — the CSP nonce, unchanged from
   Phase 12.
 
@@ -1127,3 +1156,148 @@ that collection — so a health probe, which fails *by design* on an unconfigure
 dependency, would poison every JSON assertion on the endpoint even though the
 body was perfectly valid. The class and origin travel as ordinary context keys
 instead, which keeps the log entry diagnosable without arming that trap.
+
+---
+
+## Phase 14 — Confirm dialogs, the CSP nonce on the Vite bundle, and reminder popups
+
+This phase fixed a bug that had been reported as *"I clicked Cancel and it kept
+showing Working… with a loader"*. The visible symptom was small; the cause was
+not, and it is worth writing down because every symptom pointed at the wrong
+file.
+
+### The symptom, and why it was misleading
+
+Deleting a team member opens the app's confirm dialog. Clicking **Cancel**
+closed the dialog but left the full-screen **"Working…"** overlay up forever,
+with the Delete button still disabled. Clicking **OK** worked.
+
+Two natural readings of that, both wrong:
+
+- *"The cancel handler is broken"* — it wasn't. `cancel()` closes the dialog and
+  calls `onCancel`, exactly as designed.
+- *"The submit loader is buggy"* — it wasn't either, in isolation. It hides
+  correctly whenever it is told to.
+
+### Cause 1 — Alpine never ran at all
+
+`window.Alpine` was `undefined` on every page, which means **none** of the
+app's `x-data` components were initialised: not the confirm dialog, not the
+reminder popup, not the mobile drawer. So the Cancel button was inert markup —
+there was no click handler bound at all. The click submitted the form, the
+loader showed, and nothing was left to cancel it.
+
+The bundle was being **downloaded correctly** (HTTP 200, `text/javascript`,
+314KB) but never **executed**. The cause is a subtle interaction in the CSP:
+
+```
+script-src 'self' 'unsafe-eval' 'nonce-…' 'unsafe-inline'
+```
+
+Per the CSP spec, the presence of a nonce or hash makes `'unsafe-inline'`
+**ignored** — browsers say so verbatim in the violation message. So
+`'unsafe-inline'` being there for local development does not help: a `<script>`
+without the matching nonce is refused regardless.
+
+`@vite` emits `<script type="module" src=…>` with **no nonce**. Every inline
+block in the app already stamps one (`SecurityHeaders::nonce()`), so the bundle
+tag was the single unattributed script on the page — and the only one that
+matters, because it boots Alpine.
+
+**The fix** is in `SecurityHeaders::handle()`, immediately after the nonce is
+generated:
+
+```php
+Vite::useCspNonce($nonce);
+```
+
+It must live in the **middleware**, not a service provider. The middleware is
+`append()`ed late, so its nonce is the one written into the header; a provider
+reading `app('csp.nonce')` at boot produces a *different* nonce, and a tag
+carrying a nonce the policy doesn't recognise fails identically. That wrong
+version was tried first and verified to still be broken — which is why the
+distinction is recorded here.
+
+### Cause 2 — the loader could not know a submit was going to be cancelled
+
+With Alpine working, Cancel still had one problem left. `partials.loader` is
+included **before** `partials.confirm`, so its `submit` listener runs first.
+At that moment the confirm handler has not yet called `preventDefault()`, so
+`e.defaultPrevented` is still `false` and the loader starts the spinner for a
+form that is about to be cancelled.
+
+Three changes close this properly, and they are layered on purpose:
+
+1. **The loader skips `data-confirm` forms entirely.** A confirmable form is
+   never submitted on the first pass, so showing "Working…" for it is always
+   wrong. Depending on listener order was the original bug.
+2. **A microtask re-check.** A second listener defers one microtask and, if
+   *any* interceptor prevented the submit by then, resets everything. This
+   holds regardless of include order, so a future partial cannot reintroduce
+   the bug.
+3. **`cancel()` calls `window.cfLoaderResetAll()`.** Belt and braces: declining
+   a dialog always clears the overlay, even if layers 1 and 2 were ever
+   removed.
+
+The loader also gained a bug fix of its own: its reset previously left the
+`Working…` label injected into the button, because it removed the spinner but
+not the sibling `.cf-btn__busytext` node. Reset now restores the button's
+original label.
+
+### `return true` on OK, `return false` on Cancel
+
+The brief asked for this explicitly. Both methods now do it and are documented
+as such:
+
+- `accept()` → closes, runs `onConfirm`, **returns `true`**
+- `cancel()` → closes, runs `onCancel`, **returns `false`**
+
+`window.cfConfirm(message)` still resolves the same intent as a
+`Promise<boolean>`, so `const ok = await window.cfConfirm('…')` reads naturally.
+Because the dialog is bound with `@click="cancel()"` on a `type="button"`, the
+return value is not used by the DOM — it exists so the contract is consistent
+for programmatic callers.
+
+Verified in a real browser (Playwright + Chromium, not a patched driver):
+clicking Cancel leaves the overlay `hidden`, the dialog closed, the Delete
+button enabled and labelled, and the URL unchanged. Clicking OK submits, the
+record is soft-deleted, and the flash message appears.
+
+### Reminder popups on page load
+
+The task-reminder popup was **already correct** — it is bound to `visible` and
+only becomes true when the endpoint returns a due task. It was checked across
+six consecutive page loads (dashboard, settings, members, tasks, notifications,
+dashboard) as an owner with **no** due reminders: `tasks.length` was `0` and
+the popup stayed at `display: none` every time.
+
+It was then verified *positively* as well, so that "it never shows" could not
+be mistaken for "it works": a due task was created, the popup appeared, and the
+task was removed afterwards. A control that only proves silence proves nothing.
+
+Two filters make this robust:
+
+- **Server:** `?once_a_day=1` drops anything already shown in the last 24 hours.
+- **Client:** ids already displayed in this browser session are held in
+  `sessionStorage`, so clicking between pages cannot re-open the same reminder.
+
+### The test that guards the regression
+
+`SecurityHeadersCspTest::test_the_vite_bundle_tag_carries_the_response_nonce`
+asserts that every `<script type="module">` on the page carries the exact nonce
+from the response's CSP header.
+
+It was verified the right way round: commenting out `Vite::useCspNonce()`
+makes it **fail**, restoring it makes it **pass**. A test that has never been
+seen to fail is not evidence.
+
+### A trap for anyone testing this
+
+The bundled browser-automation helper (patchright) **blocks inline `<script>`
+execution** — even on a plain page with no CSP at all. Asked "did Alpine load?",
+it answers `undefined` on a perfectly working app. The diagnosis above was only
+possible after switching to real Chromium, where a control page confirmed
+scripts run.
+
+That distinction matters when reading any browser QA report for this app:
+`window.Alpine === undefined` under patchright means *the harness*, not a bug.

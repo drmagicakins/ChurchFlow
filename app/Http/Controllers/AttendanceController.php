@@ -14,9 +14,19 @@ class AttendanceController extends Controller
     public function index(): View
     {
         $this->authorize('viewAny', AttendanceSession::class);
-        $sessions = AttendanceSession::query()->orderByDesc('session_date')->paginate(25);
+        $sessions = AttendanceSession::query()->with(['organizationalUnit', 'department', 'group', 'event'])->orderByDesc('session_date')->paginate(25);
 
-        return view('attendance.index', compact('sessions'));
+        // The create panel is "well populated": §19/§12 lets a session be tied to
+        // a branch, event, department or group, and the controller validates
+        // exactly those ids. Offering them here (rather than a bare name+date
+        // form) is what makes the type dropdown meaningful.
+        return view('attendance.index', [
+            'sessions' => $sessions,
+            'branches' => \App\Models\OrganizationalUnit::query()->orderBy('name')->get(['id', 'name']),
+            'events' => \App\Models\Event::query()->orderByDesc('starts_at')->limit(50)->get(['id', 'title', 'starts_at']),
+            'departments' => \App\Models\Department::query()->orderBy('name')->get(['id', 'name']),
+            'groups' => \App\Models\Group::query()->orderBy('name')->get(['id', 'name']),
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -42,10 +52,57 @@ class AttendanceController extends Controller
     {
         $this->authorize('view', $session);
 
+        $session->load(['organizationalUnit', 'event', 'department', 'group']);
+
+        // The roster is every member who could attend this session. For a
+        // session tied to a department/group/event the roster is that subset;
+        // otherwise it is the whole church. Built as a query so the screen
+        // never loads a church's full membership into memory to filter it.
+        $members = $this->rosterQuery($session)
+            ->orderBy('full_name')
+            ->get(['id', 'full_name', 'email', 'membership_status']);
+
+        // Existing marks, keyed by member id, so the form renders the current
+        // status (and 'unmarked' for someone not yet recorded).
+        $existing = $session->records()->pluck('status', 'member_id');
+
         return view('attendance.show', [
             'session' => $session,
+            'members' => $members,
+            'existing' => $existing,
             'presentCount' => $session->presentCount(),
+            'canTake' => auth()->user()->hasPermission('attendance.manage'),
         ]);
+    }
+
+    /**
+     * The base member set this session is taken against.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\Member>
+     */
+    private function rosterQuery(AttendanceSession $session)
+    {
+        $query = Member::query();
+
+        if ($session->organizational_unit_id) {
+            $query->where('organizational_unit_id', $session->organizational_unit_id);
+        }
+
+        if ($session->department_id) {
+            $query->whereHas('departments', fn ($q) => $q->where('departments.id', $session->department_id));
+        }
+
+        if ($session->group_id) {
+            $query->whereHas('groups', fn ($q) => $q->where('groups.id', $session->group_id));
+        }
+
+        if ($session->event_id) {
+            $query->whereHas('eventRegistrations', fn ($q) => $q
+                ->where('event_id', $session->event_id)
+                ->where('status', 'registered'));
+        }
+
+        return $query->where('membership_status', '!=', 'inactive');
     }
 
     /**

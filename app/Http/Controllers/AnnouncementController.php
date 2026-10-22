@@ -19,7 +19,16 @@ class AnnouncementController extends Controller
             ->latest('publish_at')
             ->paginate(20);
 
-        return view('announcements.index', compact('announcements'));
+        // §19 targeting: the compose form needs the actual audiences to offer.
+        // These are tenant-scoped by the global scope, so this is never another
+        // church's branch/department/group. Loaded eagerly here rather than
+        // queried inside the Blade template so the form's dependencies are
+        // explicit and the page fails loudly here, not in a view.
+        $branches = \App\Models\OrganizationalUnit::query()->orderBy('name')->get();
+        $departments = \App\Models\Department::query()->orderBy('name')->get();
+        $groups = \App\Models\Group::query()->orderBy('name')->get();
+
+        return view('announcements.index', compact('announcements', 'branches', 'departments', 'groups'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -29,7 +38,13 @@ class AnnouncementController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'body' => ['required', 'string', 'max:10000'],
-            'audience_type' => ['required', 'in:church,branch,department,group'],
+            // 'church_wide' — not 'church'. The announcements form offers
+            // church_wide and Announcement::isVisibleToMember() reads
+            // church_wide, so validating the older 'church' spelling rejected
+            // the value the UI actually posts: every church-wide announcement
+            // failed validation with a 422 on a field the user had just chosen
+            // from a dropdown.
+            'audience_type' => ['required', 'in:church_wide,branch,department,group'],
             'organizational_unit_id' => ['required_if:audience_type,branch', 'nullable', 'exists:organizational_units,id'],
             'department_id' => ['required_if:audience_type,department', 'nullable', 'exists:departments,id'],
             'group_id' => ['required_if:audience_type,group', 'nullable', 'exists:groups,id'],

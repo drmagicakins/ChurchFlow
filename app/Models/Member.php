@@ -105,6 +105,17 @@ class Member extends Model
         return $this->belongsToMany(Group::class, 'group_member')->withTimestamps();
     }
 
+    /**
+     * §13: this member's event registrations. Used by the attendance roster for
+     * an event-tied session (a session can be taken against exactly the people
+     * registered for that event), so it is a first-class relation rather than a
+     * raw whereHas in every caller.
+     */
+    public function eventRegistrations()
+    {
+        return $this->hasMany(EventRegistration::class);
+    }
+
     public function customFieldValues()
     {
         return $this->hasMany(MemberCustomFieldValue::class);

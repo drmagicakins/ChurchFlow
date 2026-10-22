@@ -24,7 +24,14 @@ class SmsCampaignController extends Controller
         $campaigns = SmsCampaign::query()->latest()->paginate(25);
         $wallet = $this->wallets->walletFor($request->user()->church);
 
-        return view('sms.campaigns.index', compact('campaigns', 'wallet'));
+        // §19/§21 targeting: the compose form needs the actual audiences to
+        // offer once "a specific branch / a department / a group" is chosen.
+        // Tenant-scoped by the global scope, so never another church's.
+        $branches = \App\Models\OrganizationalUnit::query()->orderBy('name')->get();
+        $departments = \App\Models\Department::query()->orderBy('name')->get();
+        $groups = \App\Models\Group::query()->orderBy('name')->get();
+
+        return view('sms.campaigns.index', compact('campaigns', 'wallet', 'branches', 'departments', 'groups'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -34,7 +41,11 @@ class SmsCampaignController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'message' => ['required', 'string', 'max:1600'], // ~10 segments, a sane upper bound
-            'audience_type' => ['required', 'in:church,branch,department,group'],
+            // 'church_wide' — matching the announcements form and the value
+            // SmsCampaignService::audienceFor() recognises. See the note in
+            // AnnouncementController: the form and the validator disagreed
+            // about the spelling, so the whole-church option never validated.
+            'audience_type' => ['required', 'in:church_wide,branch,department,group'],
             'organizational_unit_id' => ['required_if:audience_type,branch', 'nullable', 'exists:organizational_units,id'],
             'department_id' => ['required_if:audience_type,department', 'nullable', 'exists:departments,id'],
             'group_id' => ['required_if:audience_type,group', 'nullable', 'exists:groups,id'],
@@ -51,9 +62,17 @@ class SmsCampaignController extends Controller
     {
         $this->authorize('view', $campaign);
 
+        // Once a campaign is confirmed, its recipient list is snapshotted on
+        // the campaign — the estimate is only meaningful while it is a draft.
+        $recipients = $campaign->recipients()
+            ->with('member')
+            ->latest('id')
+            ->paginate(50);
+
         return view('sms.campaigns.show', [
             'campaign' => $campaign,
             'estimate' => $campaign->status === 'draft' ? $this->campaigns->estimate($campaign) : null,
+            'recipients' => $recipients,
         ]);
     }
 

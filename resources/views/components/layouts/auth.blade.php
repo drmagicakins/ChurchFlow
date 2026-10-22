@@ -88,7 +88,7 @@
                 <div class="cf-alert cf-alert--ok" style="margin-top:1.2rem">{{ session('status') }}</div>
             @endif
 
-            @if ($errors->any())
+            @if (isset($errors) && $errors->any())
                 <div class="cf-alert cf-alert--error" style="margin-top:1.2rem">
                     <div>
                         <strong>Please correct the following:</strong>
@@ -106,6 +106,10 @@
             </div>
         </div>
     </div>
+
+    {{-- The submit-loader overlay, so the login and registration forms show the
+         same busy state as every form inside the app shell. --}}
+    @include('partials.loader')
 
     @stack('scripts')
 </body>

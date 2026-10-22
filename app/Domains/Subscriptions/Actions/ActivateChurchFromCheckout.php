@@ -77,7 +77,6 @@ class ActivateChurchFromCheckout
             ]);
 
             $user->update(['church_id' => $church->id]);
-
             $ownerRole = Role::firstOrCreate(['church_id' => $church->id, 'name' => 'Church Owner']);
 
             // Clone the system-default Church Owner role's permissions into
@@ -101,6 +100,13 @@ class ActivateChurchFromCheckout
             // see the class docblock above. The plan the person chose is
             // recorded on the subscription and is what the trial runs on.
             $this->trials->startTrial($church, $plan, $checkout->billing_interval);
+
+            // The account that registered the church IS the super admin — it
+            // is the only one allowed to create other accounts (§14). Recorded
+            // explicitly at the moment the church is created rather than left
+            // to be inferred from "first user", which stops being a reliable
+            // test as soon as a second account exists.
+            $user->forceFill(['is_registrar' => true])->save();
 
             $checkout->update(['church_id' => $church->id, 'status' => 'completed']);
 

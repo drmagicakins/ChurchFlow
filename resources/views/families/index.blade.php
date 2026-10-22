@@ -5,7 +5,7 @@
         <div>
             <h1>Families</h1>
             <p class="cf-small cf-muted" style="margin-top:.3rem">
-                {{ number_format($families->count()) }} {{ \Illuminate\Support\Str::plural('family', $families->count()) }} ·
+                {{ number_format($families->total()) }} {{ \Illuminate\Support\Str::plural('family', $families->total()) }} ·
                 linking members into households makes pastoral follow-up far easier.
             </p>
         </div>
@@ -62,7 +62,18 @@
                                 <td><a href="{{ route('families.show', $item) }}">{{ $item->name }}</a></td>
                                 <td class="cf-mono" style="text-align:right">{{ $item->members->count() }}</td>
                                 <td style="text-align:right">
-                                    <a href="{{ route('families.show', $item) }}" class="cf-btn cf-btn--secondary cf-btn--sm">View</a>
+                                    <div style="display:inline-flex;gap:.4rem;align-items:center">
+                                        <a href="{{ route('families.show', $item) }}" class="cf-btn cf-btn--secondary cf-btn--sm">View</a>
+                                        @if($canManage)
+                                            <form method="POST" action="{{ route('families.destroy', $item) }}"
+                                                data-confirm="Remove the {{ $item->name }} family? The members themselves are not deleted — they simply stop being grouped as a household."
+                                                data-confirm-title="Remove family?" data-confirm-ok="Remove family" style="display:inline">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="cf-btn cf-btn--secondary cf-btn--sm">Remove</button>
+                                            </form>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach
@@ -71,6 +82,10 @@
             </div>
         @endif
     </div>
+
+    @if($families->hasPages())
+        <div style="padding:1rem 1.35rem">{{ $families->links() }}</div>
+    @endif
 
     @push('scripts')
         <script nonce="{{ \App\Http\Middleware\SecurityHeaders::nonce() }}">

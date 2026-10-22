@@ -12,7 +12,7 @@ class FinancialAccount extends Model
 {
     use HasFactory, BelongsToTenant, SoftDeletes, Auditable;
 
-    protected $fillable = ['church_id', 'name', 'type', 'is_active'];
+    protected $fillable = ['church_id', 'name', 'type', 'is_active', 'bank_name', 'bank_account_name', 'bank_account_number'];
 
     protected $casts = ['is_active' => 'boolean'];
 

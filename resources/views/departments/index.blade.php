@@ -5,7 +5,7 @@
         <div>
             <h1>Departments</h1>
             <p class="cf-small cf-muted" style="margin-top:.3rem">
-                {{ number_format($departments->count()) }} {{ \Illuminate\Support\Str::plural('department', $departments->count()) }} ·
+                {{ number_format($departments->total()) }} {{ \Illuminate\Support\Str::plural('department', $departments->total()) }} ·
                 a department can belong to a specific branch, or to the whole church.
             </p>
         </div>
@@ -64,6 +64,15 @@
                                 <td class="cf-mono" style="text-align:right">{{ $item->members_count ?? $item->members->count() }}</td>
                                 <td style="text-align:right">
                                     <a href="{{ route('departments.show', $item) }}" class="cf-btn cf-btn--secondary cf-btn--sm">View</a>
+                                    @if($canManage)
+                                        <form method="POST" action="{{ route('departments.destroy', $item) }}" style="display:inline"
+                                            data-confirm="Remove the {{ $item->name }} department? Its members stay on record — they simply stop being grouped here."
+                                            data-confirm-title="Remove department?" data-confirm-ok="Remove department">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="cf-btn cf-btn--secondary cf-btn--sm">Remove</button>
+                                        </form>
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach
@@ -72,6 +81,10 @@
             </div>
         @endif
     </div>
+
+    @if($departments->hasPages())
+        <div style="padding:1rem 1.35rem">{{ $departments->links() }}</div>
+    @endif
 
     @push('scripts')
         <script nonce="{{ \App\Http\Middleware\SecurityHeaders::nonce() }}">

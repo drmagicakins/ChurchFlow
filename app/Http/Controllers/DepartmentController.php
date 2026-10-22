@@ -34,7 +34,20 @@ class DepartmentController extends Controller
     {
         $this->authorize('view', $department);
 
-        return view('departments.show', ['department' => $department]);
+        // The show page is where a department is staffed — it needs the members
+        // NOT already attached, so the picker can never suggest a duplicate.
+        $attachedIds = $department->members()->pluck('members.id')->all();
+        $availableMembers = \App\Models\Member::query()
+            ->when($attachedIds !== [], fn ($q) => $q->whereNotIn('id', $attachedIds))
+            ->orderBy('full_name')
+            ->limit(500)
+            ->get();
+
+        return view('departments.show', [
+            'department' => $department->load('members', 'organizationalUnit'),
+            'availableMembers' => $availableMembers,
+            'branches' => \App\Models\OrganizationalUnit::query()->orderBy('name')->get(),
+        ]);
     }
 
     public function attachMember(Request $request, Department $department): RedirectResponse
@@ -59,5 +72,16 @@ class DepartmentController extends Controller
         $department->delete();
 
         return redirect()->route('departments.index');
+    }
+
+    /** §12: remove one member from a department without touching their record. */
+    public function detachMember(Department $department, Member $member): RedirectResponse
+    {
+        $this->authorize('update', $department);
+        abort_unless($member->church_id === $department->church_id, 403);
+
+        $department->members()->detach($member->id);
+
+        return back()->with('status', "{$member->full_name} removed from the department.");
     }
 }
