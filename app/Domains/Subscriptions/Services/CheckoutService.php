@@ -43,7 +43,7 @@ class CheckoutService
     }
 
     /** §17-18: buying SMS credits for a church that already exists. */
-    public function startSmsCreditsCheckout(User $user, Church $church, int $units, string $subtotal, string $currency = 'NGN'): array
+    public function startSmsCreditsCheckout(User $user, Church $church, int $units, string $subtotal, string $currency = 'NGN', ?int $walletUnitId = null): array
     {
         abort_if($units <= 0, 422, 'Units must be positive.');
 
@@ -54,6 +54,11 @@ class CheckoutService
             'church_id' => $church->id,
             'purpose' => 'sms_credits',
             'sms_units' => $units,
+            // §17-19: WHICH wallet these units belong to. 0 = the church-wide
+            // wallet, a unit id = that parish's. Persisted on the checkout so
+            // the credit lands where the payer chose even if they are moved to
+            // another parish between paying and the webhook arriving.
+            'wallet_unit_id' => $walletUnitId ?? \App\Models\SmsWallet::CHURCH_WIDE,
             'subtotal' => $subtotal,
             'tax_rate' => $tax['rate'],
             'tax_amount' => $tax['tax_amount'],

@@ -1,6 +1,6 @@
 <x-layout :title="$department->name . ' · Departments · ChurchFlow'">
     @php
-        $canManage = auth()->user()->hasPermission('departments.manage');
+        $canManage = $canManage ?? auth()->user()->hasPermission('departments.manage');
         $initials = fn($name) => \Illuminate\Support\Str::of($name)
             ->explode(' ')
             ->filter()
@@ -21,13 +21,17 @@
             </p>
         </div>
         @if ($canManage)
-            <form method="POST" action="{{ route('departments.destroy', $department) }}"
-                data-confirm="Remove the {{ $department->name }} department? Its members stay on record — they simply stop being grouped here."
-                data-confirm-title="Remove department?" data-confirm-ok="Remove department">
-                @csrf
-                @method('DELETE')
-                <button type="submit" class="cf-btn cf-btn--secondary cf-btn--sm">Remove department</button>
-            </form>
+            <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+                <button type="button" class="cf-btn cf-btn--secondary cf-btn--sm" data-toggle="dept-edit"
+                    aria-expanded="false">Edit</button>
+                <form method="POST" action="{{ route('departments.destroy', $department) }}"
+                    data-confirm="Remove the {{ $department->name }} department? Its members stay on record — they simply stop being grouped here."
+                    data-confirm-title="Remove department?" data-confirm-ok="Remove department">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="cf-btn cf-btn--secondary cf-btn--sm">Remove department</button>
+                </form>
+            </div>
         @endif
     </div>
 
@@ -59,6 +63,26 @@
             <div class="cf-card__body">
                 <p class="cf-small cf-muted" style="margin:0">{{ $department->description }}</p>
             </div>
+        </div>
+    @endif
+
+    @if ($canManage)
+        <div data-panel="dept-edit" hidden style="margin-bottom:1.2rem">
+            <x-form.card title="Edit this department"
+                description="Rename it, or move it to another branch. Members stay attached."
+                :action="route('departments.update', $department)" method="PUT" submit="Save changes"
+                submit-icon="check" layout="inline">
+                <x-form.input name="name" label="Department name" required :value="$department->name" />
+
+                @if ($branches->isNotEmpty())
+                    <x-form.select name="organizational_unit_id" label="Branch"
+                        :value="$department->organizational_unit_id" placeholder="Whole church"
+                        :options="$branches->map(fn($b) => ['value' => $b->id, 'label' => $b->name])->all()" />
+                @endif
+
+                <x-form.textarea name="description" label="What this department does" rows="2"
+                    :value="$department->description" wide />
+            </x-form.card>
         </div>
     @endif
 
@@ -183,4 +207,34 @@
             </div>
         @endif
     </div>
+    @if ($canManage)
+        @push('scripts')
+            <script nonce="{{ \App\Http\Middleware\SecurityHeaders::nonce() }}">
+                (function() {
+                    var btn = document.querySelector('[data-toggle="dept-edit"]');
+                    var panel = document.querySelector('[data-panel="dept-edit"]');
+                    if (!btn || !panel) return;
+                    btn.addEventListener('click', function() {
+                        var isOpen = !panel.hasAttribute('hidden');
+                        if (isOpen) {
+                            panel.setAttribute('hidden', '');
+                        } else {
+                            panel.removeAttribute('hidden');
+                            panel.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'start'
+                            });
+                        }
+                        btn.setAttribute('aria-expanded', String(!isOpen));
+                    });
+                    // A failed save must not leave its messages behind a
+                    // collapsed panel.
+                    if (panel.querySelector('[aria-invalid="true"], .cf-error')) {
+                        panel.removeAttribute('hidden');
+                        btn.setAttribute('aria-expanded', 'true');
+                    }
+                })();
+            </script>
+        @endpush
+    @endif
 </x-layout>

@@ -1,0 +1,491 @@
+
+   PASS  Tests\Unit\ExampleTest
+  ✓ that true is true                                                                                            0.02s  
+
+   PASS  Tests\Unit\FeatureFlagServiceTest
+  ✓ an unknown flag key defaults to disabled rather than erroring                                                1.59s  
+  ✓ global value applies when no church override exists                                                          0.12s  
+  ✓ a church override wins over the global value in both directions                                              0.11s  
+  ✓ clearing a church override falls back to the global value                                                    0.11s  
+
+   PASS  Tests\Unit\ProrationAndTaxTest
+  ✓ upgrading halfway through a 30 day period charges the price difference for the remaining days                0.15s  
+  ✓ downgrading produces a negative net amount a credit                                                          0.08s  
+  ✓ zero default tax rate produces no tax                                                                        0.07s  
+  ✓ a configured tax rate is applied correctly                                                                   0.08s  
+
+   PASS  Tests\Unit\SmsSegmentCalculatorTest
+  ✓ empty message is zero segments                                                                               0.09s  
+  ✓ short gsm7 message is one segment                                                                            0.08s  
+  ✓ gsm7 message at the 160 char boundary is still one segment                                                   0.10s  
+  ✓ gsm7 message over 160 chars splits into 153 char segments                                                    0.17s  
+  ✓ non gsm7 characters use ucs2 segment sizes                                                                   0.08s  
+
+   PASS  Tests\Feature\AccountCreationAndParishScopeTest
+  ✓ only the owner can create an account                                                                         0.43s  
+  ✓ the owner can create an account                                                                              0.21s  
+  ✓ a branch admin sees only their own parish in settings                                                        0.31s  
+  ✓ a branch admin cannot administer another parishs account by id                                               0.18s  
+  ✓ a non owner cannot grant registrar authority                                                                 0.22s  
+  ✓ a church owner without the registrar flag still counts as owner                                              0.20s  
+
+   PASS  Tests\Feature\AnalyticsTest
+  ✓ tracking an event records church and user context                                                            0.16s  
+  ✓ church activated fires onboarding started                                                                    0.21s  
+  ✓ the client tracking endpoint only accepts allow listed event names                                           0.12s  
+
+   PASS  Tests\Feature\AnnouncementsCalendarTasksTest
+  ✓ church wide announcement is visible to every member                                                          0.11s  
+  ✓ department targeted announcement is only visible to department members                                       0.16s  
+  ✓ a church cannot see another churchs announcements                                                            0.08s  
+  ✓ calendar service merges events and open tasks in date order                                                  0.22s  
+  ✓ a church cannot see another churchs tasks                                                                    0.25s  
+
+   PASS  Tests\Feature\AuthPagesTest
+  ✓ login page renders for a guest                                                                               0.15s  
+  ✓ register page renders for a guest                                                                            0.13s  
+  ✓ auth pages do not render the authenticated app shell                                                         0.49s  
+  ✓ auth pages use the guest shell and real brand lockup                                                         0.21s  
+  ✓ auth pages are not indexable                                                                                 0.21s  
+  ✓ a signed in user can sign in and lands on the dashboard                                                      0.35s  
+  ✓ a wrong password is rejected and does not authenticate                                                       0.38s  
+  ✓ the invalid credentials message is rendered on the page                                                      0.35s  
+  ✓ registration creates a user account only and never a church                                                  0.15s  
+  ✓ registration rejects a mismatched password confirmation                                                      0.13s  
+  ✓ a signed in user can sign out                                                                                0.15s  
+  ✓ a churchless user can sign out                                                                               0.14s  
+  ✓ a churchless user is actually logged out afterwards                                                          0.18s  
+  ✓ logout does not run tenant resolution                                                                        0.12s  
+
+   PASS  Tests\Feature\BillingEnforcementTest
+  ✓ webhook endpoint fails closed when no secret is configured                                                   0.18s  
+  ✓ webhook endpoint rejects a wrong secret                                                                      0.10s  
+  ✓ webhook endpoint accepts the right secret and a duplicate delivery is still a 200                            0.15s  
+  ✓ a church at its member limit cannot add another member                                                       0.17s  
+  ✓ the member limit also blocks csv import because it is enforced on the model                                  0.16s  
+  ✓ an unlimited plan never blocks                                                                               0.14s  
+  ✓ the admin limit blocks adding another staff user                                                             0.10s  
+  ✓ the branch limit blocks extra organizational units                                                           0.11s  
+  ✓ subscription status changes keep the church status cache in sync                                             0.14s  
+  ✓ an active subscription cannot be reactivated                                                                 0.09s  
+  ✓ expiring a subscription never deletes the churchs data                                                       0.12s  
+  ✓ an expired church is locked out of the app but can still reach billing                                       0.21s  
+  ✓ active past due and grace period churches keep normal access                                                 0.34s  
+  ✓ billing pages require the billing permission                                                                 0.10s  
+  ✓ cancellation is recorded but access continues until period end                                               0.12s  
+  ✓ sms credit purchase is refused when the platform has not configured pricing                                  0.10s  
+  ✓ a church cannot see another churchs subscription or invoices                                                 0.08s  
+
+   PASS  Tests\Feature\CommunicationHttpVerificationTest
+  ✓ sms pages are gated on sms manage permission                                                                 0.30s  
+  ✓ confirming a campaign over http reserves units and queues the send                                           0.32s  
+  ✓ confirming without credits over http reserves nothing                                                        2.80s  
+  ✓ a church cannot reach another churchs campaign or wallet through a url                                       0.29s  
+  ✓ notifications are scoped to the signed in user                                                               0.17s  
+  ✓ posting an announcement queues the email job to targeted members only                                        0.13s  
+
+   PASS  Tests\Feature\CommunicationTest
+  ✓ notification service sends marks read and counts unread                                                      0.28s  
+  ✓ a church cannot see another churchs notifications                                                            0.21s  
+  ✓ subvention decision notifies the submitter in app and by email                                               0.14s  
+  ✓ no email or notification crash when submission has no submitter                                              0.07s  
+
+   PASS  Tests\Feature\DashboardTest
+  ✓ guests are redirected to login                                                                               0.07s  
+  ✓ kpis reflect this churchs real records and never another churchs                                             0.29s  
+  ✓ finance and activity panels are hidden without permission                                                    0.44s  
+  ✓ quick actions only offer what the user may do                                                                0.37s  
+  ✓ empty church shows empty states instead of fake numbers                                                      0.30s  
+
+   PASS  Tests\Feature\EventsAndAttendanceTest
+  ✓ registration succeeds while capacity remains                                                                 0.12s  
+  ✓ registration beyond capacity is waitlisted not rejected                                                      0.10s  
+  ✓ unlimited capacity event never reports full                                                                  0.07s  
+  ✓ a church cannot see another churchs events or registrations                                                  0.11s  
+  ✓ attendance present count only counts present and late                                                        0.08s  
+  ✓ a church cannot see another churchs attendance sessions or records                                           0.11s  
+  ✓ member attendance rate is calculated correctly                                                               0.10s  
+
+   PASS  Tests\Feature\ExampleTest
+  ✓ the application returns a successful response                                                                0.15s  
+
+   PASS  Tests\Feature\FamilyDepartmentGroupTest
+  ✓ a member can be attached to a family with a relationship label                                               0.09s  
+  ✓ a member can belong to multiple departments                                                                  0.14s  
+  ✓ a church cannot see another churchs families departments or groups                                           0.15s  
+  ✓ a family cannot absorb a member from a different church even via direct attach call                          0.12s  
+  ✓ custom field values are scoped through their member                                                          0.39s  
+
+   PASS  Tests\Feature\FileUploadTest
+  ✓ a valid image is stored with a random filename not the clients filename                                      0.36s  
+  ✓ a file renamed to look like an image is rejected by content sniffing                                         0.16s  
+  ✓ an oversized file is rejected                                                                                0.14s  
+  ✓ a disallowed mime type is rejected                                                                           0.09s  
+  ✓ member photo upload sets the relation and is retrievable via a signed url                                    0.33s  
+  ✓ a church cannot download another churchs file even with a validly signed url                                 0.55s  
+  ✓ an unsigned or tampered url is rejected                                                                      0.72s  
+  ✓ a church cannot see another churchs uploaded files record                                                    2.35s  
+
+   PASS  Tests\Feature\GlobalSearchTest
+  ✓ guests cannot search                                                                                         0.16s  
+  ✓ search never returns another churchs records                                                                 0.57s  
+  ✓ sources are hidden from users without the permission                                                         0.67s  
+  ✓ like wildcards typed by the user are treated literally                                                       0.26s  
+  ✓ short queries return nothing and the results page renders                                                    0.54s  
+
+   PASS  Tests\Feature\GroupsLoansAndBudgetsTest
+  ✓ an admin can create unlimited groups                                                                         0.59s  
+  ✓ creating a group with a name already in use is a field error not a crash                                     0.26s  
+  ✓ a removed groups name can be used again                                                                      0.21s  
+  ✓ a pastor without finance rights can request a loan for their branch                                          0.14s  
+  ✓ a loan request cannot name another parish                                                                    0.27s  
+  ✓ a finance manager still records a loan directly                                                              0.12s  
+  ✓ a loan with no borrower is cannot be created                                                                 4.49s  
+  ✓ opening a borrowerless loan says so instead of erroring                                                      2.62s  
+  ✓ a budget submits from its form without a csrf failure                                                        0.28s  
+
+   PASS  Tests\Feature\HealthAndSecurityHeadersTest
+  ✓ health endpoint is public and reports each dependency independently                                          0.39s  
+  ✓ health status field always agrees with the http code                                                         0.14s  
+  ✓ a severity causing failure makes the endpoint report 503                                                     0.45s  
+  ✓ severity can be switched off per check for a real failure                                                    0.19s  
+  ✓ a local environment does not report degraded without worker or payment configuration                         0.18s  
+  ✓ severity can be forced on per check through configuration                                                    0.15s  
+  ✓ forcing severity makes the endpoint report degraded                                                          0.13s  
+  ✓ security headers are present on a normal response                                                            0.18s  
+  ✓ hsts header is only set on an https request                                                                  0.28s  
+
+   PASS  Tests\Feature\IntegrationSmokeTest
+  ✓ the public plans page shows prices                                                                           0.23s  
+  ✓ the landing page shows prices                                                                                0.40s  
+  ✓ the plan catalog states a price for every listed tier                                                        0.10s  
+  ✓ a church user can open the support screens                                                                   0.35s  
+  ✓ a church user can submit a support ticket                                                                    0.34s  
+  ✓ every form bearing layout renders the submit loader                                                          0.34s  
+  ✓ a platform admin can open the support queue                                                                  0.31s  
+  ✓ a platform admin can open a ticket detail page                                                               0.19s  
+
+   PASS  Tests\Feature\LandingPageTest
+  ✓ the landing page is publicly reachable without authentication                                                0.13s  
+  ✓ it shows all four tiers with prices stated                                                                   0.12s  
+  ✓ a price edited in the database wins over the config default                                                  0.12s  
+  ✓ annual prices are stated when a tier has them                                                                0.15s  
+  ✓ enterprise is advertised but not self serve purchasable                                                      0.12s  
+  ✓ a guest choosing a plan is sent to register                                                                  0.11s  
+  ✓ a signed in user with no church yet is sent straight to checkout for that plan                               0.15s  
+  ✓ a signed in user who already has a church still gets a register link not a checkout loop                     0.26s  
+  ✓ the billing toggle only renders when a plan actually has a yearly price                                      0.19s  
+  ✓ the trial promise is stated on the landing page                                                              0.14s  
+
+   PASS  Tests\Feature\LoanAndBudgetServiceTest
+  ✓ outstanding balance decreases as payments are recorded                                                       0.47s  
+  ✓ loan closes automatically once fully paid and never reports a negative balance                               0.11s  
+  ✓ cannot record a payment against a closed loan                                                                0.22s  
+  ✓ a loan can belong to a branch instead of a member                                                            0.10s  
+  ✓ a church cannot see another churchs loans or payments                                                        0.15s  
+  ✓ budget variance report compares planned to approved actual spend                                             0.08s  
+
+   PASS  Tests\Feature\MemberAreaTest
+  ✓ the member list renders with a member                                                                        0.27s  
+  ✓ the member profile shows contact details and belonging                                                       0.82s  
+  ✓ the member profile renders when the member has no relationships                                              1.31s  
+  ✓ a member can be created through the list form                                                                0.30s  
+
+   PASS  Tests\Feature\MemberFormTest
+  ✓ the members page renders the styled create form                                                              0.35s  
+  ✓ the members page shows a member row and its status badge                                                     0.28s  
+  ✓ an empty member list shows a teaching empty state not a blank table                                          0.40s  
+  ✓ a failed submission redisplays the form with the error beside the field                                      0.20s  
+  ✓ creating a member works and redirects with a status message                                                  0.14s  
+  ✓ a member without create permission never sees the create form                                                0.39s  
+
+   PASS  Tests\Feature\MemberManagementTest
+  ✓ membership number is generated automatically and unique per church                                           0.17s  
+  ✓ search scope matches name email phone or membership number                                                   0.21s  
+  ✓ authorized user can list and view members in their own church                                                0.47s  
+  ✓ user without permission cannot view members                                                                  0.12s  
+  ✓ csv import creates valid rows and reports invalid ones without aborting the batch                            0.17s  
+  ✓ csv import scopes every created member to the importing church only                                          0.14s  
+
+   PASS  Tests\Feature\MemberSheetImportTest
+  ✓ the sample sheet carries exactly the headers the importer reads                                              0.20s  
+  ✓ a hand filled sheet imports every row                                                                        0.37s  
+  ✓ a row without a name is skipped and the rest still import                                                    0.70s  
+  ✓ uploading a non spreadsheet returns a field error not an error page                                          0.31s  
+
+   PASS  Tests\Feature\ParishAndRegistrarTest
+  ✓ a parish pastor sees only their own parishs submissions                                                      0.66s  
+  ✓ the registrar sees every parishs submissions                                                                 0.75s  
+  ✓ a parish pastor cannot approve a subvention even with the permission                                         0.54s  
+  ✓ a pastor sees approved on their submission without an approve option                                         1.16s  
+  ✓ a financial account can be created with a bank type and opening balance                                      0.54s  
+  ✓ a pastor records a bank account from the nigerian list and the registrar sees it                             0.29s  
+  ✓ only the registrar can delete a user                                                                         0.34s  
+  ✓ a registrar can delete a user                                                                                0.15s  
+
+   PASS  Tests\Feature\ParishPastorPermissionsTest
+  ✓ the owner can grant a single permission by checking it                                                       0.14s  
+  ✓ the ticked boxes match what the app enforces                                                                 1.16s  
+  ✓ a pastors permissions are theirs alone                                                                       0.25s  
+  ✓ all boxes can be unchecked                                                                                   0.12s  
+  ✓ an unknown permission name is rejected                                                                       0.18s  
+  ✓ the owner cannot lock themselves out                                                                         6.54s  
+  ✓ a pastor cannot change their own parish                                                                      0.19s  
+  ✓ a pastor cannot make themselves church wide                                                                  0.20s  
+  ✓ a pastor cannot change their own role                                                                        0.46s  
+  ✓ a pastor cannot change a colleagues role or parish                                                           0.18s  
+  ✓ a pastor cannot set anyones permissions including their own                                                  0.14s  
+  ✓ a pastor sees no parish role or permission editors                                                           0.19s  
+  ✓ the owner sees the checkboxes for each pastor                                                                0.29s  
+
+   PASS  Tests\Feature\PastorPermissionsTest
+  ✓ the owner sets exactly the permissions they tick                                                             0.20s  
+  ✓ the checkboxes reflect what the app enforces                                                                 0.53s  
+  ✓ the owner can empty a pastors permissions                                                                    0.12s  
+  ✓ one pastors tick does not change anothers                                                                    0.49s  
+  ✓ an unknown permission name is rejected                                                                       0.77s  
+  ✓ the owner cannot strip their own access                                                                      4.11s  
+  ✓ a pastor cannot set permissions                                                                              0.21s  
+  ✓ a pastor cannot grant themselves permissions                                                                 0.22s  
+  ✓ a pastor cannot change their own role                                                                        0.19s  
+  ✓ a pastor cannot change their own parish                                                                      0.17s  
+  ✓ a pastor cannot move another pastor out of their parish                                                      0.24s  
+  ✓ a pastor cannot change another pastors role                                                                  0.22s  
+  ✓ a pastor sees no parish or role editors on the team tab                                                      0.28s  
+  ✓ the owner still sees the editors and the permission panel                                                    0.29s  
+
+   PASS  Tests\Feature\PastoralCareTest
+  ✓ an ordinary admin without pastoral permission cannot see pastoral cases they are not assigned to             0.22s  
+  ✓ a pastor without the manage permission can still see only their own assigned cases                           0.24s  
+  ✓ prayer requests follow the same strict visibility rule                                                       0.14s  
+  ✓ opening a case creates an initial note and notes accumulate without ever being editable                      0.11s  
+  ✓ closing a case logs a final note and sets closed at                                                          0.82s  
+  ✓ an appointment with no pastoral case is visible to anyone who can see appointments                           0.12s  
+  ✓ an appointment tied to a pastoral case is restricted like the case itself                                    0.15s  
+  ✓ a church cannot see another churchs pastoral records                                                         0.21s  
+
+   PASS  Tests\Feature\PastoralHttpVerificationTest
+  ✓ pastoral access control over real http                                                                       1.13s  
+  ✓ pastoral index does not leak another churchs cases                                                           0.33s  
+
+   PASS  Tests\Feature\PaymentGatedSignupTest
+  ✓ registering creates a user but never a church                                                                0.16s  
+  ✓ a registered but unpaid user is sent to plan selection instead of the dashboard                              0.11s  
+  ✓ starting a checkout creates a pending record and no church                                                   0.13s  
+  ✓ verified payment creates church owner and starts a 14 day trial                                              0.33s  
+  ✓ the same webhook delivered twice activates exactly once                                                      0.31s  
+  ✓ two different events racing for one checkout still activate exactly once                                     0.26s  
+  ✓ a failed payment creates nothing and leaves the checkout retryable                                           0.14s  
+  ✓ a successful payment after an earlier failure still activates                                                0.24s  
+  ✓ an unrecognized reference is logged and changes nothing                                                      0.09s  
+  ✓ someone cannot verify another users checkout                                                                 0.14s  
+  ✓ sms credit purchase credits the wallet exactly once even if the webhook repeats                              0.28s  
+  ✓ subscription and sms revenue stay distinguishable by invoice type                                            0.27s  
+
+   PASS  Tests\Feature\PlatformAdminBillingTest
+  ✓ a normal church user cannot reach the platform admin billing screen                                          0.16s  
+  ✓ a platform admin sees revenue and churches across every tenant                                               0.23s  
+  ✓ platform admin can suspend and reactivate a church                                                           0.11s  
+  ✓ platform admin settings control sms pricing used at checkout                                                 0.11s  
+
+   PASS  Tests\Feature\PlatformAdminDashboardTest
+  ✓ a normal church user cannot reach the platform admin area                                                    0.11s  
+  ✓ a platform admin sees church and subscription totals                                                         0.28s  
+  ✓ subscription and sms revenue are reported separately                                                         0.35s  
+  ✓ a church needing attention appears in the support queue                                                      0.22s  
+  ✓ the dashboard renders cleanly with no data at all                                                            0.26s  
+  ✓ the settings form saves and shows the new values                                                             0.32s  
+  ✓ settings validation rejects a tax rate above 100                                                             0.28s  
+  ✓ the feature flags page renders with its create form                                                          0.32s  
+
+   PASS  Tests\Feature\PlatformAdminFormsTest
+  ✓ the platform admin overview renders                                                                          0.24s  
+  ✓ the billing overview renders                                                                                 0.51s  
+  ✓ the church billing detail renders with its subscription                                                      0.19s  
+  ✓ a platform admin can suspend and reactivate a church                                                         0.26s  
+  ✓ creating a feature flag through the form uses the label field                                                0.43s  
+  ✓ toggling a flag globally works                                                                               0.14s  
+  ✓ setting a per church override works                                                                          0.09s  
+  ✓ updating platform settings works                                                                             0.07s  
+  ✓ every platform admin form renders the submit loader                                                          0.27s  
+
+   PASS  Tests\Feature\PlatformAdminRedirectTest
+  ✓ a platform admin is redirected to the admin home from a tenant route                                         0.10s  
+  ✓ a platform admin is redirected from other tenant routes                                                      0.14s  
+  ✓ a platform admin can still reach the platform admin area                                                     0.96s  
+  ✓ an api caller still gets a json 403 not a redirect                                                           0.64s  
+
+   PASS  Tests\Feature\RegistrationPermissionsTest
+  ✓ a newly paid owner receives the church owner role                                                            0.35s  
+  ✓ the cloned owner role carries the default permissions                                                        0.43s  
+  ✓ an activated owner can actually open the people pages                                                        1.04s  
+  ✓ each activated church gets its own owner role                                                                0.39s  
+
+   PASS  Tests\Feature\RenewalAndDunningTest
+  ✓ a successful renewal charge extends the period and creates an invoice                                        0.13s  
+  ✓ a failed renewal charge marks the subscription past due and creates no invoice                               0.14s  
+  ✓ a subscription not yet due is left alone                                                                     0.15s  
+  ✓ a long overdue past due subscription advances to grace period                                                0.22s  
+  ✓ a long overdue grace period subscription expires                                                             0.26s  
+  ✓ a recently entered grace period subscription is not yet expired                                              0.18s  
+  ✓ a cancellation requested subscription is cancelled once its period ends                                      0.23s  
+  ✓ a cancellation requested subscription still active until period end is left alone                            0.12s  
+
+   PASS  Tests\Feature\ResponsiveShellTest
+  ✓ the shared shell renders the hamburger and drawer markup                                                     0.25s  
+  ✓ the platform admin area uses the same responsive shell                                                       0.18s  
+  ✓ the shipped stylesheet contains the responsive drawer rules                                                  0.10s  
+
+   PASS  Tests\Feature\RouteModelBindingTenantTest
+  ✓ viewing a route model bound resource succeeds for its own tenant                                             0.40s  
+  ✓ a route model bound resource from another tenant 404s not 500s                                               0.17s  
+
+   PASS  Tests\Feature\RuleSetManagementTest
+  ✓ the rule sets index shows the create form to a manager                                                       0.20s  
+  ✓ a manager can create a rule set with rules                                                                   0.20s  
+  ✓ a rule set requires at least one rule                                                                        0.20s  
+  ✓ a manager can update a rule set and its rules                                                                0.15s  
+  ✓ the rule set show page offers the edit form                                                                  0.23s  
+  ✓ a user without manage permission cannot update a rule set                                                    0.13s  
+  ✓ a manager cannot update another churchs rule set                                                             0.22s  
+
+   PASS  Tests\Feature\SecurityHeadersCspTest
+  ✓ the policy carries a nonce so inline scripts can run                                                         0.20s  
+  ✓ the nonce is unique per response                                                                             0.21s  
+  ✓ renderable pages tag their inline scripts with the response nonce                                            0.18s  
+  ✓ no third party script origin is allowed                                                                      0.21s  
+  ✓ the dashboard does not load chartjs from a cdn                                                               0.20s  
+  ✓ unsafe inline is never shipped in the production policy                                                      0.14s  
+  ✓ the other security headers are still present                                                                 0.20s  
+
+   PASS  Tests\Feature\SessionExpiredPageTest
+  ✓ the 419 view explains the problem and offers a way back                                                      0.30s  
+  ✓ the 419 view never prints request input                                                                      0.13s  
+  ✓ a form submission without a valid session is not silently accepted                                           0.16s  
+
+   PASS  Tests\Feature\SettingsTest
+  ✓ the settings page renders all three tabs                                                                     0.17s  
+  ✓ a user without settings manage is forbidden                                                                  0.09s  
+  ✓ an administrator can update the church profile                                                               0.10s  
+  ✓ an administrator can create a team member credential                                                         0.13s  
+  ✓ the team list shows the sign in credentials                                                                  0.21s  
+  ✓ an administrator can reset a members password                                                                0.11s  
+  ✓ an administrator can deactivate and reactivate a member                                                      0.12s  
+  ✓ an administrator cannot deactivate themselves                                                                1.77s  
+  ✓ an administrator cannot touch another churchs member                                                         0.32s  
+  ✓ the roles tab shows the permission matrix                                                                    0.45s  
+  ✓ every settings form renders the submit loader                                                                0.75s  
+
+   PASS  Tests\Feature\SetupWizardTest
+  ✓ percent complete reflects how many steps are done                                                            0.22s  
+  ✓ marking every step complete fires onboarding completed exactly once                                          0.23s  
+  ✓ marking an unknown step is rejected                                                                          0.13s  
+  ✓ skipping a step logs an event but does not mark it complete                                                  0.19s  
+  ✓ a church cannot see another churchs setup progress                                                           0.21s  
+
+   PASS  Tests\Feature\SignupToTrialJourneyTest
+  ✓ the whole signup to subscription journey                                                                     1.80s  
+
+   PASS  Tests\Feature\SmokeEveryActionTest
+  ✓ every authenticated post route accepts a valid submission                                                    0.77s  
+
+   PASS  Tests\Feature\SmokeEveryPageTest
+  ✓ every authenticated get page renders without error                                                           9.20s  
+
+   PASS  Tests\Feature\SmsCampaignTest
+  ✓ estimate only counts members with a phone number                                                             0.19s  
+  ✓ estimate respects branch department and group targeting                                                      0.19s  
+  ✓ confirming reserves the exact units estimated and snapshots recipients                                       0.15s  
+  ✓ confirming with insufficient credits is refused and reserves nothing                                         0.14s  
+  ✓ sending marks successful recipients sent and campaign completed                                              0.28s  
+  ✓ a failed recipient is refunded and the rest of the batch still sends                                         0.20s  
+  ✓ a church cannot see another churchs sms campaigns or recipients                                              0.09s  
+
+   PASS  Tests\Feature\SmsWalletServiceTest
+  ✓ crediting a wallet increases balance and writes a ledger row                                                 0.09s  
+  ✓ debiting more than the balance is rejected and changes nothing                                               0.07s  
+  ✓ refund adds units back with a reason on record                                                               0.08s  
+  ✓ a church cannot see another churchs wallet or transactions                                                   0.07s  
+
+   PASS  Tests\Feature\SubventionCalculationEngineTest
+  ✓ calculation reproduces the legacy formula shape                                                              0.11s  
+  ✓ calculation produces a positive remittance when deductions exceed retention                                  0.11s  
+  ✓ admin fee is clamped at its cap                                                                              0.13s  
+  ✓ loan deduction is applied and never exceeds the shortfall                                                    0.15s  
+  ✓ recalculating a submission never overwrites the previous calculation                                         0.18s  
+  ✓ a church cannot see another churchs rule sets or submissions                                                 0.12s  
+
+   PASS  Tests\Feature\SubventionPagesTest
+  ✓ the submission page shows every rccg figure                                                                  0.20s  
+  ✓ the submission page shows the calculation breakdown                                                          0.24s  
+  ✓ the submission index form records offerings and special offerings                                            0.10s  
+  ✓ a draft submission can be submitted through the page                                                         0.14s  
+  ✓ a reviewer can approve through the page                                                                      0.17s  
+  ✓ a submission page renders for a returned submission with its reason                                          0.26s  
+
+   PASS  Tests\Feature\SubventionWorkflowServiceTest
+  ✓ submitting a draft calculates it and creates a pending approval                                              0.14s  
+  ✓ cannot submit something that is not a draft                                                                  0.11s  
+  ✓ approving a submission with an active loan creates exactly one loan payment                                  0.19s  
+  ✓ approving twice is rejected and never creates a second loan payment                                          0.15s  
+  ✓ returning a submission closes its approval but allows resubmission with a fresh approval                     0.18s  
+  ✓ rejecting a submission is final and distinct from returning                                                  0.17s  
+  ✓ a church cannot see another churchs subvention submissions or calculations                                   0.16s  
+
+   PASS  Tests\Feature\SupportTicketTest
+  ✓ a church user can raise a ticket                                                                             0.09s  
+  ✓ an internal note is hidden from the churchs own visible replies                                              0.32s  
+  ✓ only platform staff can post an internal note                                                                0.26s  
+  ✓ a support reply moves an open ticket to waiting on customer and a customer reply moves it back               0.09s  
+  ✓ assigning a ticket requires a platform admin                                                                 0.23s  
+  ✓ resolving and reopening a ticket                                                                             0.12s  
+  ✓ a church cannot see another churchs tickets                                                                  0.09s  
+  ✓ a platform admin sees tickets across every church                                                            0.55s  
+  ✓ a normal church user cannot reach the platform admin support screen                                          0.33s  
+
+   PASS  Tests\Feature\TenantIsolationTest
+  ✓ a church cannot see another churchs members in a plain query                                                 0.22s  
+  ✓ a church cannot fetch another churchs member by guessing its id                                              0.20s  
+  ✓ no bound tenant returns no rows instead of all rows                                                          0.18s  
+  ✓ a users http request only ever sees their own churchs members                                                0.18s  
+  ✓ platform admin has no implicit church context                                                                0.08s  
+
+   PASS  Tests\Feature\TourEngineTest
+  ✓ a tour never seen before should show                                                                         0.08s  
+  ✓ next advances through every step then finishes on the last one                                               0.10s  
+  ✓ a completed tour at the current version should not show again                                                0.09s  
+  ✓ bumping the tour version makes a completed tour eligible again                                               0.10s  
+  ✓ dont show again survives a version bump unlike a plain skip                                                  0.10s  
+  ✓ a plain skip still shows again on next check unlike dont show again                                          0.08s  
+  ✓ an inactive tour never shows                                                                                 0.10s  
+  ✓ restarting resets progress to the first step                                                                 0.09s  
+  ✓ tour progress is personal and does not leak between users                                                    0.09s  
+
+   PASS  Tests\Feature\TransactionServiceTest
+  ✓ income posts immediately and increases balance                                                               0.10s  
+  ✓ expense does not affect balance until approved                                                               0.10s  
+  ✓ rejected expense never affects balance                                                                       0.09s  
+  ✓ transfer moves the same amount between two accounts atomically                                               0.09s  
+  ✓ transfer between two different churches accounts is rejected                                                 0.08s  
+  ✓ voiding a transaction removes it from the balance but keeps the row                                          0.09s  
+  ✓ voiding requires a non empty reason                                                                          0.08s  
+  ✓ a church cannot see another churchs accounts or transactions                                                 0.12s  
+
+   PASS  Tests\Feature\TrialAndPlanChangeTest
+  ✓ a new church starts on a 14 day trial with no invoice                                                        0.16s  
+  ✓ a trialing church has full access not a restricted one                                                       0.34s  
+  ✓ the trial ends into past due not straight to expired                                                         0.15s  
+  ✓ a lapsed trial then flows through the ordinary dunning chain                                                 0.18s  
+  ✓ subscribing during a trial charges once and writes one invoice                                               0.30s  
+  ✓ converting an already active subscription is refused                                                         0.18s  
+  ✓ choosing a plan during a trial records intent without switching the plan                                     0.29s  
+  ✓ the pending plan is applied when the trial converts                                                          0.28s  
+  ✓ changing plan on a paid subscription still prorates and records an invoice                                   0.25s  
+  ✓ the billing plans page labels the current plan and renders                                                   0.40s  
+  ✓ a user without billing permission cannot reach the plan management pages                                     0.25s  
+  ✓ the daily cycle reports lapsed trials it moved                                                               0.36s  
+  ✓ trial days remaining never goes negative                                                                     0.22s  
+
+  Tests:    371 passed (1208 assertions)
+  Duration: 123.72s
+

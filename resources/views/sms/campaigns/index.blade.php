@@ -36,7 +36,7 @@
             <div class="cf-stat">
                 <span class="cf-stat__label">SMS wallet balance</span>
                 <span class="cf-stat__value">{{ number_format($wallet->balance_units) }}</span>
-                <span class="cf-stat__hint">units available to send</span>
+                <span class="cf-stat__hint">{{ $wallet->ownerLabel() }} · units available to send</span>
             </div>
             <a href="{{ route('sms.wallet.show') }}" class="cf-btn cf-btn--secondary cf-btn--sm">Top up credits</a>
         </div>

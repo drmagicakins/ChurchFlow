@@ -1,0 +1,340 @@
+[Fri Oct 23 10:01:23 2026] PHP 8.4.14 Development Server (http://127.0.0.1:8000) started
+[Fri Oct 23 10:01:24 2026] 127.0.0.1:42271 Accepted
+[Fri Oct 23 10:01:26 2026] 127.0.0.1:42271 Closing
+[Fri Oct 23 10:02:01 2026] 127.0.0.1:42291 Accepted
+[Fri Oct 23 10:02:01 2026] 127.0.0.1:42291 Closing
+[Fri Oct 23 10:02:24 2026] 127.0.0.1:42300 Accepted
+[Fri Oct 23 10:02:24 2026] 127.0.0.1:42300 Closing
+[Fri Oct 23 10:03:40 2026] 127.0.0.1:42359 Accepted
+[Fri Oct 23 10:03:41 2026] 127.0.0.1:42359 Closing
+[Fri Oct 23 10:03:41 2026] 127.0.0.1:42367 Accepted
+[Fri Oct 23 10:03:41 2026] 127.0.0.1:42368 Accepted
+[Fri Oct 23 10:03:41 2026] 127.0.0.1:42367 [200]: GET /build/assets/app-DB-CpxCV.css
+[Fri Oct 23 10:03:41 2026] 127.0.0.1:42368 [200]: GET /build/assets/app-eupoXRbr.js
+[Fri Oct 23 10:03:41 2026] 127.0.0.1:42367 Closing
+[Fri Oct 23 10:03:41 2026] 127.0.0.1:42368 Closing
+[Fri Oct 23 10:03:43 2026] 127.0.0.1:42377 Accepted
+[Fri Oct 23 10:03:43 2026] 127.0.0.1:42378 Accepted
+[Fri Oct 23 10:03:45 2026] 127.0.0.1:42378 Closing
+[Fri Oct 23 10:03:45 2026] 127.0.0.1:42377 [200]: GET /favicon.ico
+[Fri Oct 23 10:03:45 2026] 127.0.0.1:42377 Closing
+[Fri Oct 23 10:03:45 2026] 127.0.0.1:42379 Accepted
+[Fri Oct 23 10:03:47 2026] 127.0.0.1:42379 Closing
+[Fri Oct 23 10:03:47 2026] 127.0.0.1:42382 Accepted
+[Fri Oct 23 10:03:47 2026] 127.0.0.1:42383 Accepted
+[Fri Oct 23 10:03:47 2026] 127.0.0.1:42383 [200]: GET /build/assets/app-DB-CpxCV.css
+[Fri Oct 23 10:03:47 2026] 127.0.0.1:42383 Closing
+[Fri Oct 23 10:03:47 2026] 127.0.0.1:42382 [200]: GET /build/assets/app-eupoXRbr.js
+[Fri Oct 23 10:03:47 2026] 127.0.0.1:42382 Closing
+[Fri Oct 23 10:03:49 2026] 127.0.0.1:42385 Accepted
+[Fri Oct 23 10:03:50 2026] 127.0.0.1:42385 Closing
+[Fri Oct 23 10:03:50 2026] 127.0.0.1:42387 Accepted
+[Fri Oct 23 10:03:50 2026] 127.0.0.1:42387 [200]: GET /favicon.ico
+[Fri Oct 23 10:03:50 2026] 127.0.0.1:42387 Closing
+[Fri Oct 23 10:03:50 2026] 127.0.0.1:42388 Accepted
+[Fri Oct 23 10:03:51 2026] 127.0.0.1:42388 Closing
+[Fri Oct 23 10:03:51 2026] 127.0.0.1:42389 Accepted
+[Fri Oct 23 10:03:51 2026] 127.0.0.1:42390 Accepted
+[Fri Oct 23 10:03:51 2026] 127.0.0.1:42390 [200]: GET /build/assets/app-DB-CpxCV.css
+[Fri Oct 23 10:03:51 2026] 127.0.0.1:42389 [200]: GET /build/assets/app-eupoXRbr.js
+[Fri Oct 23 10:03:51 2026] 127.0.0.1:42390 Closing
+[Fri Oct 23 10:03:51 2026] 127.0.0.1:42389 Closing
+[Fri Oct 23 10:03:51 2026] 127.0.0.1:42391 Accepted
+[Fri Oct 23 10:03:52 2026] 127.0.0.1:42391 Closing
+[Fri Oct 23 10:03:52 2026] 127.0.0.1:42392 Accepted
+[Fri Oct 23 10:03:52 2026] 127.0.0.1:42392 [200]: GET /favicon.ico
+[Fri Oct 23 10:03:52 2026] 127.0.0.1:42392 Closing
+[Fri Oct 23 10:03:53 2026] 127.0.0.1:42395 Accepted
+[Fri Oct 23 10:03:53 2026] 127.0.0.1:42395 Closing
+[Fri Oct 23 10:03:54 2026] 127.0.0.1:42396 Accepted
+[Fri Oct 23 10:03:54 2026] 127.0.0.1:42397 Accepted
+[Fri Oct 23 10:03:54 2026] 127.0.0.1:42397 [200]: GET /build/assets/app-DB-CpxCV.css
+[Fri Oct 23 10:03:54 2026] 127.0.0.1:42396 [200]: GET /build/assets/app-eupoXRbr.js
+[Fri Oct 23 10:03:54 2026] 127.0.0.1:42397 Closing
+[Fri Oct 23 10:03:54 2026] 127.0.0.1:42396 Closing
+[Fri Oct 23 10:03:54 2026] 127.0.0.1:42398 Accepted
+[Fri Oct 23 10:03:54 2026] 127.0.0.1:42398 Closing
+[Fri Oct 23 10:03:54 2026] 127.0.0.1:42399 Accepted
+[Fri Oct 23 10:03:55 2026] 127.0.0.1:42399 [200]: GET /favicon.ico
+[Fri Oct 23 10:03:55 2026] 127.0.0.1:42399 Closing
+[Fri Oct 23 10:03:55 2026] 127.0.0.1:42400 Accepted
+[Fri Oct 23 10:03:56 2026] 127.0.0.1:42400 Closing
+[Fri Oct 23 10:03:56 2026] 127.0.0.1:42401 Accepted
+[Fri Oct 23 10:03:56 2026] 127.0.0.1:42402 Accepted
+[Fri Oct 23 10:03:56 2026] 127.0.0.1:42402 [200]: GET /build/assets/app-DB-CpxCV.css
+[Fri Oct 23 10:03:56 2026] 127.0.0.1:42402 Closing
+[Fri Oct 23 10:03:56 2026] 127.0.0.1:42401 [200]: GET /build/assets/app-eupoXRbr.js
+[Fri Oct 23 10:03:56 2026] 127.0.0.1:42401 Closing
+[Fri Oct 23 10:03:57 2026] 127.0.0.1:42403 Accepted
+[Fri Oct 23 10:03:57 2026] 127.0.0.1:42403 Closing
+[Fri Oct 23 10:03:57 2026] 127.0.0.1:42404 Accepted
+[Fri Oct 23 10:03:57 2026] 127.0.0.1:42404 [200]: GET /favicon.ico
+[Fri Oct 23 10:03:57 2026] 127.0.0.1:42404 Closing
+[Fri Oct 23 10:03:57 2026] 127.0.0.1:42405 Accepted
+[Fri Oct 23 10:03:58 2026] 127.0.0.1:42405 Closing
+[Fri Oct 23 10:03:58 2026] 127.0.0.1:42406 Accepted
+[Fri Oct 23 10:03:58 2026] 127.0.0.1:42407 Accepted
+[Fri Oct 23 10:03:58 2026] 127.0.0.1:42407 [200]: GET /build/assets/app-DB-CpxCV.css
+[Fri Oct 23 10:03:58 2026] 127.0.0.1:42406 [200]: GET /build/assets/app-eupoXRbr.js
+[Fri Oct 23 10:03:58 2026] 127.0.0.1:42407 Closing
+[Fri Oct 23 10:03:58 2026] 127.0.0.1:42406 Closing
+[Fri Oct 23 10:03:58 2026] 127.0.0.1:42408 Accepted
+[Fri Oct 23 10:03:58 2026] 127.0.0.1:42408 Closing
+[Fri Oct 23 10:03:58 2026] 127.0.0.1:42409 Accepted
+[Fri Oct 23 10:03:58 2026] 127.0.0.1:42409 [200]: GET /favicon.ico
+[Fri Oct 23 10:03:58 2026] 127.0.0.1:42409 Closing
+[Fri Oct 23 10:03:59 2026] 127.0.0.1:42410 Accepted
+[Fri Oct 23 10:03:59 2026] 127.0.0.1:42410 Closing
+[Fri Oct 23 10:03:59 2026] 127.0.0.1:42411 Accepted
+[Fri Oct 23 10:03:59 2026] 127.0.0.1:42412 Accepted
+[Fri Oct 23 10:03:59 2026] 127.0.0.1:42412 [200]: GET /build/assets/app-DB-CpxCV.css
+[Fri Oct 23 10:03:59 2026] 127.0.0.1:42412 Closing
+[Fri Oct 23 10:03:59 2026] 127.0.0.1:42411 [200]: GET /build/assets/app-eupoXRbr.js
+[Fri Oct 23 10:03:59 2026] 127.0.0.1:42411 Closing
+[Fri Oct 23 10:04:00 2026] 127.0.0.1:42413 Accepted
+[Fri Oct 23 10:04:00 2026] 127.0.0.1:42414 Accepted
+[Fri Oct 23 10:04:00 2026] 127.0.0.1:42414 Closing
+[Fri Oct 23 10:04:00 2026] 127.0.0.1:42413 [200]: GET /favicon.ico
+[Fri Oct 23 10:04:00 2026] 127.0.0.1:42413 Closing
+[Fri Oct 23 10:04:01 2026] 127.0.0.1:42416 Accepted
+[Fri Oct 23 10:04:01 2026] 127.0.0.1:42416 Closing
+[Fri Oct 23 10:04:29 2026] 127.0.0.1:42459 Accepted
+[Fri Oct 23 10:04:29 2026] 127.0.0.1:42459 Closing
+[Fri Oct 23 10:04:55 2026] 127.0.0.1:42488 Accepted
+[Fri Oct 23 10:04:55 2026] 127.0.0.1:42488 Closing
+[Fri Oct 23 10:04:56 2026] 127.0.0.1:42489 Accepted
+[Fri Oct 23 10:04:56 2026] 127.0.0.1:42490 Accepted
+[Fri Oct 23 10:04:56 2026] 127.0.0.1:42489 [200]: GET /build/assets/app-DB-CpxCV.css
+[Fri Oct 23 10:04:56 2026] 127.0.0.1:42489 Closing
+[Fri Oct 23 10:04:56 2026] 127.0.0.1:42490 [200]: GET /build/assets/app-eupoXRbr.js
+[Fri Oct 23 10:04:56 2026] 127.0.0.1:42490 Closing
+[Fri Oct 23 10:04:59 2026] 127.0.0.1:42494 Accepted
+[Fri Oct 23 10:05:02 2026] 127.0.0.1:42494 Closing
+[Fri Oct 23 10:05:02 2026] 127.0.0.1:42495 Accepted
+[Fri Oct 23 10:05:04 2026] 127.0.0.1:42495 Closing
+[Fri Oct 23 10:05:04 2026] 127.0.0.1:42498 Accepted
+[Fri Oct 23 10:05:04 2026] 127.0.0.1:42499 Accepted
+[Fri Oct 23 10:05:05 2026] 127.0.0.1:42500 Accepted
+[Fri Oct 23 10:05:05 2026] 127.0.0.1:42499 [200]: GET /build/assets/app-eupoXRbr.js
+[Fri Oct 23 10:05:05 2026] 127.0.0.1:42500 [200]: GET /build/assets/app-DB-CpxCV.css
+[Fri Oct 23 10:05:05 2026] 127.0.0.1:42500 Closing
+[Fri Oct 23 10:05:05 2026] 127.0.0.1:42499 Closing
+[Fri Oct 23 10:05:06 2026] 127.0.0.1:42498 Closed without sending a request; it was probably just an unused speculative preconnection
+[Fri Oct 23 10:05:06 2026] 127.0.0.1:42498 Closing
+[Fri Oct 23 10:05:06 2026] 127.0.0.1:42503 Accepted
+[Fri Oct 23 10:05:07 2026] 127.0.0.1:42503 Closing
+[Fri Oct 23 10:05:08 2026] 127.0.0.1:42504 Accepted
+[Fri Oct 23 10:05:08 2026] 127.0.0.1:42505 Accepted
+[Fri Oct 23 10:05:08 2026] 127.0.0.1:42505 Closing
+[Fri Oct 23 10:05:08 2026] 127.0.0.1:42504 [200]: GET /favicon.ico
+[Fri Oct 23 10:05:08 2026] 127.0.0.1:42504 Closing
+[Fri Oct 23 10:05:08 2026] 127.0.0.1:42509 Accepted
+[Fri Oct 23 10:05:08 2026] 127.0.0.1:42510 Accepted
+[Fri Oct 23 10:05:08 2026] 127.0.0.1:42510 [200]: GET /build/assets/app-DB-CpxCV.css
+[Fri Oct 23 10:05:08 2026] 127.0.0.1:42509 [200]: GET /build/assets/app-eupoXRbr.js
+[Fri Oct 23 10:05:08 2026] 127.0.0.1:42510 Closing
+[Fri Oct 23 10:05:08 2026] 127.0.0.1:42509 Closing
+[Fri Oct 23 10:05:09 2026] 127.0.0.1:42512 Accepted
+[Fri Oct 23 10:05:10 2026] 127.0.0.1:42512 Closing
+[Fri Oct 23 10:05:10 2026] 127.0.0.1:42515 Accepted
+[Fri Oct 23 10:05:10 2026] 127.0.0.1:42515 [200]: GET /favicon.ico
+[Fri Oct 23 10:05:10 2026] 127.0.0.1:42515 Closing
+[Fri Oct 23 10:05:11 2026] 127.0.0.1:42516 Accepted
+[Fri Oct 23 10:05:11 2026] 127.0.0.1:42516 Closing
+[Fri Oct 23 10:05:11 2026] 127.0.0.1:42517 Accepted
+[Fri Oct 23 10:05:11 2026] 127.0.0.1:42518 Accepted
+[Fri Oct 23 10:05:11 2026] 127.0.0.1:42518 [200]: GET /build/assets/app-DB-CpxCV.css
+[Fri Oct 23 10:05:11 2026] 127.0.0.1:42517 [200]: GET /build/assets/app-eupoXRbr.js
+[Fri Oct 23 10:05:11 2026] 127.0.0.1:42518 Closing
+[Fri Oct 23 10:05:11 2026] 127.0.0.1:42517 Closing
+[Fri Oct 23 10:05:12 2026] 127.0.0.1:42519 Accepted
+[Fri Oct 23 10:05:12 2026] 127.0.0.1:42519 Closing
+[Fri Oct 23 10:05:12 2026] 127.0.0.1:42520 Accepted
+[Fri Oct 23 10:05:12 2026] 127.0.0.1:42520 [200]: GET /favicon.ico
+[Fri Oct 23 10:05:12 2026] 127.0.0.1:42520 Closing
+[Fri Oct 23 10:05:13 2026] 127.0.0.1:42521 Accepted
+[Fri Oct 23 10:05:13 2026] 127.0.0.1:42521 Closing
+[Fri Oct 23 10:05:13 2026] 127.0.0.1:42522 Accepted
+[Fri Oct 23 10:05:13 2026] 127.0.0.1:42523 Accepted
+[Fri Oct 23 10:05:13 2026] 127.0.0.1:42523 [200]: GET /build/assets/app-DB-CpxCV.css
+[Fri Oct 23 10:05:13 2026] 127.0.0.1:42523 Closing
+[Fri Oct 23 10:05:13 2026] 127.0.0.1:42522 [200]: GET /build/assets/app-eupoXRbr.js
+[Fri Oct 23 10:05:13 2026] 127.0.0.1:42522 Closing
+[Fri Oct 23 10:05:14 2026] 127.0.0.1:42526 Accepted
+[Fri Oct 23 10:05:14 2026] 127.0.0.1:42526 Closing
+[Fri Oct 23 10:05:14 2026] 127.0.0.1:42527 Accepted
+[Fri Oct 23 10:05:14 2026] 127.0.0.1:42527 [200]: GET /favicon.ico
+[Fri Oct 23 10:05:14 2026] 127.0.0.1:42527 Closing
+[Fri Oct 23 10:05:15 2026] 127.0.0.1:42528 Accepted
+[Fri Oct 23 10:05:16 2026] 127.0.0.1:42528 Closing
+[Fri Oct 23 10:05:16 2026] 127.0.0.1:42529 Accepted
+[Fri Oct 23 10:05:16 2026] 127.0.0.1:42530 Accepted
+[Fri Oct 23 10:05:16 2026] 127.0.0.1:42530 [200]: GET /build/assets/app-DB-CpxCV.css
+[Fri Oct 23 10:05:16 2026] 127.0.0.1:42529 [200]: GET /build/assets/app-eupoXRbr.js
+[Fri Oct 23 10:05:16 2026] 127.0.0.1:42530 Closing
+[Fri Oct 23 10:05:16 2026] 127.0.0.1:42529 Closing
+[Fri Oct 23 10:05:17 2026] 127.0.0.1:42531 Accepted
+[Fri Oct 23 10:05:17 2026] 127.0.0.1:42531 Closing
+[Fri Oct 23 10:05:17 2026] 127.0.0.1:42532 Accepted
+[Fri Oct 23 10:05:17 2026] 127.0.0.1:42532 [200]: GET /favicon.ico
+[Fri Oct 23 10:05:17 2026] 127.0.0.1:42532 Closing
+[Fri Oct 23 10:05:18 2026] 127.0.0.1:42533 Accepted
+[Fri Oct 23 10:05:18 2026] 127.0.0.1:42533 Closing
+[Fri Oct 23 10:05:18 2026] 127.0.0.1:42534 Accepted
+[Fri Oct 23 10:05:18 2026] 127.0.0.1:42535 Accepted
+[Fri Oct 23 10:05:18 2026] 127.0.0.1:42535 [200]: GET /build/assets/app-DB-CpxCV.css
+[Fri Oct 23 10:05:18 2026] 127.0.0.1:42535 Closing
+[Fri Oct 23 10:05:18 2026] 127.0.0.1:42534 [200]: GET /build/assets/app-eupoXRbr.js
+[Fri Oct 23 10:05:18 2026] 127.0.0.1:42534 Closing
+[Fri Oct 23 10:05:18 2026] 127.0.0.1:42536 Accepted
+[Fri Oct 23 10:05:19 2026] 127.0.0.1:42536 Closing
+[Fri Oct 23 10:05:19 2026] 127.0.0.1:42537 Accepted
+[Fri Oct 23 10:05:19 2026] 127.0.0.1:42537 [200]: GET /favicon.ico
+[Fri Oct 23 10:05:19 2026] 127.0.0.1:42537 Closing
+[Fri Oct 23 10:06:24 2026] 127.0.0.1:61042 Accepted
+[Fri Oct 23 10:06:26 2026] 127.0.0.1:61042 Closing
+[Fri Oct 23 10:08:24 2026] 127.0.0.1:61190 Accepted
+[Fri Oct 23 10:08:25 2026] 127.0.0.1:61190 Closing
+[Fri Oct 23 10:10:24 2026] 127.0.0.1:61294 Accepted
+[Fri Oct 23 10:10:25 2026] 127.0.0.1:61294 Closing
+[Fri Oct 23 10:11:29 2026] 127.0.0.1:61336 Accepted
+[Fri Oct 23 10:11:29 2026] 127.0.0.1:61336 Closing
+[Fri Oct 23 10:11:29 2026] 127.0.0.1:61337 Accepted
+[Fri Oct 23 10:11:29 2026] 127.0.0.1:61338 Accepted
+[Fri Oct 23 10:11:29 2026] 127.0.0.1:61338 [200]: GET /build/assets/app-DB-CpxCV.css
+[Fri Oct 23 10:11:29 2026] 127.0.0.1:61337 [200]: GET /build/assets/app-eupoXRbr.js
+[Fri Oct 23 10:11:29 2026] 127.0.0.1:61338 Closing
+[Fri Oct 23 10:11:29 2026] 127.0.0.1:61337 Closing
+[Fri Oct 23 10:11:32 2026] 127.0.0.1:61347 Accepted
+[Fri Oct 23 10:11:33 2026] 127.0.0.1:61347 Closing
+[Fri Oct 23 10:11:34 2026] 127.0.0.1:61348 Accepted
+[Fri Oct 23 10:11:35 2026] 127.0.0.1:61348 Closing
+[Fri Oct 23 10:11:35 2026] 127.0.0.1:61349 Accepted
+[Fri Oct 23 10:11:35 2026] 127.0.0.1:61350 Accepted
+[Fri Oct 23 10:11:35 2026] 127.0.0.1:61350 [200]: GET /build/assets/app-DB-CpxCV.css
+[Fri Oct 23 10:11:35 2026] 127.0.0.1:61349 [200]: GET /build/assets/app-eupoXRbr.js
+[Fri Oct 23 10:11:35 2026] 127.0.0.1:61350 Closing
+[Fri Oct 23 10:11:35 2026] 127.0.0.1:61349 Closing
+[Fri Oct 23 10:11:36 2026] 127.0.0.1:61351 Accepted
+[Fri Oct 23 10:11:37 2026] 127.0.0.1:61352 Accepted
+[Fri Oct 23 10:11:38 2026] 127.0.0.1:61352 Closing
+[Fri Oct 23 10:11:39 2026] 127.0.0.1:61351 [200]: GET /favicon.ico
+[Fri Oct 23 10:11:39 2026] 127.0.0.1:61351 Closing
+[Fri Oct 23 10:11:41 2026] 127.0.0.1:61354 Accepted
+[Fri Oct 23 10:11:42 2026] 127.0.0.1:61354 Closing
+[Fri Oct 23 10:11:42 2026] 127.0.0.1:61357 Accepted
+[Fri Oct 23 10:11:42 2026] 127.0.0.1:61358 Accepted
+[Fri Oct 23 10:11:42 2026] 127.0.0.1:61358 [200]: GET /build/assets/app-DB-CpxCV.css
+[Fri Oct 23 10:11:42 2026] 127.0.0.1:61357 [200]: GET /build/assets/app-eupoXRbr.js
+[Fri Oct 23 10:11:42 2026] 127.0.0.1:61358 Closing
+[Fri Oct 23 10:11:42 2026] 127.0.0.1:61357 Closing
+[Fri Oct 23 10:11:43 2026] 127.0.0.1:61360 Accepted
+[Fri Oct 23 10:11:43 2026] 127.0.0.1:61362 Accepted
+[Fri Oct 23 10:11:43 2026] 127.0.0.1:61362 Closing
+[Fri Oct 23 10:11:43 2026] 127.0.0.1:61363 Accepted
+[Fri Oct 23 10:11:43 2026] 127.0.0.1:61360 [200]: GET /favicon.ico
+[Fri Oct 23 10:11:43 2026] 127.0.0.1:61360 Closing
+[Fri Oct 23 10:11:44 2026] 127.0.0.1:61363 Closing
+[Fri Oct 23 10:11:45 2026] 127.0.0.1:61366 Accepted
+[Fri Oct 23 10:11:45 2026] 127.0.0.1:61367 Accepted
+[Fri Oct 23 10:11:45 2026] 127.0.0.1:61366 [200]: GET /build/assets/app-DB-CpxCV.css
+[Fri Oct 23 10:11:45 2026] 127.0.0.1:61367 [200]: GET /build/assets/app-eupoXRbr.js
+[Fri Oct 23 10:11:45 2026] 127.0.0.1:61366 Closing
+[Fri Oct 23 10:11:45 2026] 127.0.0.1:61367 Closing
+[Fri Oct 23 10:11:45 2026] 127.0.0.1:61368 Accepted
+[Fri Oct 23 10:11:45 2026] 127.0.0.1:61368 Closing
+[Fri Oct 23 10:11:45 2026] 127.0.0.1:61369 Accepted
+[Fri Oct 23 10:11:45 2026] 127.0.0.1:61369 [200]: GET /favicon.ico
+[Fri Oct 23 10:11:45 2026] 127.0.0.1:61369 Closing
+[Fri Oct 23 10:11:47 2026] 127.0.0.1:61370 Accepted
+[Fri Oct 23 10:11:48 2026] 127.0.0.1:61370 Closing
+[Fri Oct 23 10:11:48 2026] 127.0.0.1:61371 Accepted
+[Fri Oct 23 10:11:48 2026] 127.0.0.1:61372 Accepted
+[Fri Oct 23 10:11:48 2026] 127.0.0.1:61371 [200]: GET /build/assets/app-DB-CpxCV.css
+[Fri Oct 23 10:11:48 2026] 127.0.0.1:61372 [200]: GET /build/assets/app-eupoXRbr.js
+[Fri Oct 23 10:11:48 2026] 127.0.0.1:61371 Closing
+[Fri Oct 23 10:11:48 2026] 127.0.0.1:61372 Closing
+[Fri Oct 23 10:11:48 2026] 127.0.0.1:61373 Accepted
+[Fri Oct 23 10:11:49 2026] 127.0.0.1:61373 Closing
+[Fri Oct 23 10:11:49 2026] 127.0.0.1:61374 Accepted
+[Fri Oct 23 10:11:49 2026] 127.0.0.1:61374 [200]: GET /favicon.ico
+[Fri Oct 23 10:11:49 2026] 127.0.0.1:61374 Closing
+[Fri Oct 23 10:11:50 2026] 127.0.0.1:61375 Accepted
+[Fri Oct 23 10:11:50 2026] 127.0.0.1:61375 Closing
+[Fri Oct 23 10:11:50 2026] 127.0.0.1:61376 Accepted
+[Fri Oct 23 10:11:50 2026] 127.0.0.1:61377 Accepted
+[Fri Oct 23 10:11:50 2026] 127.0.0.1:61377 [200]: GET /build/assets/app-DB-CpxCV.css
+[Fri Oct 23 10:11:50 2026] 127.0.0.1:61376 [200]: GET /build/assets/app-eupoXRbr.js
+[Fri Oct 23 10:11:50 2026] 127.0.0.1:61377 Closing
+[Fri Oct 23 10:11:50 2026] 127.0.0.1:61376 Closing
+[Fri Oct 23 10:11:50 2026] 127.0.0.1:61378 Accepted
+[Fri Oct 23 10:11:51 2026] 127.0.0.1:61378 Closing
+[Fri Oct 23 10:11:51 2026] 127.0.0.1:61379 Accepted
+[Fri Oct 23 10:11:51 2026] 127.0.0.1:61379 [200]: GET /favicon.ico
+[Fri Oct 23 10:11:51 2026] 127.0.0.1:61379 Closing
+[Fri Oct 23 10:11:51 2026] 127.0.0.1:61380 Accepted
+[Fri Oct 23 10:11:52 2026] 127.0.0.1:61380 Closing
+[Fri Oct 23 10:11:52 2026] 127.0.0.1:61381 Accepted
+[Fri Oct 23 10:11:52 2026] 127.0.0.1:61382 Accepted
+[Fri Oct 23 10:11:52 2026] 127.0.0.1:61381 [200]: GET /build/assets/app-DB-CpxCV.css
+[Fri Oct 23 10:11:52 2026] 127.0.0.1:61381 Closing
+[Fri Oct 23 10:11:52 2026] 127.0.0.1:61382 [200]: GET /build/assets/app-eupoXRbr.js
+[Fri Oct 23 10:11:52 2026] 127.0.0.1:61382 Closing
+[Fri Oct 23 10:11:52 2026] 127.0.0.1:61383 Accepted
+[Fri Oct 23 10:11:52 2026] 127.0.0.1:61383 Closing
+[Fri Oct 23 10:11:52 2026] 127.0.0.1:61384 Accepted
+[Fri Oct 23 10:11:52 2026] 127.0.0.1:61384 [200]: GET /favicon.ico
+[Fri Oct 23 10:11:52 2026] 127.0.0.1:61384 Closing
+[Fri Oct 23 10:12:24 2026] 127.0.0.1:61422 Accepted
+[Fri Oct 23 10:12:25 2026] 127.0.0.1:61422 Closing
+[Fri Oct 23 10:13:01 2026] 127.0.0.1:61459 Accepted
+[Fri Oct 23 10:13:02 2026] 127.0.0.1:61459 Closing
+[Fri Oct 23 10:13:02 2026] 127.0.0.1:61460 Accepted
+[Fri Oct 23 10:13:02 2026] 127.0.0.1:61461 Accepted
+[Fri Oct 23 10:13:03 2026] 127.0.0.1:61461 [200]: GET /build/assets/app-DB-CpxCV.css
+[Fri Oct 23 10:13:03 2026] 127.0.0.1:61461 Closing
+[Fri Oct 23 10:13:03 2026] 127.0.0.1:61460 [200]: GET /build/assets/app-eupoXRbr.js
+[Fri Oct 23 10:13:03 2026] 127.0.0.1:61460 Closing
+[Fri Oct 23 10:13:06 2026] 127.0.0.1:61467 Accepted
+[Fri Oct 23 10:13:06 2026] 127.0.0.1:61468 Accepted
+[Fri Oct 23 10:13:08 2026] 127.0.0.1:61468 Closing
+[Fri Oct 23 10:13:08 2026] 127.0.0.1:61467 [200]: GET /favicon.ico
+[Fri Oct 23 10:13:08 2026] 127.0.0.1:61467 Closing
+[Fri Oct 23 10:13:08 2026] 127.0.0.1:61477 Accepted
+[Fri Oct 23 10:13:12 2026] 127.0.0.1:61477 Closing
+[Fri Oct 23 10:13:13 2026] 127.0.0.1:61480 Accepted
+[Fri Oct 23 10:13:13 2026] 127.0.0.1:61481 Accepted
+[Fri Oct 23 10:13:13 2026] 127.0.0.1:61480 [200]: GET /build/assets/app-DB-CpxCV.css
+[Fri Oct 23 10:13:13 2026] 127.0.0.1:61480 Closing
+[Fri Oct 23 10:13:13 2026] 127.0.0.1:61481 [200]: GET /build/assets/app-eupoXRbr.js
+[Fri Oct 23 10:13:13 2026] 127.0.0.1:61481 Closing
+[Fri Oct 23 10:13:15 2026] 127.0.0.1:61484 Accepted
+[Fri Oct 23 10:13:16 2026] 127.0.0.1:61485 Accepted
+[Fri Oct 23 10:13:18 2026] 127.0.0.1:61484 Closing
+[Fri Oct 23 10:13:19 2026] 127.0.0.1:61485 Closing
+[Fri Oct 23 10:13:20 2026] 127.0.0.1:61488 Accepted
+[Fri Oct 23 10:13:20 2026] 127.0.0.1:61489 Accepted
+[Fri Oct 23 10:13:20 2026] 127.0.0.1:61488 [200]: GET /build/assets/app-eupoXRbr.js
+[Fri Oct 23 10:13:20 2026] 127.0.0.1:61489 [200]: GET /build/assets/app-DB-CpxCV.css
+[Fri Oct 23 10:13:20 2026] 127.0.0.1:61489 Closing
+[Fri Oct 23 10:13:20 2026] 127.0.0.1:61488 Closing
+[Fri Oct 23 10:13:21 2026] 127.0.0.1:61490 Accepted
+[Fri Oct 23 10:13:22 2026] 127.0.0.1:61490 Closing
+[Fri Oct 23 10:13:22 2026] 127.0.0.1:61491 Accepted
+[Fri Oct 23 10:13:22 2026] 127.0.0.1:61491 [200]: GET /favicon.ico
+[Fri Oct 23 10:13:22 2026] 127.0.0.1:61491 Closing
+[Fri Oct 23 10:13:23 2026] 127.0.0.1:61492 Accepted
+[Fri Oct 23 10:13:24 2026] 127.0.0.1:61492 Closing
+[Fri Oct 23 10:13:24 2026] 127.0.0.1:61493 Accepted
+[Fri Oct 23 10:13:24 2026] 127.0.0.1:61494 Accepted
+[Fri Oct 23 10:13:24 2026] 127.0.0.1:61494 [200]: GET /build/assets/app-DB-CpxCV.css
+[Fri Oct 23 10:13:24 2026] 127.0.0.1:61493 [200]: GET /build/assets/app-eupoXRbr.js
+[Fri Oct 23 10:13:24 2026] 127.0.0.1:61494 Closing
+[Fri Oct 23 10:13:24 2026] 127.0.0.1:61493 Closing
+[Fri Oct 23 10:13:24 2026] 127.0.0.1:61495 Accepted
+[Fri Oct 23 10:13:24 2026] 127.0.0.1:61495 Closing
+[Fri Oct 23 10:13:24 2026] 127.0.0.1:61496 Accepted
+[Fri Oct 23 10:13:25 2026] 127.0.0.1:61496 [200]: GET /favicon.ico
+[Fri Oct 23 10:13:25 2026] 127.0.0.1:61496 Closing
+[Fri Oct 23 10:14:24 2026] 127.0.0.1:61556 Accepted
+[Fri Oct 23 10:14:25 2026] 127.0.0.1:61556 Closing

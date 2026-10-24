@@ -24,8 +24,15 @@ class AnnouncementController extends Controller
         // church's branch/department/group. Loaded eagerly here rather than
         // queried inside the Blade template so the form's dependencies are
         // explicit and the page fails loudly here, not in a view.
-        $branches = \App\Models\OrganizationalUnit::query()->orderBy('name')->get();
-        $departments = \App\Models\Department::query()->orderBy('name')->get();
+        // A whole-church department carries no parish, so the tenant scope alone
+        // would hide it from a parish pastor — visibleTo() keeps it offerable.
+        // OrganizationalUnit has no parish column, so TenantScope does not
+        // narrow branches — a parish pastor must be offered only their own.
+        $branches = \App\Models\OrganizationalUnit::query()
+            ->when($request->user()->isParishScoped(), fn ($q) => $q->whereKey($request->user()->organizational_unit_id))
+            ->orderBy('name')
+            ->get();
+        $departments = \App\Models\Department::query()->visibleTo($request->user())->orderBy('name')->get();
         $groups = \App\Models\Group::query()->orderBy('name')->get();
 
         return view('announcements.index', compact('announcements', 'branches', 'departments', 'groups'));

@@ -1,5 +1,12 @@
 <x-layout title="Departments · ChurchFlow">
-    @php $canManage = auth()->user()->hasPermission('departments.manage'); @endphp
+    @php
+        $canManage = auth()->user()->hasPermission('departments.manage');
+        // A parish-scoped user must never be offered another parish in the
+        // picker; TenantScope already fills theirs in on save.
+        $branches = auth()->user()->isParishScoped()
+            ? \App\Models\OrganizationalUnit::query()->whereKey(auth()->user()->organizational_unit_id)->get()
+            : \App\Models\OrganizationalUnit::query()->orderBy('name')->get();
+    @endphp
 
     <div class="cf-page-head">
         <div>
@@ -33,6 +40,13 @@
                 layout="inline"
             >
                 <x-form.input name="name" label="Department name" required placeholder="e.g. Ushering, Choir, Media" />
+
+                @if($branches->isNotEmpty() && ! auth()->user()->isParishScoped())
+                    <x-form.select name="organizational_unit_id" label="Branch" placeholder="Whole church"
+                        :options="$branches->map(fn ($b) => ['value' => $b->id, 'label' => $b->name])->all()"
+                        hint="Leave as whole church unless this department belongs to one branch." />
+                @endif
+
                 <x-form.textarea name="description" label="What this department does" rows="2" wide />
             </x-form.card>
         </div>

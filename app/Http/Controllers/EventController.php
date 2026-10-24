@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Domains\Events\Jobs\SendEventReminderEmailsJob;
+use App\Domains\Events\Jobs\SendEventReminderSmsJob;
 use App\Models\Event;
+use App\Models\EventRegistrationSubmission;
 use App\Models\Member;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -10,10 +13,26 @@ use Illuminate\View\View;
 
 class EventController extends Controller
 {
+    /**
+     * Events visible in the app.
+     *
+     * §14/§37: a parish pastor sees only their own parish's events. Events is
+     * a parish-owned table (events.organizational_unit_id), so the TenantScope
+     * already narrows the query once IdentifyTenant binds the parish — this
+     * explicit `when` is the same rule stated where the list is built, so the
+     * page cannot silently start showing every parish if that binding ever
+     * changes.
+     */
     public function index(): View
     {
         $this->authorize('viewAny', Event::class);
-        $events = Event::query()->orderBy('starts_at', 'desc')->paginate(20);
+
+        $user = auth()->user();
+
+        $events = Event::query()
+            ->when($user->isParishScoped(), fn ($q) => $q->where('organizational_unit_id', $user->organizational_unit_id))
+            ->orderBy('starts_at', 'desc')
+            ->paginate(20);
 
         return view('events.index', compact('events'));
     }
@@ -33,6 +52,15 @@ class EventController extends Controller
         ]);
 
         $data['organizer_id'] = $request->user()->id;
+
+        // §14/§37: a parish pastor's event belongs to their parish, whether or
+        // not the form offered a branch — a church-wide event they created
+        // would be one they could not see again. The TenantScope also fills
+        // this in on create, but stating it here keeps the intent readable.
+        if ($request->user()->isParishScoped()) {
+            $data['organizational_unit_id'] = $request->user()->organizational_unit_id;
+        }
+
         $event = Event::create($data);
 
         return redirect()->route('events.show', $event);
@@ -57,6 +85,15 @@ class EventController extends Controller
 
         $canManage = auth()->user()->hasPermission('events.manage');
 
+        // §13: everyone who filled in the PUBLIC registration form. These are
+        // visitors, not church members, so they are their own list — but the
+        // organiser sees them on the same page as the member roster, because
+        // "who is coming" has one answer.
+        $visitors = $event->visitorRegistrations()
+            ->orderByDesc('registered_at')
+            ->orderByDesc('id')
+            ->get();
+
         // Members not already on this event's list, so the "add attendee"
         // dropdown never offers someone who is already registered.
         $availableMembers = $canManage
@@ -66,7 +103,96 @@ class EventController extends Controller
                 ->get(['id', 'full_name', 'email'])
             : collect();
 
-        return view('events.show', compact('event', 'registrations', 'availableMembers', 'canManage'));
+        return view('events.show', compact('event', 'registrations', 'availableMembers', 'canManage', 'visitors'));
+    }
+
+    /**
+     * §13: mint (or reveal) the event's public registration link.
+     *
+     * Done on demand rather than at creation so every event already on the
+     * calendar gains a form the first time its organiser asks, without a
+     * backfill script and without old events silently sharing a broken link.
+     */
+    public function sharePublicForm(Event $event): RedirectResponse
+    {
+        $this->authorize('update', $event);
+
+        $slug = PublicEventRegistrationController::ensureSlug($event);
+        $event->forceFill(['registration_open' => true])->save();
+
+        return redirect()->route('events.show', $event)
+            ->with('status', 'Public registration is open: '.route('events.public.register', $slug))
+            ->with('public_link', route('events.public.register', $slug));
+    }
+
+    /** §13: take one visitor off the list, keeping the record of their sign-up. */
+    public function cancelVisitor(Event $event, EventRegistrationSubmission $visitor): RedirectResponse
+    {
+        $this->authorize('update', $event);
+
+        // Route-model binding knows nothing about the event–visitor relationship;
+        // a crafted id must not cancel another event's (or church's) sign-up.
+        abort_unless($visitor->event_id === $event->id, 404);
+        abort_unless($visitor->church_id === $event->church_id, 404);
+
+        $visitor->update(['status' => 'cancelled']);
+
+        return back()->with('status', "{$visitor->name} removed from this event's list.");
+    }
+
+    /** §16: email every visitor on this event's form a reminder. */
+    public function emailReminder(Event $event): RedirectResponse
+    {
+        $this->authorize('update', $event);
+
+        $recipients = $event->visitorRegistrations()
+            ->where('status', '!=', 'cancelled')
+            ->whereNotNull('email')
+            ->count();
+
+        if ($recipients === 0) {
+            return back()->withErrors(['reminder' => 'Nobody who filled in the event form has an email address yet.']);
+        }
+
+        SendEventReminderEmailsJob::dispatch($event->id);
+
+        return back()->with('status', "Reminder queued for {$recipients} visitor(s) with an email address.");
+    }
+
+    /**
+     * §16: bulk SMS to the event's visitor list.
+     *
+     * Deliberately shares the SMS wallet machinery rather than inventing a
+     * second sender: units are reserved when the job runs, failed sends are
+     * refunded, and — the rule this screen exists to respect — a parish pastor
+     * cannot spend the MAIN church's SMS credits. Only a church-wide manager
+     * (owner or registrar) may use the church wallet; a parish-scoped pastor is
+     * pointed at their own wallet instead.
+     */
+    public function smsReminder(Request $request, Event $event): RedirectResponse
+    {
+        $this->authorize('update', $event);
+
+        abort_unless($request->user()->hasPermission('sms.manage'), 403,
+            'Sending SMS needs the SMS permission.');
+
+        $recipients = $event->visitorRegistrations()
+            ->where('status', '!=', 'cancelled')
+            ->whereNotNull('phone')
+            ->where('phone', '!=', '')
+            ->count();
+
+        if ($recipients === 0) {
+            return back()->withErrors(['reminder' => 'Nobody who filled in the event form has a phone number yet.']);
+        }
+
+        $data = $request->validate([
+            'message' => ['required', 'string', 'max:600'],
+        ]);
+
+        SendEventReminderSmsJob::dispatch($event->id, $data['message']);
+
+        return back()->with('status', "SMS reminder queued for {$recipients} visitor(s). Units are reserved from the church SMS wallet as they send.");
     }
 
     /**

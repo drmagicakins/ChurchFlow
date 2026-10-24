@@ -22,9 +22,12 @@ class AttendanceController extends Controller
         // form) is what makes the type dropdown meaningful.
         return view('attendance.index', [
             'sessions' => $sessions,
-            'branches' => \App\Models\OrganizationalUnit::query()->orderBy('name')->get(['id', 'name']),
+            'branches' => \App\Models\OrganizationalUnit::query()
+                ->when(request()->user()->isParishScoped(), fn ($q) => $q->whereKey(request()->user()->organizational_unit_id))
+                ->orderBy('name')
+                ->get(['id', 'name']),
             'events' => \App\Models\Event::query()->orderByDesc('starts_at')->limit(50)->get(['id', 'title', 'starts_at']),
-            'departments' => \App\Models\Department::query()->orderBy('name')->get(['id', 'name']),
+            'departments' => \App\Models\Department::query()->visibleTo(request()->user())->orderBy('name')->get(['id', 'name']),
             'groups' => \App\Models\Group::query()->orderBy('name')->get(['id', 'name']),
         ]);
     }

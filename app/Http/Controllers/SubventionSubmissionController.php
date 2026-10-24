@@ -20,15 +20,18 @@ class SubventionSubmissionController extends Controller
 
         // §21/§14 parish scoping + registrar oversight:
         //
-        //  - The registrar (super-admin) sees EVERY submission from every
+        //  - The church owner (registrar) sees EVERY submission from every
         //    parish — they are the one who receives and approves them.
         //  - A pastor attached to a parish sees only their own parish's
-        //    submissions, and only the ones they are entitled to see (their
-        //    own plus any already approved by the registrar).
+        //    submissions.
+        //  - A pastor attached to MAIN sees only Main — the main church is a
+        //    unit in its own right, not an umbrella that shows it every branch.
         //  - A church-wide user with no parish sees the whole church's, the
         //    same as today.
+        $seesWholeChurch = $user->seesWholeChurchSubventions();
+
         $query = SubventionSubmission::query()
-            ->when($user->isParishScoped(), function ($q) use ($user) {
+            ->when(! $seesWholeChurch && $user->organizational_unit_id !== null, function ($q) use ($user) {
                 $q->where('organizational_unit_id', $user->organizational_unit_id);
             })
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
@@ -40,7 +43,7 @@ class SubventionSubmissionController extends Controller
         return view('subvention.submissions.index', [
             'submissions' => $submissions,
             'isRegistrar' => $user->can('review', new SubventionSubmission),
-            'isParishScoped' => $user->isParishScoped(),
+            'isParishScoped' => ! $seesWholeChurch && $user->organizational_unit_id !== null,
         ]);
     }
 

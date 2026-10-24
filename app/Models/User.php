@@ -60,10 +60,74 @@ class User extends Authenticatable
         return $this->belongsTo(Church::class);
     }
 
-    /** The parish (OrganizationalUnit) this user belongs to, if any. */
+    /**
+     * The parish (OrganizationalUnit) this user belongs to, if any.
+     */
     public function organizationalUnit()
     {
         return $this->belongsTo(OrganizationalUnit::class);
+    }
+
+    /**
+     * The MAIN church unit for this user's church, if one has been marked.
+     *
+     * "Grace Chapel — Main" is an ordinary OrganizationalUnit in this schema
+     * (the hierarchy is generic, §4), but the brief treats it specially: it is
+     * the church itself, and a pastor attached to it must see ONLY Main — not
+     * the parishes branching off it. A unit is the main one when it has no
+     * parent; the church's top-level unit is the only one that answers yes.
+     */
+    public function mainUnit(): ?OrganizationalUnit
+    {
+        if (! $this->church_id) {
+            return null;
+        }
+
+        return OrganizationalUnit::query()
+            ->where('church_id', $this->church_id)
+            ->whereNull('parent_id')
+            ->orderBy('id')
+            ->first();
+    }
+
+    /**
+     * Is this user attached to the MAIN church (rather than a parish)?
+     *
+     * Used by the subvention screen: the account that created the main church
+     * receives every parish's submission, while the pastor based at Main sees
+     * only Main's own.
+     */
+    public function isAttachedToMainChurch(): bool
+    {
+        if ($this->organizational_unit_id === null) {
+            return false;
+        }
+
+        $main = $this->mainUnit();
+
+        return $main !== null && (int) $main->id === (int) $this->organizational_unit_id;
+    }
+
+    /**
+     * Should this user's SUBVENTION view cover the whole church?
+     *
+     * This is the §14 subvention rule, and it is narrower than isRegistrar():
+     *
+     *   - the church owner (the account that registered the church) always
+     *     receives every parish's subvention and approves or rejects them;
+     *   - anyone church-wide (no parish) keeps the oversight the app already
+     *     gave them;
+     *   - a pastor attached to Main sees Main only — "parish pastor should see
+     *     only parish not main church" cuts both ways;
+     *   - any other parish pastor sees their own parish only.
+     */
+    public function seesWholeChurchSubventions(): bool
+    {
+        if ($this->isRegistrar()) {
+            return true;
+        }
+
+        return $this->organizational_unit_id === null;
     }
 
     /**

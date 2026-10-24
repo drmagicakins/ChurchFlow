@@ -23,9 +23,10 @@ class SubventionSubmissionPolicy extends BaseTenantPolicy
         }
 
         // A pastor attached to a parish may only open their own parish's
-        // submission — never another parish's. The registrar (and anyone
-        // church-wide) sees every submission.
-        if ($user->isParishScoped()) {
+        // submission — never another parish's, and a pastor at MAIN sees only
+        // Main. The registrar (and anyone church-wide with no parish) sees
+        // every submission.
+        if (! $user->seesWholeChurchSubventions() && $user->organizational_unit_id !== null) {
             return $submission->organizational_unit_id === $user->organizational_unit_id;
         }
 
@@ -43,8 +44,10 @@ class SubventionSubmissionPolicy extends BaseTenantPolicy
         return $this->sameTenant($user, $submission)
             && $user->hasPermission('subvention.submit')
             && in_array($submission->status, ['draft', 'returned'], true)
-            // A pastor may only edit their own parish's submission.
-            && (! $user->isParishScoped() || $submission->organizational_unit_id === $user->organizational_unit_id);
+            // A pastor may only edit their own parish's submission; a pastor
+            // based at Main edits Main's own, not the parishes'.
+            && (! (! $user->seesWholeChurchSubventions() && $user->organizational_unit_id !== null)
+                || $submission->organizational_unit_id === $user->organizational_unit_id);
     }
 
     /**
@@ -60,6 +63,6 @@ class SubventionSubmissionPolicy extends BaseTenantPolicy
     {
         return $this->sameTenant($user, $submission)
             && $user->hasPermission('subvention.approve')
-            && ! $user->isParishScoped();
+            && $user->seesWholeChurchSubventions();
     }
 }

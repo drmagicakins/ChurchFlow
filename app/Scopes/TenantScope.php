@@ -42,6 +42,12 @@ class TenantScope implements Scope
         // that carries an organizational_unit_id column is narrowed to that
         // parish. Models with no such column (transactions, families, ...) are
         // unaffected — they are church-wide records, not parish-owned ones.
+        //
+        // Known exception: departments.organizational_unit_id is NULLABLE, and
+        // NULL there means "belongs to the WHOLE church" rather than "belongs
+        // to no parish". This filter alone therefore hid every whole-church
+        // department from every parish pastor. Department::visibleTo() is the
+        // companion scope that keeps those rows and drops other parishes'.
         $parishId = app()->bound('tenant.organizational_unit_id')
             ? app('tenant.organizational_unit_id')
             : null;

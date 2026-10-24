@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 class Checkout extends Model
 {
     protected $fillable = [
-        'user_id', 'church_id', 'purpose', 'plan_id', 'billing_interval', 'sms_units',
+        'user_id', 'church_id', 'purpose', 'plan_id', 'billing_interval', 'sms_units', 'wallet_unit_id',
         'amount', 'subtotal', 'tax_rate', 'tax_amount', 'currency', 'status',
         'provider', 'provider_reference', 'expires_at',
     ];

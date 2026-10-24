@@ -9,8 +9,13 @@
         <div>
             <h1>SMS wallet</h1>
             <p class="cf-small cf-muted" style="margin-top:.3rem">
-                Every balance change is a ledger row — a purchase, a campaign reservation, or a refund. Nothing is
-                ever adjusted silently.
+                @if ($isParishWallet ?? false)
+                    This is <strong>{{ $wallet->ownerLabel() }}</strong>'s own SMS wallet — separate from the main
+                    church's. Top it up here to text this parish.
+                @else
+                    This is the <strong>{{ $wallet->ownerLabel() }}</strong> SMS wallet. Every balance change is a ledger
+                    row — a purchase, a campaign reservation, or a refund. Nothing is ever adjusted silently.
+                @endif
             </p>
         </div>
         <a href="{{ route('sms.campaigns.index') }}" class="cf-btn cf-btn--secondary cf-btn--sm">← SMS campaigns</a>
@@ -38,7 +43,7 @@
             <div class="cf-stat">
                 <span class="cf-stat__label">Current balance</span>
                 <span class="cf-stat__value">{{ number_format($wallet->balance_units) }}</span>
-                <span class="cf-stat__hint">SMS units available to send</span>
+                <span class="cf-stat__hint">{{ $wallet->ownerLabel() }} · SMS units available to send</span>
             </div>
             @if($unitPrice !== null)
                 <div class="cf-stat">

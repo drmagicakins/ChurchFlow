@@ -1,0 +1,465 @@
+
+   INFO  Processing jobs from the [default] queue.  
+
+
+   Error 
+
+  Class "App\Providers\Vite" not found
+
+  at app\Providers\AppServiceProvider.php:156
+    152▕          | and the bundle executes normally. The nonce is per-request and read
+    153▕          | from the same container binding SecurityHeaders fills in, so this
+    154▕          | does not widen the policy.
+    155▕          */
+  ➜ 156▕         Vite::useCspNonce(SecurityHeaders::nonce());
+    157▕     }
+    158▕ }
+    159▕
+
+  1   vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      App\Providers\AppServiceProvider::boot()
+
+  2   vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::{closure:Illuminate\Container\BoundMethod::call():35}()
+
+
+   Error 
+
+  Class "App\Providers\Vite" not found
+
+  at app\Providers\AppServiceProvider.php:156
+    152▕          | and the bundle executes normally. The nonce is per-request and read
+    153▕          | from the same container binding SecurityHeaders fills in, so this
+    154▕          | does not widen the policy.
+    155▕          */
+  ➜ 156▕         Vite::useCspNonce(SecurityHeaders::nonce());
+    157▕     }
+    158▕ }
+    159▕
+
+  1   vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      App\Providers\AppServiceProvider::boot()
+
+  2   vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::{closure:Illuminate\Container\BoundMethod::call():35}()
+
+
+   Error 
+
+  Class "App\Providers\Vite" not found
+
+  at app\Providers\AppServiceProvider.php:156
+    152▕          | and the bundle executes normally. The nonce is per-request and read
+    153▕          | from the same container binding SecurityHeaders fills in, so this
+    154▕          | does not widen the policy.
+    155▕          */
+  ➜ 156▕         Vite::useCspNonce(SecurityHeaders::nonce());
+    157▕     }
+    158▕ }
+    159▕
+
+  1   vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      App\Providers\AppServiceProvider::boot()
+
+  2   vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::{closure:Illuminate\Container\BoundMethod::call():35}()
+
+
+   Error 
+
+  Class "App\Providers\Vite" not found
+
+  at app\Providers\AppServiceProvider.php:156
+    152▕          | and the bundle executes normally. The nonce is per-request and read
+    153▕          | from the same container binding SecurityHeaders fills in, so this
+    154▕          | does not widen the policy.
+    155▕          */
+  ➜ 156▕         Vite::useCspNonce(SecurityHeaders::nonce());
+    157▕     }
+    158▕ }
+    159▕
+
+  1   vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      App\Providers\AppServiceProvider::boot()
+
+  2   vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::{closure:Illuminate\Container\BoundMethod::call():35}()
+
+
+   Error 
+
+  Class "App\Providers\Vite" not found
+
+  at app\Providers\AppServiceProvider.php:156
+    152▕          | and the bundle executes normally. The nonce is per-request and read
+    153▕          | from the same container binding SecurityHeaders fills in, so this
+    154▕          | does not widen the policy.
+    155▕          */
+  ➜ 156▕         Vite::useCspNonce(SecurityHeaders::nonce());
+    157▕     }
+    158▕ }
+    159▕
+
+  1   vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      App\Providers\AppServiceProvider::boot()
+
+  2   vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::{closure:Illuminate\Container\BoundMethod::call():35}()
+
+
+   Error 
+
+  Class "App\Providers\Vite" not found
+
+  at app\Providers\AppServiceProvider.php:156
+    152▕          | and the bundle executes normally. The nonce is per-request and read
+    153▕          | from the same container binding SecurityHeaders fills in, so this
+    154▕          | does not widen the policy.
+    155▕          */
+  ➜ 156▕         Vite::useCspNonce(SecurityHeaders::nonce());
+    157▕     }
+    158▕ }
+    159▕
+
+  1   vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      App\Providers\AppServiceProvider::boot()
+
+  2   vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::{closure:Illuminate\Container\BoundMethod::call():35}()
+
+
+   Error 
+
+  Class "App\Providers\Vite" not found
+
+  at app\Providers\AppServiceProvider.php:156
+    152▕          | and the bundle executes normally. The nonce is per-request and read
+    153▕          | from the same container binding SecurityHeaders fills in, so this
+    154▕          | does not widen the policy.
+    155▕          */
+  ➜ 156▕         Vite::useCspNonce(SecurityHeaders::nonce());
+    157▕     }
+    158▕ }
+    159▕
+
+  1   vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      App\Providers\AppServiceProvider::boot()
+
+  2   vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::{closure:Illuminate\Container\BoundMethod::call():35}()
+
+
+   Error 
+
+  Class "App\Providers\Vite" not found
+
+  at app\Providers\AppServiceProvider.php:156
+    152▕          | and the bundle executes normally. The nonce is per-request and read
+    153▕          | from the same container binding SecurityHeaders fills in, so this
+    154▕          | does not widen the policy.
+    155▕          */
+  ➜ 156▕         Vite::useCspNonce(SecurityHeaders::nonce());
+    157▕     }
+    158▕ }
+    159▕
+
+  1   vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      App\Providers\AppServiceProvider::boot()
+
+  2   vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::{closure:Illuminate\Container\BoundMethod::call():35}()
+
+
+   Error 
+
+  Class "App\Providers\Vite" not found
+
+  at app\Providers\AppServiceProvider.php:156
+    152▕          | and the bundle executes normally. The nonce is per-request and read
+    153▕          | from the same container binding SecurityHeaders fills in, so this
+    154▕          | does not widen the policy.
+    155▕          */
+  ➜ 156▕         Vite::useCspNonce(SecurityHeaders::nonce());
+    157▕     }
+    158▕ }
+    159▕
+
+  1   vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      App\Providers\AppServiceProvider::boot()
+
+  2   vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::{closure:Illuminate\Container\BoundMethod::call():35}()
+
+
+   Error 
+
+  Class "App\Providers\Vite" not found
+
+  at app\Providers\AppServiceProvider.php:156
+    152▕          | and the bundle executes normally. The nonce is per-request and read
+    153▕          | from the same container binding SecurityHeaders fills in, so this
+    154▕          | does not widen the policy.
+    155▕          */
+  ➜ 156▕         Vite::useCspNonce(SecurityHeaders::nonce());
+    157▕     }
+    158▕ }
+    159▕
+
+  1   vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      App\Providers\AppServiceProvider::boot()
+
+  2   vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::{closure:Illuminate\Container\BoundMethod::call():35}()
+
+
+   Error 
+
+  Class "App\Providers\Vite" not found
+
+  at app\Providers\AppServiceProvider.php:156
+    152▕          | and the bundle executes normally. The nonce is per-request and read
+    153▕          | from the same container binding SecurityHeaders fills in, so this
+    154▕          | does not widen the policy.
+    155▕          */
+  ➜ 156▕         Vite::useCspNonce(SecurityHeaders::nonce());
+    157▕     }
+    158▕ }
+    159▕
+
+  1   vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      App\Providers\AppServiceProvider::boot()
+
+  2   vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::{closure:Illuminate\Container\BoundMethod::call():35}()
+
+
+   Error 
+
+  Class "App\Providers\Vite" not found
+
+  at app\Providers\AppServiceProvider.php:156
+    152▕          | and the bundle executes normally. The nonce is per-request and read
+    153▕          | from the same container binding SecurityHeaders fills in, so this
+    154▕          | does not widen the policy.
+    155▕          */
+  ➜ 156▕         Vite::useCspNonce(SecurityHeaders::nonce());
+    157▕     }
+    158▕ }
+    159▕
+
+  1   vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      App\Providers\AppServiceProvider::boot()
+
+  2   vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::{closure:Illuminate\Container\BoundMethod::call():35}()
+
+
+   Error 
+
+  Class "App\Providers\Vite" not found
+
+  at app\Providers\AppServiceProvider.php:156
+    152▕          | and the bundle executes normally. The nonce is per-request and read
+    153▕          | from the same container binding SecurityHeaders fills in, so this
+    154▕          | does not widen the policy.
+    155▕          */
+  ➜ 156▕         Vite::useCspNonce(SecurityHeaders::nonce());
+    157▕     }
+    158▕ }
+    159▕
+
+  1   vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      App\Providers\AppServiceProvider::boot()
+
+  2   vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::{closure:Illuminate\Container\BoundMethod::call():35}()
+
+
+   Error 
+
+  Class "App\Providers\Vite" not found
+
+  at app\Providers\AppServiceProvider.php:156
+    152▕          | and the bundle executes normally. The nonce is per-request and read
+    153▕          | from the same container binding SecurityHeaders fills in, so this
+    154▕          | does not widen the policy.
+    155▕          */
+  ➜ 156▕         Vite::useCspNonce(SecurityHeaders::nonce());
+    157▕     }
+    158▕ }
+    159▕
+
+  1   vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      App\Providers\AppServiceProvider::boot()
+
+  2   vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::{closure:Illuminate\Container\BoundMethod::call():35}()
+
+
+   Error 
+
+  Class "App\Providers\Vite" not found
+
+  at app\Providers\AppServiceProvider.php:156
+    152▕          | and the bundle executes normally. The nonce is per-request and read
+    153▕          | from the same container binding SecurityHeaders fills in, so this
+    154▕          | does not widen the policy.
+    155▕          */
+  ➜ 156▕         Vite::useCspNonce(SecurityHeaders::nonce());
+    157▕     }
+    158▕ }
+    159▕
+
+  1   vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      App\Providers\AppServiceProvider::boot()
+
+  2   vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::{closure:Illuminate\Container\BoundMethod::call():35}()
+
+
+   Error 
+
+  Class "App\Providers\Vite" not found
+
+  at app\Providers\AppServiceProvider.php:156
+    152▕          | and the bundle executes normally. The nonce is per-request and read
+    153▕          | from the same container binding SecurityHeaders fills in, so this
+    154▕          | does not widen the policy.
+    155▕          */
+  ➜ 156▕         Vite::useCspNonce(SecurityHeaders::nonce());
+    157▕     }
+    158▕ }
+    159▕
+
+  1   vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      App\Providers\AppServiceProvider::boot()
+
+  2   vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::{closure:Illuminate\Container\BoundMethod::call():35}()
+
+
+   Error 
+
+  Class "App\Providers\Vite" not found
+
+  at app\Providers\AppServiceProvider.php:156
+    152▕          | and the bundle executes normally. The nonce is per-request and read
+    153▕          | from the same container binding SecurityHeaders fills in, so this
+    154▕          | does not widen the policy.
+    155▕          */
+  ➜ 156▕         Vite::useCspNonce(SecurityHeaders::nonce());
+    157▕     }
+    158▕ }
+    159▕
+
+  1   vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      App\Providers\AppServiceProvider::boot()
+
+  2   vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::{closure:Illuminate\Container\BoundMethod::call():35}()
+
+
+   Error 
+
+  Class "App\Providers\Vite" not found
+
+  at app\Providers\AppServiceProvider.php:156
+    152▕          | and the bundle executes normally. The nonce is per-request and read
+    153▕          | from the same container binding SecurityHeaders fills in, so this
+    154▕          | does not widen the policy.
+    155▕          */
+  ➜ 156▕         Vite::useCspNonce(SecurityHeaders::nonce());
+    157▕     }
+    158▕ }
+    159▕
+
+  1   vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      App\Providers\AppServiceProvider::boot()
+
+  2   vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::{closure:Illuminate\Container\BoundMethod::call():35}()
+
+
+   Error 
+
+  Class "App\Providers\Vite" not found
+
+  at app\Providers\AppServiceProvider.php:156
+    152▕          | and the bundle executes normally. The nonce is per-request and read
+    153▕          | from the same container binding SecurityHeaders fills in, so this
+    154▕          | does not widen the policy.
+    155▕          */
+  ➜ 156▕         Vite::useCspNonce(SecurityHeaders::nonce());
+    157▕     }
+    158▕ }
+    159▕
+
+  1   vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      App\Providers\AppServiceProvider::boot()
+
+  2   vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::{closure:Illuminate\Container\BoundMethod::call():35}()
+
+
+   Error 
+
+  Class "App\Providers\Vite" not found
+
+  at app\Providers\AppServiceProvider.php:156
+    152▕          | and the bundle executes normally. The nonce is per-request and read
+    153▕          | from the same container binding SecurityHeaders fills in, so this
+    154▕          | does not widen the policy.
+    155▕          */
+  ➜ 156▕         Vite::useCspNonce(SecurityHeaders::nonce());
+    157▕     }
+    158▕ }
+    159▕
+
+  1   vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      App\Providers\AppServiceProvider::boot()
+
+  2   vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::{closure:Illuminate\Container\BoundMethod::call():35}()
+
+
+   Error 
+
+  Class "App\Providers\Vite" not found
+
+  at app\Providers\AppServiceProvider.php:156
+    152▕          | and the bundle executes normally. The nonce is per-request and read
+    153▕          | from the same container binding SecurityHeaders fills in, so this
+    154▕          | does not widen the policy.
+    155▕          */
+  ➜ 156▕         Vite::useCspNonce(SecurityHeaders::nonce());
+    157▕     }
+    158▕ }
+    159▕
+
+  1   vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      App\Providers\AppServiceProvider::boot()
+
+  2   vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::{closure:Illuminate\Container\BoundMethod::call():35}()
+
+
+   Error 
+
+  Class "App\Providers\Vite" not found
+
+  at app\Providers\AppServiceProvider.php:156
+    152▕          | and the bundle executes normally. The nonce is per-request and read
+    153▕          | from the same container binding SecurityHeaders fills in, so this
+    154▕          | does not widen the policy.
+    155▕          */
+  ➜ 156▕         Vite::useCspNonce(SecurityHeaders::nonce());
+    157▕     }
+    158▕ }
+    159▕
+
+  1   vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      App\Providers\AppServiceProvider::boot()
+
+  2   vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::{closure:Illuminate\Container\BoundMethod::call():35}()
+

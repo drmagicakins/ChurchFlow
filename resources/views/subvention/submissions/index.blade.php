@@ -3,11 +3,12 @@
         $canSubmit = auth()->user()->hasPermission('subvention.submit');
         $canManage = auth()->user()->hasPermission('subvention.manage');
         $isRegistrar = $isRegistrar ?? auth()->user()->can('review', new \App\Models\SubventionSubmission);
-        $isParishScoped = $isParishScoped ?? auth()->user()->isParishScoped();
+        $isParishScoped = $isParishScoped ?? (! auth()->user()->seesWholeChurchSubventions() && auth()->user()->organizational_unit_id !== null);
         $symbol = '₦';
         // §14: the "new submission" branch picker must not offer a parish a
         // pastor cannot file for. A parish-scoped user sees only their own
-        // parish; a registrar sees every parish.
+        // parish — including a pastor based at Main, who files for Main only; a
+        // registrar sees every parish.
         $branches = \App\Models\OrganizationalUnit::query()
             ->when($isParishScoped, fn ($q) => $q->where('id', auth()->user()->organizational_unit_id))
             ->orderBy('name')

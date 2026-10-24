@@ -64,6 +64,22 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 });
 
+// --- Phase 3: public event registration (§13) ---
+// Outside the auth/tenant group ON PURPOSE. The brief asks for "a form where
+// visitors can register for events without logging in", and a visitor has no
+// session and no church. The event is resolved by its public slug and the
+// PublicEventRegistrationController filters every follow-up query by that
+// event's church_id, so this is not an opening onto another tenant's data.
+//
+// Throttled: it is an unauthenticated POST that writes rows.
+Route::get('/e/{slug}', [\App\Http\Controllers\PublicEventRegistrationController::class, 'show'])
+    ->middleware('throttle:60,1')
+    ->name('events.public.register');
+
+Route::post('/e/{slug}', [\App\Http\Controllers\PublicEventRegistrationController::class, 'store'])
+    ->middleware('throttle:10,1')
+    ->name('events.public.store');
+
 // EnsureSubscriptionAllowsAccess is Phase 8's gate: an active subscription is
 // required to reach the application proper. The billing routes live INSIDE this
 // group and are exempted by name in the middleware itself, so a lapsed church
@@ -97,7 +113,7 @@ Route::middleware(['auth', \App\Http\Middleware\IdentifyTenant::class, \App\Http
     Route::post('/families/{family}/members', [\App\Http\Controllers\FamilyController::class, 'attachMember'])->name('families.members.attach');
     Route::delete('/families/{family}/members/{member}', [\App\Http\Controllers\FamilyController::class, 'detachMember'])->name('families.members.detach');
 
-    Route::resource('departments', \App\Http\Controllers\DepartmentController::class)->only(['index', 'store', 'show', 'destroy']);
+    Route::resource('departments', \App\Http\Controllers\DepartmentController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
     Route::post('/departments/{department}/members', [\App\Http\Controllers\DepartmentController::class, 'attachMember'])->name('departments.members.attach');
     Route::delete('/departments/{department}/members/{member}', [\App\Http\Controllers\DepartmentController::class, 'detachMember'])->name('departments.members.detach');
 
@@ -117,6 +133,14 @@ Route::middleware(['auth', \App\Http\Middleware\IdentifyTenant::class, \App\Http
     Route::resource('events', \App\Http\Controllers\EventController::class)->only(['index', 'store', 'show', 'destroy']);
     Route::post('/events/{event}/register', [\App\Http\Controllers\EventController::class, 'register'])->name('events.register');
     Route::post('/events/{event}/registrations/remove', [\App\Http\Controllers\EventController::class, 'cancelRegistration'])->name('events.registrations.cancel');
+
+    // §13/§16: the visitor list on an event, its public link, and reminders.
+    // `share-form` mints the public slug on first use, so an event created
+    // before this feature existed gets a link the moment someone asks for one.
+    Route::post('/events/{event}/public-form', [\App\Http\Controllers\EventController::class, 'sharePublicForm'])->name('events.public-form');
+    Route::post('/events/{event}/visitors/{visitor}/remove', [\App\Http\Controllers\EventController::class, 'cancelVisitor'])->name('events.visitors.cancel');
+    Route::post('/events/{event}/remind/email', [\App\Http\Controllers\EventController::class, 'emailReminder'])->name('events.remind.email');
+    Route::post('/events/{event}/remind/sms', [\App\Http\Controllers\EventController::class, 'smsReminder'])->name('events.remind.sms');
 
     Route::resource('attendance', \App\Http\Controllers\AttendanceController::class)
         ->parameters(['attendance' => 'session'])

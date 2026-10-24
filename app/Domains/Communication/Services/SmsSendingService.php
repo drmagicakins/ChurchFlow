@@ -24,7 +24,9 @@ class SmsSendingService
         abort_unless($campaign->status === 'queued', 409, 'Only a queued campaign can be sent.');
 
         $campaign->update(['status' => 'sending']);
-        $wallet = $this->wallets->walletFor($campaign->church);
+        // The campaign's own wallet, so a failed parish send refunds the parish
+        // that paid for it — not the main church (§17-19).
+        $wallet = $campaign->wallet();
 
         $sentCount = 0;
         $failedCount = 0;

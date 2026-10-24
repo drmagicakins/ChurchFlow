@@ -1,7 +1,12 @@
 <x-layout title="Events · ChurchFlow">
     @php
         $canManage = auth()->user()->hasPermission('events.manage');
-        $branches = \App\Models\OrganizationalUnit::query()->orderBy('name')->get();
+        // Tenant-scoped by the global scope, and explicitly narrowed to the
+        // pastor's own parish so the create form cannot file an event against
+        // a branch they must not see.
+        $branches = auth()->user()->isParishScoped()
+            ? \App\Models\OrganizationalUnit::query()->whereKey(auth()->user()->organizational_unit_id)->get()
+            : \App\Models\OrganizationalUnit::query()->orderBy('name')->get();
     @endphp
 
     <div class="cf-page-head">
@@ -45,7 +50,7 @@
                 <x-form.input name="capacity" label="Capacity" type="number" min="1"
                     hint="Maximum attendees. Leave empty for unlimited." />
 
-                @if($branches->isNotEmpty())
+                @if($branches->isNotEmpty() && ! auth()->user()->isParishScoped())
                     <x-form.select name="organizational_unit_id" label="Branch" placeholder="Whole church"
                         :options="$branches->map(fn ($b) => ['value' => $b->id, 'label' => $b->name])->all()" />
                 @endif

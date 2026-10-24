@@ -2,7 +2,7 @@
     @php
         $canCreate = auth()->user()->hasPermission('members.create');
         $branches = \App\Models\OrganizationalUnit::query()->orderBy('name')->get();
-        $departments = \App\Models\Department::query()->orderBy('name')->get();
+        $departments = \App\Models\Department::query()->visibleTo(auth()->user())->orderBy('name')->get();
         $hasFilters = request()->hasAny(['q', 'status', 'organizational_unit_id', 'department_id']);
     @endphp
 

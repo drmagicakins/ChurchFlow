@@ -22,13 +22,32 @@ class SmsCampaignController extends Controller
         $this->authorize('viewAny', SmsCampaign::class);
 
         $campaigns = SmsCampaign::query()->latest()->paginate(25);
-        $wallet = $this->wallets->walletFor($request->user()->church);
+
+        // §17-19: the balance shown is the one this user can actually spend.
+        // A parish pastor sees (and buys for) their OWN parish wallet; the
+        // church owner sees the main church's. showing the main church's
+        // balance to a pastor was the invitation to spend it.
+        $wallet = $this->wallets->walletForUser($request->user());
 
         // §19/§21 targeting: the compose form needs the actual audiences to
         // offer once "a specific branch / a department / a group" is chosen.
-        // Tenant-scoped by the global scope, so never another church's.
-        $branches = \App\Models\OrganizationalUnit::query()->orderBy('name')->get();
-        $departments = \App\Models\Department::query()->orderBy('name')->get();
+        // Tenant-scoped by the global scope, so never another church's — and for
+        // a parish pastor that scope narrows the branch list to their own parish,
+        // so the form cannot offer a branch they are not allowed to text.
+        // Departments need one more rule than the tenant scope gives them: a
+        // department filed against the whole church is stored with a NULL
+        // parish and would otherwise vanish for every parish pastor.
+        //
+        // OrganizationalUnit carries no organizational_unit_id column, so
+        // TenantScope does NOT narrow branches: without the whereKey below a
+        // parish pastor was offered every OTHER parish as an SMS audience. The
+        // server already forces their own parish on save, so this only made the
+        // picker misleading — but it leaked the sibling parishes' names.
+        $branches = \App\Models\OrganizationalUnit::query()
+            ->when($request->user()->isParishScoped(), fn ($q) => $q->whereKey($request->user()->organizational_unit_id))
+            ->orderBy('name')
+            ->get();
+        $departments = \App\Models\Department::query()->visibleTo($request->user())->orderBy('name')->get();
         $groups = \App\Models\Group::query()->orderBy('name')->get();
 
         return view('sms.campaigns.index', compact('campaigns', 'wallet', 'branches', 'departments', 'groups'));
@@ -52,6 +71,21 @@ class SmsCampaignController extends Controller
         ]);
 
         $data['created_by'] = $request->user()->id;
+
+        // §17-19: bill the campaign to the wallet its creator may spend. A
+        // parish pastor's campaign draws on the parish wallet, so the main
+        // church's credit can never pay for it.
+        $data['wallet_unit_id'] = $request->user()->isParishScoped()
+            ? (int) $request->user()->organizational_unit_id
+            : \App\Models\SmsWallet::CHURCH_WIDE;
+
+        // A parish pastor can only target their own parish — the scope would
+        // hide the rest of the church anyway, and targeting "a branch" they do
+        // not belong to would produce an empty audience rather than an error.
+        if ($request->user()->isParishScoped() && $data['audience_type'] === 'branch') {
+            $data['organizational_unit_id'] = $request->user()->organizational_unit_id;
+        }
+
         $campaign = SmsCampaign::create($data);
 
         return redirect()->route('sms.campaigns.show', $campaign);

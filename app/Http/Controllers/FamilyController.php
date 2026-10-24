@@ -3,18 +3,56 @@
 namespace App\Http\Controllers;
 
 use App\Models\Family;
+use App\Models\Member;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class FamilyController extends Controller
 {
-    public function index(): View
+    /**
+     * Families, plus the church's member directory.
+     *
+     * A family can legitimately be empty — people are attached to a household
+     * later, sometimes much later — while the members themselves are very much
+     * part of the church. That made "Members / All families member" read zero
+     * even though the members table was full, and it hid every uploaded member
+     * from the Families screen entirely. So the page now carries the complete
+     * member list (tenant-scoped by the global scope on Member, so never another
+     * church's people) and paginates it UNDER the family filter, rather than
+     * counting only people already linked to a household.
+     */
+    public function index(Request $request): View
     {
         $this->authorize('viewAny', Family::class);
-        $families = Family::with('members')->paginate(25);
+        $this->authorize('viewAny', Member::class);
 
-        return view('families.index', compact('families'));
+        $families = Family::with('members')
+            ->withCount('members')
+            ->paginate(25);
+
+        // "all" is the default and deliberately so: the question people come to
+        // this screen with is "who do we have?", not "which households exist?".
+        $familyId = $request->filled('family') ? $request->integer('family') : null;
+
+        $members = Member::query()
+            ->with(['families', 'organizationalUnit'])
+            ->withCount('departments')
+            ->when($familyId !== null, fn ($q) => $q->whereHas('families', fn ($f) => $f->where('families.id', $familyId)))
+            ->when($request->filled('q'), fn ($q) => $q->search($request->string('q')->toString()))
+            ->orderBy('full_name')
+            ->paginate(25, ['*'], 'members_page')
+            ->withQueryString();
+
+        return view('families.index', [
+            'families' => $families,
+            'members' => $members,
+            'selectedFamilyId' => $familyId,
+            // Real totals, so the line above the table can state the whole
+            // church's membership instead of describing only this page.
+            'totalMembers' => Member::query()->count(),
+            'unassignedMembers' => Member::query()->doesntHave('families')->count(),
+        ]);
     }
 
     public function store(Request $request): RedirectResponse

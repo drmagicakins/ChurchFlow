@@ -9,7 +9,31 @@ class SmsWallet extends Model
 {
     use BelongsToTenant;
 
-    protected $fillable = ['church_id', 'balance_units'];
+    protected $fillable = ['church_id', 'organizational_unit_id', 'balance_units'];
+
+    /**
+     * A wallet belongs either to the CHURCH as a whole (organizational_unit_id
+     * = 0) or to one parish. The sentinel is 0 rather than NULL because the
+     * unique index (church_id, organizational_unit_id) has to allow exactly one
+     * church-wide wallet, and two NULLs are distinct in MySQL — a NULL column
+     * would have let a church accumulate any number of "the" church wallet.
+     */
+    public const CHURCH_WIDE = 0;
+
+    public function organizationalUnit()
+    {
+        return $this->belongsTo(OrganizationalUnit::class);
+    }
+
+    /** Human label for the owner of this wallet. */
+    public function ownerLabel(): string
+    {
+        if ((int) $this->organizational_unit_id === self::CHURCH_WIDE) {
+            return 'Main church';
+        }
+
+        return $this->organizationalUnit?->name ?? 'Parish';
+    }
 
     /**
      * The wallet's ledger.

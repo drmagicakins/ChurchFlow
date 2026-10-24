@@ -16,10 +16,48 @@ use Illuminate\Support\Facades\DB;
  */
 class SmsWalletService
 {
-    public function walletFor(Church $church): SmsWallet
+    /**
+     * The wallet a user is allowed to spend (§17-19).
+     *
+     * THE RULE THIS METHOD EXISTS FOR: a parish pastor must not be able to
+     * reach the main church's SMS credit. They subscribe for their own. So the
+     * wallet is chosen from the USER, not from the church:
+     *
+     *   - a parish-scoped pastor  → their parish's wallet;
+     *   - the owner / registrar,
+     *     or anyone church-wide   → the church-wide wallet.
+     *
+     * Every caller that sends SMS on behalf of a person should pass them in.
+     * The old church-only signature still works and still means "the church
+     * wallet", which is what the payment webhook and the campaign sender (which
+     * owns the campaign's church, not a user) need.
+     */
+    public function walletForUser(?User $user, ?Church $church = null): SmsWallet
+    {
+        $church = $church ?? $user?->church;
+        abort_if($church === null, 500, 'No church context for this SMS wallet.');
+
+        if ($user && $user->isParishScoped() && $user->organizational_unit_id) {
+            return $this->walletFor($church, (int) $user->organizational_unit_id);
+        }
+
+        return $this->walletFor($church);
+    }
+
+    /**
+     * The wallet for a church as a whole, or for one of its parishes.
+     *
+     * `$organizationalUnitId` omitted/null means the church-wide wallet — the
+     * exact row every existing deployment already has on its original
+     * UNIQUE(church_id) index, so upgrading cannot orphan a balance.
+     */
+    public function walletFor(Church $church, ?int $organizationalUnitId = null): SmsWallet
     {
         return SmsWallet::withoutGlobalScopes()->firstOrCreate(
-            ['church_id' => $church->id],
+            [
+                'church_id' => $church->id,
+                'organizational_unit_id' => $organizationalUnitId ?? SmsWallet::CHURCH_WIDE,
+            ],
             ['balance_units' => 0],
         );
     }

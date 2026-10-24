@@ -1,0 +1,43 @@
+ChurchFlow — Login Credentials
+================================================================
+Generated for local development / QA. These accounts exist in the
+current database (database/database.sqlite). Change or delete them
+before any real deployment — they are NOT production secrets.
+
+
+1) PLATFORM ADMIN
+----------------------------------------------------------------
+   URL:      http://localhost:8000/login   (then /platform-admin)
+   Email:    admin@churchflow.test
+   Password: Admin@12345
+
+   Role:     Platform administrator (no church attached).
+   Lands on: /platform-admin  — the operator home screen.
+   Can see:  Every church, billing & revenue, platform settings,
+             feature flags, and the cross-church support queue
+             (/platform-admin/support).
+
+
+2) CHURCH USER (Church Owner)
+----------------------------------------------------------------
+   URL:      http://localhost:8000/login   (then /dashboard)
+   Email:    owner@churchflow.test
+   Password: Owner@12345
+
+   Role:     Owner of "Grace Chapel" (active subscription).
+   Lands on: /dashboard — the church's own app shell.
+   Can see:  Members, families, departments, groups, events,
+             attendance, announcements, tasks, finance, subvention,
+             pastoral care, SMS, billing, and Support (/help).
+
+
+Notes
+----------------------------------------------------------------
+- Log in at the /login page with the email + password above.
+- The platform admin and church owner are separate account types:
+  the admin has no church; the owner belongs to one church.
+- Both were created by a setup script and verified against the
+  login form. "Test" domain emails (.test) are intentionally
+  reserved/non-routable and never deliver mail.
+- To recreate or reset these accounts, re-run the setup script
+  (or `php artisan db:seed` for the base data).

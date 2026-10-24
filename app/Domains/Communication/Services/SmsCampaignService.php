@@ -53,7 +53,9 @@ class SmsCampaignService
         $segmentsPerMessage = $this->segments->segmentsFor($campaign->message);
         $totalUnits = $recipients->count() * $segmentsPerMessage;
 
-        $wallet = $this->wallets->walletFor($campaign->church);
+        // The campaign's OWN wallet — a parish pastor's campaign quotes their
+        // parish balance, never the main church's (§17-19).
+        $wallet = $campaign->wallet();
 
         return [
             'recipient_count' => $recipients->count(),
@@ -85,7 +87,7 @@ class SmsCampaignService
         abort_if($totalUnits === 0, 422, 'No recipients with a phone number match this audience.');
 
         return DB::transaction(function () use ($campaign, $recipients, $segmentsPerMessage, $totalUnits) {
-            $wallet = $this->wallets->walletFor($campaign->church);
+            $wallet = $campaign->wallet();
             $this->wallets->debit($wallet, $totalUnits, "campaign:{$campaign->id}", "Reserved for campaign \"{$campaign->name}\"");
 
             foreach ($recipients as $member) {

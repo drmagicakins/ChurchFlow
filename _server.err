@@ -1,0 +1,337 @@
+[Thu Oct 22 07:31:23 2026] PHP 8.4.14 Development Server (http://127.0.0.1:8000) started
+[Thu Oct 22 07:32:39 2026] 127.0.0.1:50468 Accepted
+[Thu Oct 22 07:32:40 2026] 127.0.0.1:50468 [401]: GET /tasks/reminders/due
+[Thu Oct 22 07:32:40 2026] 127.0.0.1:50468 Closing
+[Thu Oct 22 07:33:11 2026] 127.0.0.1:50476 Accepted
+[Thu Oct 22 07:33:12 2026] 127.0.0.1:50476 [200]: GET /tasks/reminders/due?once_a_day=1
+[Thu Oct 22 07:33:12 2026] 127.0.0.1:50476 Closing
+[Thu Oct 22 07:33:29 2026] 127.0.0.1:50491 Accepted
+[Thu Oct 22 07:33:29 2026] 127.0.0.1:50491 [200]: GET /login
+[Thu Oct 22 07:33:29 2026] 127.0.0.1:50491 Closing
+[Thu Oct 22 07:33:39 2026] 127.0.0.1:50501 Accepted
+[Thu Oct 22 07:33:39 2026] 127.0.0.1:50501 [200]: GET /login
+[Thu Oct 22 07:33:39 2026] 127.0.0.1:50501 Closing
+[Thu Oct 22 07:33:39 2026] 127.0.0.1:50502 Accepted
+[Thu Oct 22 07:33:40 2026] 127.0.0.1:50502 [302]: POST /login
+[Thu Oct 22 07:33:40 2026] 127.0.0.1:50502 Closing
+[Thu Oct 22 07:33:40 2026] 127.0.0.1:50503 Accepted
+[Thu Oct 22 07:33:41 2026] 127.0.0.1:50503 [200]: GET /dashboard
+[Thu Oct 22 07:33:41 2026] 127.0.0.1:50503 Closing
+[Thu Oct 22 07:33:41 2026] 127.0.0.1:50505 Accepted
+[Thu Oct 22 07:33:42 2026] 127.0.0.1:50505 [200]: GET /settings?tab=team
+[Thu Oct 22 07:33:42 2026] 127.0.0.1:50505 Closing
+[Thu Oct 22 07:34:14 2026] 127.0.0.1:50544 Accepted
+[Thu Oct 22 07:34:15 2026] 127.0.0.1:50544 [200]: GET /login
+[Thu Oct 22 07:34:15 2026] 127.0.0.1:50544 Closing
+[Thu Oct 22 07:34:15 2026] 127.0.0.1:50546 Accepted
+[Thu Oct 22 07:34:15 2026] 127.0.0.1:50547 Accepted
+[Thu Oct 22 07:34:15 2026] 127.0.0.1:50547 [200]: GET /build/assets/app-DB-CpxCV.css
+[Thu Oct 22 07:34:15 2026] 127.0.0.1:50546 [200]: GET /build/assets/app-eupoXRbr.js
+[Thu Oct 22 07:34:15 2026] 127.0.0.1:50547 Closing
+[Thu Oct 22 07:34:15 2026] 127.0.0.1:50546 Closing
+[Thu Oct 22 07:34:16 2026] 127.0.0.1:50550 Accepted
+[Thu Oct 22 07:34:16 2026] 127.0.0.1:50550 [200]: GET /favicon.ico
+[Thu Oct 22 07:34:16 2026] 127.0.0.1:50550 Closing
+[Thu Oct 22 07:34:18 2026] 127.0.0.1:50551 Accepted
+[Thu Oct 22 07:34:21 2026] 127.0.0.1:50551 [302]: POST /login
+[Thu Oct 22 07:34:21 2026] 127.0.0.1:50551 Closing
+[Thu Oct 22 07:34:21 2026] 127.0.0.1:50555 Accepted
+[Thu Oct 22 07:34:21 2026] 127.0.0.1:50555 [200]: GET /dashboard
+[Thu Oct 22 07:34:21 2026] 127.0.0.1:50555 Closing
+[Thu Oct 22 07:34:22 2026] 127.0.0.1:50556 Accepted
+[Thu Oct 22 07:34:22 2026] 127.0.0.1:50557 Accepted
+[Thu Oct 22 07:34:22 2026] 127.0.0.1:50556 [200]: GET /build/assets/app-eupoXRbr.js
+[Thu Oct 22 07:34:22 2026] 127.0.0.1:50557 [200]: GET /build/assets/app-DB-CpxCV.css
+[Thu Oct 22 07:34:22 2026] 127.0.0.1:50557 Closing
+[Thu Oct 22 07:34:22 2026] 127.0.0.1:50556 Closing
+[Thu Oct 22 07:34:23 2026] 127.0.0.1:50559 Accepted
+[Thu Oct 22 07:34:23 2026] 127.0.0.1:50559 [200]: GET /tasks/reminders/due?once_a_day=1
+[Thu Oct 22 07:34:23 2026] 127.0.0.1:50559 Closing
+[Thu Oct 22 07:34:23 2026] 127.0.0.1:50560 Accepted
+[Thu Oct 22 07:34:23 2026] 127.0.0.1:50560 [200]: GET /favicon.ico
+[Thu Oct 22 07:34:23 2026] 127.0.0.1:50560 Closing
+[Thu Oct 22 07:34:25 2026] 127.0.0.1:50561 Accepted
+[Thu Oct 22 07:34:25 2026] 127.0.0.1:50561 [200]: GET /settings?tab=team
+[Thu Oct 22 07:34:25 2026] 127.0.0.1:50561 Closing
+[Thu Oct 22 07:34:25 2026] 127.0.0.1:50562 Accepted
+[Thu Oct 22 07:34:25 2026] 127.0.0.1:50563 Accepted
+[Thu Oct 22 07:34:25 2026] 127.0.0.1:50563 [200]: GET /build/assets/app-DB-CpxCV.css
+[Thu Oct 22 07:34:25 2026] 127.0.0.1:50562 [200]: GET /build/assets/app-eupoXRbr.js
+[Thu Oct 22 07:34:25 2026] 127.0.0.1:50563 Closing
+[Thu Oct 22 07:34:25 2026] 127.0.0.1:50562 Closing
+[Thu Oct 22 07:34:26 2026] 127.0.0.1:50564 Accepted
+[Thu Oct 22 07:34:26 2026] 127.0.0.1:50564 [200]: GET /tasks/reminders/due?once_a_day=1
+[Thu Oct 22 07:34:26 2026] 127.0.0.1:50564 Closing
+[Thu Oct 22 07:34:26 2026] 127.0.0.1:50565 Accepted
+[Thu Oct 22 07:34:26 2026] 127.0.0.1:50565 [200]: GET /favicon.ico
+[Thu Oct 22 07:34:26 2026] 127.0.0.1:50565 Closing
+[Thu Oct 22 07:34:39 2026] 127.0.0.1:50579 Accepted
+[Thu Oct 22 07:34:39 2026] 127.0.0.1:50579 [401]: GET /tasks/reminders/due
+[Thu Oct 22 07:34:39 2026] 127.0.0.1:50579 Closing
+[Thu Oct 22 07:35:13 2026] 127.0.0.1:50602 Accepted
+[Thu Oct 22 07:35:13 2026] 127.0.0.1:50602 [200]: GET /login
+[Thu Oct 22 07:35:13 2026] 127.0.0.1:50602 Closing
+[Thu Oct 22 07:35:13 2026] 127.0.0.1:50611 Accepted
+[Thu Oct 22 07:35:13 2026] 127.0.0.1:50611 [200]: GET /build/assets/app-DB-CpxCV.css
+[Thu Oct 22 07:35:13 2026] 127.0.0.1:50612 Accepted
+[Thu Oct 22 07:35:13 2026] 127.0.0.1:50611 Closing
+[Thu Oct 22 07:35:13 2026] 127.0.0.1:50612 [200]: GET /build/assets/app-eupoXRbr.js
+[Thu Oct 22 07:35:13 2026] 127.0.0.1:50612 Closing
+[Thu Oct 22 07:35:15 2026] 127.0.0.1:50620 Accepted
+[Thu Oct 22 07:35:15 2026] 127.0.0.1:50620 [200]: GET /favicon.ico
+[Thu Oct 22 07:35:15 2026] 127.0.0.1:50620 Closing
+[Thu Oct 22 07:35:16 2026] 127.0.0.1:50621 Accepted
+[Thu Oct 22 07:35:17 2026] 127.0.0.1:50621 [302]: POST /login
+[Thu Oct 22 07:35:17 2026] 127.0.0.1:50621 Closing
+[Thu Oct 22 07:35:17 2026] 127.0.0.1:50624 Accepted
+[Thu Oct 22 07:35:17 2026] 127.0.0.1:50624 [200]: GET /dashboard
+[Thu Oct 22 07:35:17 2026] 127.0.0.1:50624 Closing
+[Thu Oct 22 07:35:17 2026] 127.0.0.1:50625 Accepted
+[Thu Oct 22 07:35:17 2026] 127.0.0.1:50626 Accepted
+[Thu Oct 22 07:35:17 2026] 127.0.0.1:50626 [200]: GET /build/assets/app-DB-CpxCV.css
+[Thu Oct 22 07:35:17 2026] 127.0.0.1:50625 [200]: GET /build/assets/app-eupoXRbr.js
+[Thu Oct 22 07:35:17 2026] 127.0.0.1:50626 Closing
+[Thu Oct 22 07:35:17 2026] 127.0.0.1:50625 Closing
+[Thu Oct 22 07:35:18 2026] 127.0.0.1:50627 Accepted
+[Thu Oct 22 07:35:18 2026] 127.0.0.1:50627 [200]: GET /tasks/reminders/due?once_a_day=1
+[Thu Oct 22 07:35:18 2026] 127.0.0.1:50627 Closing
+[Thu Oct 22 07:35:19 2026] 127.0.0.1:50628 Accepted
+[Thu Oct 22 07:35:19 2026] 127.0.0.1:50628 [200]: GET /favicon.ico
+[Thu Oct 22 07:35:19 2026] 127.0.0.1:50628 Closing
+[Thu Oct 22 07:35:19 2026] 127.0.0.1:50629 Accepted
+[Thu Oct 22 07:35:20 2026] 127.0.0.1:50629 [200]: GET /settings?tab=team
+[Thu Oct 22 07:35:20 2026] 127.0.0.1:50629 Closing
+[Thu Oct 22 07:35:20 2026] 127.0.0.1:50630 Accepted
+[Thu Oct 22 07:35:20 2026] 127.0.0.1:50631 Accepted
+[Thu Oct 22 07:35:20 2026] 127.0.0.1:50631 [200]: GET /build/assets/app-DB-CpxCV.css
+[Thu Oct 22 07:35:20 2026] 127.0.0.1:50630 [200]: GET /build/assets/app-eupoXRbr.js
+[Thu Oct 22 07:35:20 2026] 127.0.0.1:50631 Closing
+[Thu Oct 22 07:35:20 2026] 127.0.0.1:50630 Closing
+[Thu Oct 22 07:35:20 2026] 127.0.0.1:50632 Accepted
+[Thu Oct 22 07:35:20 2026] 127.0.0.1:50632 [200]: GET /tasks/reminders/due?once_a_day=1
+[Thu Oct 22 07:35:20 2026] 127.0.0.1:50632 Closing
+[Thu Oct 22 07:35:20 2026] 127.0.0.1:50633 Accepted
+[Thu Oct 22 07:35:20 2026] 127.0.0.1:50633 [200]: GET /favicon.ico
+[Thu Oct 22 07:35:20 2026] 127.0.0.1:50633 Closing
+[Thu Oct 22 07:35:54 2026] 127.0.0.1:50660 Accepted
+[Thu Oct 22 07:35:54 2026] 127.0.0.1:50660 [200]: GET /tasks/reminders/due?once_a_day=1
+[Thu Oct 22 07:35:54 2026] 127.0.0.1:50660 Closing
+[Thu Oct 22 07:36:19 2026] 127.0.0.1:50679 Accepted
+[Thu Oct 22 07:36:19 2026] 127.0.0.1:50679 [200]: GET /login
+[Thu Oct 22 07:36:19 2026] 127.0.0.1:50679 Closing
+[Thu Oct 22 07:36:19 2026] 127.0.0.1:50688 Accepted
+[Thu Oct 22 07:36:19 2026] 127.0.0.1:50689 Accepted
+[Thu Oct 22 07:36:19 2026] 127.0.0.1:50688 [200]: GET /build/assets/app-DB-CpxCV.css
+[Thu Oct 22 07:36:19 2026] 127.0.0.1:50689 [200]: GET /build/assets/app-eupoXRbr.js
+[Thu Oct 22 07:36:19 2026] 127.0.0.1:50688 Closing
+[Thu Oct 22 07:36:19 2026] 127.0.0.1:50689 Closing
+[Thu Oct 22 07:36:21 2026] 127.0.0.1:50693 Accepted
+[Thu Oct 22 07:36:21 2026] 127.0.0.1:50693 [200]: GET /favicon.ico
+[Thu Oct 22 07:36:21 2026] 127.0.0.1:50693 Closing
+[Thu Oct 22 07:36:22 2026] 127.0.0.1:50694 Accepted
+[Thu Oct 22 07:36:22 2026] 127.0.0.1:50694 [302]: POST /login
+[Thu Oct 22 07:36:22 2026] 127.0.0.1:50694 Closing
+[Thu Oct 22 07:36:22 2026] 127.0.0.1:50695 Accepted
+[Thu Oct 22 07:36:23 2026] 127.0.0.1:50695 [200]: GET /dashboard
+[Thu Oct 22 07:36:23 2026] 127.0.0.1:50695 Closing
+[Thu Oct 22 07:36:23 2026] 127.0.0.1:50696 Accepted
+[Thu Oct 22 07:36:23 2026] 127.0.0.1:50697 Accepted
+[Thu Oct 22 07:36:23 2026] 127.0.0.1:50697 [200]: GET /build/assets/app-DB-CpxCV.css
+[Thu Oct 22 07:36:23 2026] 127.0.0.1:50697 Closing
+[Thu Oct 22 07:36:23 2026] 127.0.0.1:50696 [200]: GET /build/assets/app-eupoXRbr.js
+[Thu Oct 22 07:36:23 2026] 127.0.0.1:50696 Closing
+[Thu Oct 22 07:36:24 2026] 127.0.0.1:50698 Accepted
+[Thu Oct 22 07:36:24 2026] 127.0.0.1:50698 [200]: GET /tasks/reminders/due?once_a_day=1
+[Thu Oct 22 07:36:24 2026] 127.0.0.1:50698 Closing
+[Thu Oct 22 07:36:25 2026] 127.0.0.1:50703 Accepted
+[Thu Oct 22 07:36:25 2026] 127.0.0.1:50703 [200]: GET /favicon.ico
+[Thu Oct 22 07:36:25 2026] 127.0.0.1:50703 Closing
+[Thu Oct 22 07:36:25 2026] 127.0.0.1:50707 Accepted
+[Thu Oct 22 07:36:26 2026] 127.0.0.1:50707 [200]: GET /settings?tab=team
+[Thu Oct 22 07:36:26 2026] 127.0.0.1:50707 Closing
+[Thu Oct 22 07:36:26 2026] 127.0.0.1:50708 Accepted
+[Thu Oct 22 07:36:26 2026] 127.0.0.1:50709 Accepted
+[Thu Oct 22 07:36:26 2026] 127.0.0.1:50709 [200]: GET /build/assets/app-DB-CpxCV.css
+[Thu Oct 22 07:36:26 2026] 127.0.0.1:50708 [200]: GET /build/assets/app-eupoXRbr.js
+[Thu Oct 22 07:36:26 2026] 127.0.0.1:50709 Closing
+[Thu Oct 22 07:36:26 2026] 127.0.0.1:50708 Closing
+[Thu Oct 22 07:36:26 2026] 127.0.0.1:50710 Accepted
+[Thu Oct 22 07:36:27 2026] 127.0.0.1:50710 [200]: GET /tasks/reminders/due?once_a_day=1
+[Thu Oct 22 07:36:27 2026] 127.0.0.1:50710 Closing
+[Thu Oct 22 07:36:27 2026] 127.0.0.1:50712 Accepted
+[Thu Oct 22 07:36:27 2026] 127.0.0.1:50712 [200]: GET /favicon.ico
+[Thu Oct 22 07:36:27 2026] 127.0.0.1:50712 Closing
+[Thu Oct 22 07:36:39 2026] 127.0.0.1:50715 Accepted
+[Thu Oct 22 07:36:39 2026] 127.0.0.1:50715 [401]: GET /tasks/reminders/due
+[Thu Oct 22 07:36:39 2026] 127.0.0.1:50715 Closing
+[Thu Oct 22 07:37:31 2026] 127.0.0.1:50748 Accepted
+[Thu Oct 22 07:37:31 2026] 127.0.0.1:50748 [200]: GET /login
+[Thu Oct 22 07:37:31 2026] 127.0.0.1:50748 Closing
+[Thu Oct 22 07:37:31 2026] 127.0.0.1:50754 Accepted
+[Thu Oct 22 07:37:31 2026] 127.0.0.1:50755 Accepted
+[Thu Oct 22 07:37:31 2026] 127.0.0.1:50754 [200]: GET /build/assets/app-eupoXRbr.js
+[Thu Oct 22 07:37:31 2026] 127.0.0.1:50755 [200]: GET /build/assets/app-DB-CpxCV.css
+[Thu Oct 22 07:37:31 2026] 127.0.0.1:50755 Closing
+[Thu Oct 22 07:37:31 2026] 127.0.0.1:50754 Closing
+[Thu Oct 22 07:37:33 2026] 127.0.0.1:50762 Accepted
+[Thu Oct 22 07:37:33 2026] 127.0.0.1:50762 [200]: GET /favicon.ico
+[Thu Oct 22 07:37:33 2026] 127.0.0.1:50762 Closing
+[Thu Oct 22 07:37:34 2026] 127.0.0.1:50763 Accepted
+[Thu Oct 22 07:37:37 2026] 127.0.0.1:50763 [302]: POST /login
+[Thu Oct 22 07:37:37 2026] 127.0.0.1:50763 Closing
+[Thu Oct 22 07:37:37 2026] 127.0.0.1:50764 Accepted
+[Thu Oct 22 07:37:38 2026] 127.0.0.1:50764 [200]: GET /dashboard
+[Thu Oct 22 07:37:38 2026] 127.0.0.1:50764 Closing
+[Thu Oct 22 07:37:38 2026] 127.0.0.1:50766 Accepted
+[Thu Oct 22 07:37:38 2026] 127.0.0.1:50766 [200]: GET /build/assets/app-DB-CpxCV.css
+[Thu Oct 22 07:37:38 2026] 127.0.0.1:50767 Accepted
+[Thu Oct 22 07:37:38 2026] 127.0.0.1:50767 [200]: GET /build/assets/app-eupoXRbr.js
+[Thu Oct 22 07:37:38 2026] 127.0.0.1:50766 Closing
+[Thu Oct 22 07:37:38 2026] 127.0.0.1:50767 Closing
+[Thu Oct 22 07:37:38 2026] 127.0.0.1:50768 Accepted
+[Thu Oct 22 07:37:39 2026] 127.0.0.1:50768 [200]: GET /tasks/reminders/due?once_a_day=1
+[Thu Oct 22 07:37:39 2026] 127.0.0.1:50768 Closing
+[Thu Oct 22 07:37:40 2026] 127.0.0.1:50770 Accepted
+[Thu Oct 22 07:37:40 2026] 127.0.0.1:50770 [200]: GET /favicon.ico
+[Thu Oct 22 07:37:40 2026] 127.0.0.1:50770 Closing
+[Thu Oct 22 07:37:40 2026] 127.0.0.1:50771 Accepted
+[Thu Oct 22 07:37:41 2026] 127.0.0.1:50771 [200]: GET /settings?tab=team
+[Thu Oct 22 07:37:41 2026] 127.0.0.1:50771 Closing
+[Thu Oct 22 07:37:41 2026] 127.0.0.1:50772 Accepted
+[Thu Oct 22 07:37:41 2026] 127.0.0.1:50773 Accepted
+[Thu Oct 22 07:37:41 2026] 127.0.0.1:50773 [200]: GET /build/assets/app-DB-CpxCV.css
+[Thu Oct 22 07:37:41 2026] 127.0.0.1:50772 [200]: GET /build/assets/app-eupoXRbr.js
+[Thu Oct 22 07:37:41 2026] 127.0.0.1:50773 Closing
+[Thu Oct 22 07:37:41 2026] 127.0.0.1:50772 Closing
+[Thu Oct 22 07:37:41 2026] 127.0.0.1:50774 Accepted
+[Thu Oct 22 07:37:41 2026] 127.0.0.1:50774 [200]: GET /tasks/reminders/due?once_a_day=1
+[Thu Oct 22 07:37:41 2026] 127.0.0.1:50774 Closing
+[Thu Oct 22 07:37:41 2026] 127.0.0.1:50775 Accepted
+[Thu Oct 22 07:37:41 2026] 127.0.0.1:50775 [200]: GET /favicon.ico
+[Thu Oct 22 07:37:41 2026] 127.0.0.1:50775 Closing
+[Thu Oct 22 07:37:54 2026] 127.0.0.1:50798 Accepted
+[Thu Oct 22 07:37:54 2026] 127.0.0.1:50798 [200]: GET /tasks/reminders/due?once_a_day=1
+[Thu Oct 22 07:37:55 2026] 127.0.0.1:50798 Closing
+[Thu Oct 22 07:38:06 2026] 127.0.0.1:50805 Accepted
+[Thu Oct 22 07:38:07 2026] 127.0.0.1:50805 [200]: GET /login
+[Thu Oct 22 07:38:07 2026] 127.0.0.1:50805 Closing
+[Thu Oct 22 07:38:07 2026] 127.0.0.1:50814 Accepted
+[Thu Oct 22 07:38:07 2026] 127.0.0.1:50815 Accepted
+[Thu Oct 22 07:38:07 2026] 127.0.0.1:50814 [200]: GET /build/assets/app-DB-CpxCV.css
+[Thu Oct 22 07:38:07 2026] 127.0.0.1:50815 [200]: GET /build/assets/app-eupoXRbr.js
+[Thu Oct 22 07:38:07 2026] 127.0.0.1:50814 Closing
+[Thu Oct 22 07:38:07 2026] 127.0.0.1:50815 Closing
+[Thu Oct 22 07:38:08 2026] 127.0.0.1:50819 Accepted
+[Thu Oct 22 07:38:08 2026] 127.0.0.1:50819 [200]: GET /favicon.ico
+[Thu Oct 22 07:38:08 2026] 127.0.0.1:50819 Closing
+[Thu Oct 22 07:38:09 2026] 127.0.0.1:50820 Accepted
+[Thu Oct 22 07:38:10 2026] 127.0.0.1:50820 [302]: POST /login
+[Thu Oct 22 07:38:10 2026] 127.0.0.1:50820 Closing
+[Thu Oct 22 07:38:10 2026] 127.0.0.1:50822 Accepted
+[Thu Oct 22 07:38:12 2026] 127.0.0.1:50822 [200]: GET /dashboard
+[Thu Oct 22 07:38:12 2026] 127.0.0.1:50822 Closing
+[Thu Oct 22 07:38:12 2026] 127.0.0.1:50823 Accepted
+[Thu Oct 22 07:38:12 2026] 127.0.0.1:50824 Accepted
+[Thu Oct 22 07:38:12 2026] 127.0.0.1:50823 [200]: GET /build/assets/app-eupoXRbr.js
+[Thu Oct 22 07:38:12 2026] 127.0.0.1:50824 [200]: GET /build/assets/app-DB-CpxCV.css
+[Thu Oct 22 07:38:12 2026] 127.0.0.1:50824 Closing
+[Thu Oct 22 07:38:12 2026] 127.0.0.1:50823 Closing
+[Thu Oct 22 07:38:13 2026] 127.0.0.1:50825 Accepted
+[Thu Oct 22 07:38:13 2026] 127.0.0.1:50825 [200]: GET /tasks/reminders/due?once_a_day=1
+[Thu Oct 22 07:38:13 2026] 127.0.0.1:50825 Closing
+[Thu Oct 22 07:38:14 2026] 127.0.0.1:50826 Accepted
+[Thu Oct 22 07:38:14 2026] 127.0.0.1:50826 [200]: GET /favicon.ico
+[Thu Oct 22 07:38:14 2026] 127.0.0.1:50826 Closing
+[Thu Oct 22 07:38:14 2026] 127.0.0.1:50828 Accepted
+[Thu Oct 22 07:38:14 2026] 127.0.0.1:50828 [200]: GET /settings?tab=team
+[Thu Oct 22 07:38:14 2026] 127.0.0.1:50828 Closing
+[Thu Oct 22 07:38:14 2026] 127.0.0.1:50829 Accepted
+[Thu Oct 22 07:38:14 2026] 127.0.0.1:50830 Accepted
+[Thu Oct 22 07:38:14 2026] 127.0.0.1:50830 [200]: GET /build/assets/app-DB-CpxCV.css
+[Thu Oct 22 07:38:14 2026] 127.0.0.1:50829 [200]: GET /build/assets/app-eupoXRbr.js
+[Thu Oct 22 07:38:14 2026] 127.0.0.1:50830 Closing
+[Thu Oct 22 07:38:14 2026] 127.0.0.1:50829 Closing
+[Thu Oct 22 07:38:15 2026] 127.0.0.1:50831 Accepted
+[Thu Oct 22 07:38:15 2026] 127.0.0.1:50831 [200]: GET /tasks/reminders/due?once_a_day=1
+[Thu Oct 22 07:38:15 2026] 127.0.0.1:50831 Closing
+[Thu Oct 22 07:38:15 2026] 127.0.0.1:50832 Accepted
+[Thu Oct 22 07:38:15 2026] 127.0.0.1:50832 [200]: GET /favicon.ico
+[Thu Oct 22 07:38:15 2026] 127.0.0.1:50832 Closing
+[Thu Oct 22 07:38:17 2026] 127.0.0.1:50833 Accepted
+[Thu Oct 22 07:38:17 2026] 127.0.0.1:50833 [200]: GET /favicon.ico
+[Thu Oct 22 07:38:17 2026] 127.0.0.1:50833 Closing
+[Thu Oct 22 07:38:41 2026] 127.0.0.1:50851 Accepted
+[Thu Oct 22 07:38:41 2026] 127.0.0.1:50851 [401]: GET /tasks/reminders/due
+[Thu Oct 22 07:38:41 2026] 127.0.0.1:50851 Closing
+[Thu Oct 22 07:39:55 2026] 127.0.0.1:50876 Accepted
+[Thu Oct 22 07:39:55 2026] 127.0.0.1:50876 [200]: GET /tasks/reminders/due?once_a_day=1
+[Thu Oct 22 07:39:55 2026] 127.0.0.1:50876 Closing
+[Thu Oct 22 07:40:40 2026] 127.0.0.1:50897 Accepted
+[Thu Oct 22 07:40:40 2026] 127.0.0.1:50897 [401]: GET /tasks/reminders/due
+[Thu Oct 22 07:40:40 2026] 127.0.0.1:50897 Closing
+[Thu Oct 22 07:41:54 2026] 127.0.0.1:50943 Accepted
+[Thu Oct 22 07:41:55 2026] 127.0.0.1:50943 [200]: GET /tasks/reminders/due?once_a_day=1
+[Thu Oct 22 07:41:55 2026] 127.0.0.1:50943 Closing
+[Thu Oct 22 07:42:39 2026] 127.0.0.1:50958 Accepted
+[Thu Oct 22 07:42:39 2026] 127.0.0.1:50958 [401]: GET /tasks/reminders/due
+[Thu Oct 22 07:42:39 2026] 127.0.0.1:50958 Closing
+[Thu Oct 22 07:43:54 2026] 127.0.0.1:51024 Accepted
+[Thu Oct 22 07:43:54 2026] 127.0.0.1:51024 [200]: GET /tasks/reminders/due?once_a_day=1
+[Thu Oct 22 07:43:54 2026] 127.0.0.1:51024 Closing
+[Thu Oct 22 07:44:39 2026] 127.0.0.1:51069 Accepted
+[Thu Oct 22 07:44:40 2026] 127.0.0.1:51069 [401]: GET /tasks/reminders/due
+[Thu Oct 22 07:44:40 2026] 127.0.0.1:51069 Closing
+[Thu Oct 22 07:45:54 2026] 127.0.0.1:51077 Accepted
+[Thu Oct 22 07:45:54 2026] 127.0.0.1:51077 [200]: GET /tasks/reminders/due?once_a_day=1
+[Thu Oct 22 07:45:55 2026] 127.0.0.1:51077 Closing
+[Thu Oct 22 07:46:39 2026] 127.0.0.1:51099 Accepted
+[Thu Oct 22 07:46:40 2026] 127.0.0.1:51099 [401]: GET /tasks/reminders/due
+[Thu Oct 22 07:46:40 2026] 127.0.0.1:51099 Closing
+[Thu Oct 22 07:47:55 2026] 127.0.0.1:51172 Accepted
+[Thu Oct 22 07:47:55 2026] 127.0.0.1:51172 [200]: GET /tasks/reminders/due?once_a_day=1
+[Thu Oct 22 07:47:55 2026] 127.0.0.1:51172 Closing
+[Thu Oct 22 07:48:39 2026] 127.0.0.1:51206 Accepted
+[Thu Oct 22 07:48:39 2026] 127.0.0.1:51206 [401]: GET /tasks/reminders/due
+[Thu Oct 22 07:48:39 2026] 127.0.0.1:51206 Closing
+[Thu Oct 22 07:49:27 2026] 127.0.0.1:51238 Accepted
+[Thu Oct 22 07:49:27 2026] 127.0.0.1:51238 [200]: GET /login
+[Thu Oct 22 07:49:28 2026] 127.0.0.1:51238 Closing
+[Thu Oct 22 07:49:28 2026] 127.0.0.1:51240 Accepted
+[Thu Oct 22 07:49:28 2026] 127.0.0.1:51240 [200]: GET /build/assets/app-DB-CpxCV.css
+[Thu Oct 22 07:49:28 2026] 127.0.0.1:51241 Accepted
+[Thu Oct 22 07:49:28 2026] 127.0.0.1:51240 Closing
+[Thu Oct 22 07:49:28 2026] 127.0.0.1:51241 [200]: GET /build/assets/app-eupoXRbr.js
+[Thu Oct 22 07:49:28 2026] 127.0.0.1:51241 Closing
+[Thu Oct 22 07:49:31 2026] 127.0.0.1:51244 Accepted
+[Thu Oct 22 07:49:31 2026] 127.0.0.1:51244 [200]: GET /favicon.ico
+[Thu Oct 22 07:49:31 2026] 127.0.0.1:51244 Closing
+[Thu Oct 22 07:49:32 2026] 127.0.0.1:51245 Accepted
+[Thu Oct 22 07:49:34 2026] 127.0.0.1:51245 [302]: POST /login
+[Thu Oct 22 07:49:34 2026] 127.0.0.1:51245 Closing
+[Thu Oct 22 07:49:34 2026] 127.0.0.1:51247 Accepted
+[Thu Oct 22 07:49:35 2026] 127.0.0.1:51247 [200]: GET /dashboard
+[Thu Oct 22 07:49:35 2026] 127.0.0.1:51247 Closing
+[Thu Oct 22 07:49:35 2026] 127.0.0.1:51248 Accepted
+[Thu Oct 22 07:49:35 2026] 127.0.0.1:51249 Accepted
+[Thu Oct 22 07:49:36 2026] 127.0.0.1:51248 [200]: GET /build/assets/app-eupoXRbr.js
+[Thu Oct 22 07:49:36 2026] 127.0.0.1:51249 [200]: GET /build/assets/app-DB-CpxCV.css
+[Thu Oct 22 07:49:36 2026] 127.0.0.1:51249 Closing
+[Thu Oct 22 07:49:36 2026] 127.0.0.1:51248 Closing
+[Thu Oct 22 07:49:37 2026] 127.0.0.1:51250 Accepted
+[Thu Oct 22 07:49:38 2026] 127.0.0.1:51250 [200]: GET /tasks/reminders/due?once_a_day=1
+[Thu Oct 22 07:49:38 2026] 127.0.0.1:51250 Closing
+[Thu Oct 22 07:49:38 2026] 127.0.0.1:51251 Accepted
+[Thu Oct 22 07:49:39 2026] 127.0.0.1:51251 [200]: GET /settings?tab=team
+[Thu Oct 22 07:49:39 2026] 127.0.0.1:51251 Closing
+[Thu Oct 22 07:49:39 2026] 127.0.0.1:51254 Accepted
+[Thu Oct 22 07:49:39 2026] 127.0.0.1:51255 Accepted
+[Thu Oct 22 07:49:39 2026] 127.0.0.1:51255 [200]: GET /build/assets/app-DB-CpxCV.css
+[Thu Oct 22 07:49:39 2026] 127.0.0.1:51254 [200]: GET /build/assets/app-eupoXRbr.js
+[Thu Oct 22 07:49:39 2026] 127.0.0.1:51255 Closing
+[Thu Oct 22 07:49:39 2026] 127.0.0.1:51254 Closing
+[Thu Oct 22 07:49:40 2026] 127.0.0.1:51256 Accepted
+[Thu Oct 22 07:49:40 2026] 127.0.0.1:51256 [200]: GET /tasks/reminders/due?once_a_day=1
+[Thu Oct 22 07:49:40 2026] 127.0.0.1:51256 Closing
+[Thu Oct 22 07:49:40 2026] 127.0.0.1:51257 Accepted
+[Thu Oct 22 07:49:40 2026] 127.0.0.1:51257 [200]: GET /favicon.ico
+[Thu Oct 22 07:49:40 2026] 127.0.0.1:51257 Closing

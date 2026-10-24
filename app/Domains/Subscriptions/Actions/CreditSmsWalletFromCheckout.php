@@ -31,7 +31,10 @@ class CreditSmsWalletFromCheckout
                 return;
             }
 
-            $wallet = $this->wallets->walletFor($checkout->church);
+            $wallet = $this->wallets->walletFor(
+                $checkout->church,
+                (int) ($checkout->wallet_unit_id ?: 0),
+            );
 
             $this->wallets->credit(
                 $wallet,

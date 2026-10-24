@@ -1,0 +1,15 @@
+﻿
+   PASS  Tests\Feature\GroupsLoansAndBudgetsTest
+  ✓ an admin can create unlimited groups                                                                         2.54s  
+  ✓ creating a group with a name already in use is a field error not a crash                                     0.12s  
+  ✓ a removed groups name can be used again                                                                      0.12s  
+  ✓ a pastor without finance rights can request a loan for their branch                                          0.17s  
+  ✓ a loan request cannot name another parish                                                                    0.13s  
+  ✓ a finance manager still records a loan directly                                                              0.11s  
+  ✓ a loan with no borrower is cannot be created                                                                 2.79s  
+  ✓ opening a borrowerless loan says so instead of erroring                                                      1.02s  
+  ✓ a budget submits from its form without a csrf failure                                                        0.12s  
+
+  Tests:    9 passed (51 assertions)
+  Duration: 7.72s
+

@@ -118,7 +118,8 @@
                 <div class="cf-card__head"><h2>Family</h2></div>
                 <div class="cf-card__body">
                     @if($member->families->isEmpty())
-                        <p class="cf-small cf-muted" style="margin:0">Not linked to a family yet.</p>
+                        <p class="cf-small cf-muted" style="margin:0">Not linked to a family yet.
+                            <a href="{{ route('families.index') }}#members">All families members</a></p>
                     @else
                         <ul style="margin:0;padding-left:1.1rem;display:grid;gap:.35rem">
                             @foreach($member->families as $family)
