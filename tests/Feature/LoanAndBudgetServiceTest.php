@@ -157,4 +157,62 @@ class LoanAndBudgetServiceTest extends TestCase
         $this->assertSame('600.00', $report->first()['actual']);
         $this->assertSame('400.00', $report->first()['variance']);
     }
+
+    /**
+     * The budget period includes its LAST day, whatever time-of-day was stored.
+     *
+     * The defect: `period_end` is a DATE column that is STORED as 23:59:59 (form
+     * and factory values are `endOfMonth()`), but the model's 'date' cast
+     * truncates it to midnight. The report used that midnight as the upper
+     * bound, so spending recorded during the final day of the period fell
+     * outside the range — a budget ending today accounted for none of today.
+     *
+     * The test above could not see it: it records the transaction "now", which
+     * only lands outside the truncated range on the last day of the month. This
+     * one stores the period end as `endOfMonth()`, exactly as the app does, so
+     * it fails on the bug on EVERY day the suite runs.
+     */
+    public function test_budget_actuals_include_spending_on_the_final_day_of_the_period(): void
+    {
+        $church = Church::factory()->create();
+        app()->instance('tenant.church_id', $church->id);
+
+        $account = FinancialAccount::factory()->for($church, 'church')->create();
+
+        $budget = Budget::create([
+            'church_id' => $church->id,
+            'financial_account_id' => $account->id,
+            'name' => 'Monthly Budget',
+            'period_start' => now()->startOfMonth(),
+            // The shape the app really stores — NOT a plain date.
+            'period_end' => now()->endOfMonth(),
+        ]);
+        $budget->items()->create(['category' => 'Rent', 'planned_amount' => '1000.00']);
+
+        // Inside the period (first day, and the LAST day at a time later than
+        // midnight), plus one just outside each end. The last-day row is the
+        // one the bug dropped; the two outside it must never be counted.
+        $dates = [
+            now()->startOfMonth(),                  // in  — first day
+            now()->endOfMonth(),                    // in  — LAST day
+            now()->startOfMonth()->subDay(),        // out — day before the period
+            now()->endOfMonth()->addDay(),          // out — day after the period
+        ];
+        foreach ($dates as $when) {
+            Transaction::create([
+                'church_id' => $church->id, 'financial_account_id' => $account->id,
+                'type' => 'expense', 'category' => 'Rent', 'amount' => '100.00',
+                'transacted_on' => $when, 'approval_status' => 'approved',
+            ]);
+        }
+
+        $report = (new BudgetService())->varianceReport($budget->fresh()->load('items'));
+
+        $this->assertSame(
+            '200.00',
+            $report->first()['actual'],
+            'The budget period must include both its first and its last day, and exclude the days outside it.',
+        );
+        $this->assertSame('800.00', $report->first()['variance']);
+    }
 }

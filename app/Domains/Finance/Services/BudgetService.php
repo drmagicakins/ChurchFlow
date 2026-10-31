@@ -24,7 +24,24 @@ class BudgetService
             ->where('type', 'expense')
             ->where('category', $category)
             ->when($budget->financial_account_id, fn ($q) => $q->where('financial_account_id', $budget->financial_account_id))
-            ->whereBetween('transacted_on', [$budget->period_start, $budget->period_end])
+            // The period INCLUSIVE of its end date.
+            //
+            // `budgets.period_end` is a DATE column but is stored as a
+            // 23:59:59 timestamp (the factory/forms pass now()->endOfMonth()),
+            // while the model's 'date' cast truncates it to midnight. Using the
+            // cast value as the upper bound therefore cut the range off at the
+            // START of the last day, and every expense recorded during that day
+            // fell outside it — a budget ending today reported none of today's
+            // spending (probed: period_end stored 23:59:59, cast 00:00:00, the
+            // day's transaction not matched).
+            //
+            // The bounds are therefore built explicitly from the first instant
+            // of the start day to the LAST instant of the end day, so the answer
+            // no longer depends on the time-of-day the caller happened to store.
+            ->whereBetween('transacted_on', [
+                $budget->period_start->copy()->startOfDay(),
+                $budget->period_end->copy()->endOfDay(),
+            ])
             ->sum('amount');
 
         // Money is compared and displayed as a fixed-scale decimal string

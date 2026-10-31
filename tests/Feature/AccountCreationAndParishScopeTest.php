@@ -77,8 +77,8 @@ class AccountCreationAndParishScopeTest extends TestCase
             'is_registrar' => true,
         ]);
 
-        $role = Role::create(['church_id' => $this->church->id, 'name' => 'Church Owner']);
-        $role->permissions()->attach(
+        $role = $this->ownerRole();
+        $role->permissions()->sync(
             Permission::firstOrCreate(['name' => 'settings.manage'], ['group' => 'x', 'label' => 'x'])->id
         );
         $user->roles()->attach($role);
@@ -87,14 +87,41 @@ class AccountCreationAndParishScopeTest extends TestCase
         return $user;
     }
 
-    private function payload(array $overrides = []): array
+    /**
+     * The form the Team screen posts.
+     *
+     * `role_id` is REQUIRED by SettingsController::storeTeamMember(): the Role
+     * select is the only thing that describes the new account (it decides both
+     * the permissions and the parish), so an account cannot be created without
+     * one. The payload therefore defaults to the owner's own role, which is the
+     * church-wide case these tests are about; a test that cares about the role
+     * passes its own.
+     */
+    private function payload(array $overrides = [], ?Role $role = null): array
     {
         return array_merge([
             'name' => 'Pastor New',
             'email' => 'new.pastor@example.test',
             'password' => 'a-strong-password-1',
             'password_confirmation' => 'a-strong-password-1',
+            'role_id' => ($role ?? $this->ownerRole())->id,
         ], $overrides);
+    }
+
+    /**
+     * The church's own "Church Owner" role, created on demand.
+     *
+     * Reused rather than duplicated: `roles` has no uniqueness on
+     * (church_id, name), and two copies would make "which role did this account
+     * get" ambiguous in the assertions below.
+     */
+    private function ownerRole(): Role
+    {
+        return Role::withoutGlobalScopes()
+            ->where('church_id', $this->church->id)
+            ->where('name', 'Church Owner')
+            ->first()
+            ?? Role::create(['church_id' => $this->church->id, 'name' => 'Church Owner']);
     }
 
     public function test_only_the_owner_can_create_an_account(): void
@@ -171,8 +198,8 @@ class AccountCreationAndParishScopeTest extends TestCase
             'church_id' => $this->church->id,
             'is_registrar' => false,
         ]);
-        $role = Role::create(['church_id' => $this->church->id, 'name' => 'Church Owner']);
-        $role->permissions()->attach(
+        $role = $this->ownerRole();
+        $role->permissions()->sync(
             Permission::firstOrCreate(['name' => 'settings.manage'], ['group' => 'x', 'label' => 'x'])->id
         );
         $legacy->roles()->attach($role);
