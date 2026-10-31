@@ -1,9 +1,13 @@
 # ChurchFlow — What Has Been Done, and What Remains
 
-**Written:** 2026-10-31
-**Branch:** `main` (HEAD `d6a1f47`) — **all work below is uncommitted**
-**Verified this pass:** `php artisan test` → **482 passed (1656 assertions), 0 failed**
+**Written:** 2026-10-31 — **updated same day after B1/B2/B3 were taken**
+**Branch:** `main` — **12 commits ahead of `d6a1f47`, not pushed**
+**Verified after B3:** `php artisan test` → **492 passed (1678 assertions), 0 failed**
 **Migrations:** `migrate:status` → **57 migrations, 57 `Ran`, 0 `Pending`**
+
+> **B1, B2 and B3 are closed** — see §9. B1 was 11 logical commits of the pre-existing work; B2 deleted
+> `routes/_bak_web.php`; B3 replaced the throwing `PaystackGateway` with a real, network-testable adapter
+> (commit 12). The remaining sections are unchanged and still open.
 
 This document is an analysis of the current working tree. Every claim marked ✅ was checked by running a
 command this pass; claims that were not checked are marked ⚠️ or are explicitly described as unverified.
@@ -59,27 +63,32 @@ These are worth separating from feature work, because they were invisible on pap
 
 ## 2. What remains — blocking (must be done before this can ship)
 
-### B1. Nothing is committed ⚠️ **highest priority**
+### B1. Nothing is committed ✅ **CLOSED 2026-10-31 — see §9**
 
 The entire body of work in §1 lives in a dirty working tree: **29 untracked files** plus a long list of
 modified ones. Nothing has been pushed. A single bad `git reset` or a lost machine loses all of it.
 
 `SESSION-HANDOFF.md` §5 proposes seven logical commits. **No commit should happen before B2 is resolved.**
 
-### B2. `routes/_bak_web.php` still exists ✅ confirmed present
+### B2. `routes/_bak_web.php` still exists ✅ **CLOSED 2026-10-31 — deleted**
 
 An untracked backup of the route file (risk **R1**). It is not autoloaded, but a `git add .` will commit it.
 **Delete it manually** — the assistant has previously been blocked from removing it.
 
-### B3. `P0-1` — no payment can actually be taken ✅ confirmed
+### B3. `P0-1` — no payment can actually be taken ⚠️ **PARTLY CLOSED — the adapter is real, the sandbox payment is not**
 
-Every method on `PaystackGateway` is a `throw`. Checkout, renewals and webhooks are exercised only against
-`Http::fake()`. Until a real sandbox payment completes:
+Every method was a `throw`. **Now:** `initiate()` and `verify()` are real implementations over Laravel's Http
+client, proven against `Http::fake()` by 10 tests (`PaymentGatewayTest`), and selected only when
+`PAYMENT_GATEWAY=paystack` **and** a secret key are set — a key alone is not enough, and paystack-without-a-key
+throws rather than falling back to the always-successful null gateway.
 
-- the subscription lifecycle has **never** been proven end-to-end against a provider;
-- `chargeRecurring()` cannot be implemented safely — it needs a schema decision for
-  `provider_subscription_reference` first;
-- `PAYSTACK_SECRET_KEY` is empty in `.env.example` and there is no sandbox key configured.
+**Still open:**
+
+- **no real sandbox payment has been completed** — that needs a `sk_test_…` key and the Paystack dashboard,
+  and nothing here claims otherwise. The subscription lifecycle is proven against a _faked_ provider, not a real one;
+- `chargeRecurring()` still throws deliberately: it needs the `provider_subscription_reference` schema decision
+  (Paystack plan code vs. re-charged authorization code) before it can be written safely;
+- `PAYSTACK_SECRET_KEY` is empty in `.env.example` and no sandbox key is configured on this machine.
 
 ---
 
@@ -162,11 +171,10 @@ and R16 on 2026-10-31 (§1l).
 
 ## 6. Recommended order of work
 
-1. **Delete `routes/_bak_web.php`** (B2) — one manual action, removes a real foot-gun.
-2. **Commit the work in the seven logical commits** already proposed in `SESSION-HANDOFF.md` §5 (B1).
-   Every one of them is currently green against the full 482-test suite.
-3. **`P0-1` payment gateway** (B3) — get a Paystack sandbox key, implement against `Http::fake()` in tests,
-   and complete **one** real sandbox payment before calling it done.
+1. ~~**Delete `routes/_bak_web.php`** (B2)~~ — **done**.
+2. ~~**Commit the work** (B1)~~ — **done**: 11 commits, tracked tree clean.
+3. **`P0-1` payment gateway** (B3) — adapter done and tested; **remaining:** put a `sk_test_…` key in `.env`,
+   set `PAYMENT_GATEWAY=paystack`, and complete **one real sandbox payment** before calling it done.
 4. **CI hardening** (S1) — drop `|| true` from Pint, add `composer audit` and a secret scan.
 5. **Password reset** (S3) — the first feature a real user will ask for.
 6. **Mailer** (S4) — configure a real transport before onboarding a pilot church.
@@ -207,3 +215,69 @@ composer audit --format=summary        # reports from a stale cache; Packagist u
 Select-String -Path .github\workflows\ci.yml -Pattern '\|\| true'   # Pint failures are swallowed
 Select-String -Path .env -Pattern '^MAIL_MAILER|^APP_DEBUG|^QUEUE_CONNECTION'
 ```
+
+---
+
+## 9. B1 / B2 / B3 — closed, and how
+
+### B2 — the stray route file ✅
+
+`routes/_bak_web.php` **deleted**. Verified absent afterwards.
+
+### B1 — the work is committed ✅
+
+A full snapshot of every uncommitted change was first written to
+`.git/churchflow-backups/pre-commit-<timestamp>.patch` plus the untracked-file list. That lives inside `.git/`,
+so it is **outside version control** and can never itself be committed — it is the recovery path if anything
+in the next step had gone wrong. The suite was run **before** committing: 482 passed, 0 failed.
+
+**12 commits** (`d6a1f47..HEAD`), each one a single coherent change:
+
+| #  | Commit                                                                    |
+| -- | ------------------------------------------------------------------------- |
+| 1  | Billing correctness: dunning clock, storage quota                          |
+| 2  | Onboarding: the church profile step can actually save a name               |
+| 3  | Starter plan: the owner can always upgrade, and data gaps are not 403s     |
+| 4  | Signup no longer creates a powerless owner; the catalogue self-heals       |
+| 5  | Departments and groups: visibility, duplicate-name rule, parish identity    |
+| 6  | Parish archive: the owner can keep a copy of a parish's records            |
+| 7  | Expired events: Delete, take nobody, and say so on the public link         |
+| 8  | Budget report: a period now includes its final day                         |
+| 9  | Team & credentials: the permission editor, the role-only account form      |
+| 10 | Brand: one favicon on every layout                                         |
+| 11 | Docs: inventory, audit, roadmap, session record                            |
+| 12 | Payments (P0-1): a real Paystack gateway, testable without a network        |
+
+**Tracked tree is clean.** The only uncommitted files left are six `_qa_*` scratch files from an earlier
+session (`_qa_login.php`, `_qa_render.php`, `_qa_session_id.txt`, `_qa_settings.mjs`, `_qa_settings2.mjs`,
+`_qa_users.php`). They were **not** committed and **not** deleted — they are not this change's to remove.
+
+**Not pushed.** Pushing is a separate decision.
+
+### B3 — the payment gateway ✅ adapter / ⚠️ real payment
+
+`PaystackGateway` is now a real implementation (commit 12): `initiate()` and `verify()` over Laravel's Http
+client, `chargeRecurring()` still deliberately throwing. Bound only when `PAYMENT_GATEWAY=paystack` and a key
+are both present; the null gateway remains the default, so tests and local development are unchanged.
+
+`PaymentGatewayTest` (new, 10 tests) proves the request shape, the bearer token, the kobo conversion
+(`1500.00` → `150000`, via bcmath so `0.29` cannot become `28`), that an **abandoned** transaction is never
+reported paid, that a browser return with no payment is a failure, that a network drop is reported as
+unsuccessful rather than thrown at the customer, and that the default binding is untouched.
+
+**Red-proof:** disabling the transaction-status check made an "abandoned" payment report as **PAID** and the
+guard failed; restored → green.
+
+**The one thing still outstanding:** no real sandbox payment has been completed. That requires a `sk_test_…`
+key and the Paystack dashboard. Until that happens, `P0-1` is **adapter-complete but not payment-proven**.
+
+### Suite after all three
+
+```
+php artisan test
+  Tests:    492 passed (1678 assertions)
+  Duration: ~4 minutes
+```
+
+482 before B3 + 10 new gateway tests = 492, 0 failed. No existing test changed behaviour: the binding is
+opt-in, so every prior billing test still runs against the null gateway.
