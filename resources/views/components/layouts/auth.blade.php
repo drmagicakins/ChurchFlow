@@ -46,6 +46,10 @@
 
     <title>{{ $pageTitle }}</title>
 
+    {{-- Same brand favicon as the app shell and the marketing pages. --}}
+    <link rel="icon" type="image/png" href="{{ asset('images/churchflow-favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/churchflow-favicon.png') }}">
+
     {{--
      | The theme partial carries the whole .cf-* design system as an inline <style>,
      | and it also emits @vite([...]) for the compiled bundle. Included here so the

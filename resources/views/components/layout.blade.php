@@ -119,6 +119,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $title }}</title>
+    {{-- The brand favicon, shared with the marketing pages. A real PNG link is
+         used rather than relying on /favicon.ico, which is an empty file. --}}
+    <link rel="icon" type="image/png" href="{{ asset('images/churchflow-favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/churchflow-favicon.png') }}">
     @include('partials.theme')
     @stack('head')
 </head>

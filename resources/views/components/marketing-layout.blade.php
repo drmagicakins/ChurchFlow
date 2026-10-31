@@ -61,8 +61,10 @@
     <meta name="twitter:description" content="{{ $pageDescription }}">
     <meta name="twitter:image" content="{{ $ogImage }}">
 
-    <link rel="icon" href="{{ asset('images/churchflow-logo.png') }}">
-    <link rel="apple-touch-icon" href="{{ asset('images/churchflow-logo.png') }}">
+    {{-- The brand favicon (shared with the app shell). The logo PNG stays in
+         use as the social/og image above. --}}
+    <link rel="icon" type="image/png" href="{{ asset('images/churchflow-favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/churchflow-favicon.png') }}">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

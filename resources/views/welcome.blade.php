@@ -8,6 +8,9 @@
     <meta name="description"
         content="ChurchFlow runs people, finance, activities and pastoral care for churches, ministries and multi-branch denominations — in one secure, multi-tenant workspace.">
 
+    <link rel="icon" type="image/png" href="{{ asset('images/churchflow-favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/churchflow-favicon.png') }}">
+
     @include('partials.theme')
 </head>
 

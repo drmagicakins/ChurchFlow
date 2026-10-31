@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Platform status · ChurchFlow</title>
     <meta name="robots" content="noindex">
+    <link rel="icon" type="image/png" href="{{ asset('images/churchflow-favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/churchflow-favicon.png') }}">
     @include('partials.theme')
     <style>
         /* This page is reachable by ANYONE, including someone who is not
