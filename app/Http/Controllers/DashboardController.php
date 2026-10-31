@@ -72,6 +72,13 @@ class DashboardController extends Controller
                 ->orderBy('starts_at')
                 ->get(),
             'church' => $church,
+            // The greeting names the place the user actually works in: a parish
+            // pastor's dashboard is their PARISH, not the church that owns it.
+            // Anyone church-wide (owner/registrar, or no parish) keeps the
+            // church's own name.
+            'workspaceName' => $user->isParishScoped()
+                ? ($user->organizationalUnit?->name ?? $church?->name)
+                : $church?->name,
             'memberCount' => $this->can($user, 'members.view', fn () => Member::query()->count()),
             'activeMembers' => $this->can($user, 'members.view', fn () => Member::query()->where('membership_status', 'active')->count()),
             'upcoming' => $upcoming,

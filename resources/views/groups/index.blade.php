@@ -1,12 +1,20 @@
 <x-layout title="Groups · ChurchFlow">
-    @php $canManage = auth()->user()->hasPermission('groups.manage'); @endphp
+    @php
+        $canManage = auth()->user()->hasPermission('groups.manage');
+        // A parish pastor's group is filed against their parish automatically,
+        // so they are never offered a parish choice. A church-wide user may
+        // file a group against a parish; blank keeps it church-wide.
+        $groupBranches = auth()->user()->isParishScoped()
+            ? collect()
+            : \App\Models\OrganizationalUnit::query()->orderBy('name')->get();
+    @endphp
 
     <div class="cf-page-head">
         <div>
             <h1>Groups</h1>
             <p class="cf-small cf-muted" style="margin-top:.3rem">
                 {{ number_format($groups->total()) }} {{ \Illuminate\Support\Str::plural('group', $groups->total()) }} ·
-                groups are looser than departments — fellowships, cells, ministry teams.
+                {{ auth()->user()->isParishScoped() ? 'groups belonging to your parish — fellowships, cells, ministry teams.' : 'groups are looser than departments — fellowships, cells, ministry teams.' }}
             </p>
         </div>
         @if($canManage)
@@ -32,6 +40,13 @@
                 layout="inline"
             >
                 <x-form.input name="name" label="Group name" required placeholder="e.g. Young Adults Fellowship" />
+
+                @if($groupBranches->isNotEmpty())
+                    <x-form.select name="organizational_unit_id" label="Parish" placeholder="Whole church"
+                        :options="$groupBranches->map(fn ($b) => ['value' => $b->id, 'label' => $b->name])->all()"
+                        hint="Leave as whole church unless this group belongs to one parish." />
+                @endif
+
                 <x-form.textarea name="description" label="Description" rows="2" wide />
             </x-form.card>
         </div>

@@ -13,7 +13,7 @@
     <div class="cf-page-head">
         <div>
             <h1>{{ $greeting }}, {{ auth()->user()->name }} 👋</h1>
-            <p class="cf-small cf-muted" style="margin-top:.3rem">Here's what's happening with {{ $church?->name ?? 'your church' }} today.</p>
+            <p class="cf-small cf-muted" style="margin-top:.3rem">Here's what's happening with {{ $workspaceName ?? $church?->name ?? 'your church' }} today.</p>
         </div>
         <p class="cf-small cf-muted">{{ $now->format('l, M j, Y') }}</p>
     </div>
