@@ -70,10 +70,24 @@ class AppServiceProvider extends ServiceProvider
         // hard-coded choice here.
         $this->app->bind(SmsProviderInterface::class, NullSmsProvider::class);
 
-        // Same idea for payments (§5): network-free default; bind
-        // PaystackGateway/FlutterwaveGateway here once real credentials
-        // exist. Nothing else in the app names a provider.
-        $this->app->bind(PaymentGatewayInterface::class, NullPaymentGateway::class);
+        // Same idea for payments (§5): nothing else in the app names a
+        // provider, so which one is used is decided HERE and nowhere else.
+        //
+        // The default stays the network-free NullPaymentGateway. Paystack is
+        // used only when PAYMENT_GATEWAY=paystack (config/services.php) — an
+        // explicit choice — and even then a missing key makes it throw rather
+        // than silently "succeed", so a misconfiguration can never mark a
+        // church paid without money moving.
+        $this->app->bind(PaymentGatewayInterface::class, function () {
+            $configured = strtolower((string) config('services.payments.gateway', 'null'));
+
+            return match ($configured) {
+                'paystack' => new \App\Domains\Subscriptions\Gateways\PaystackGateway(
+                    secretKey: config('services.payments.paystack.secret_key'),
+                ),
+                default => new NullPaymentGateway,
+            };
+        });
     }
 
     public function boot(): void

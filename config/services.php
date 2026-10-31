@@ -53,6 +53,22 @@ return [
     */
     'payments' => [
         'webhook_secret' => env('PAYMENT_WEBHOOK_SECRET'),
+
+        /*
+        | Which gateway the app actually uses: `null` (network-free, always
+        | succeeds - the local/test default), `paystack` or `flutterwave`.
+        |
+        | Defaulting to `null` is deliberate: switching a live payment path on
+        | must be a decision someone makes, never something that happens because
+        | a key was pasted into an environment. A real provider is selected by
+        | GATEWAY plus its secret key.
+        */
+        'gateway' => env('PAYMENT_GATEWAY', 'null'),
+
+        'paystack' => [
+            'secret_key' => env('PAYSTACK_SECRET_KEY'),
+            'public_key' => env('PAYSTACK_PUBLIC_KEY'),
+        ],
     ],
 
 ];
