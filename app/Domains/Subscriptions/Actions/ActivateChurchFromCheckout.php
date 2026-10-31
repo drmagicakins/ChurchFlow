@@ -89,11 +89,50 @@ class ActivateChurchFromCheckout
                 ->where('name', 'Church Owner')
                 ->first();
 
+            // ...and NEVER leave the new owner with an empty role.
+            //
+            // This clone used to be best-effort: if the system-default role
+            // was missing it simply cloned nothing, and signup still reported
+            // success. That produced a church whose OWNER held zero
+            // permissions — every Starter feature (members, families, groups,
+            // events, attendance, finance, tasks, billing) answered 403 to the
+            // only person who could have fixed it. Two churches in the dev
+            // database were left in exactly that state.
+            //
+            // A missing catalogue is a deployment fault, so repair it the same
+            // way the seeder would (it is idempotent: firstOrCreate + sync)
+            // and clone from the role that actually exists afterwards.
+            if (! $systemOwner) {
+                (new \Database\Seeders\RolePermissionSeeder)->run();
+
+                $systemOwner = Role::withoutGlobalScopes()
+                    ->whereNull('church_id')
+                    ->where('name', 'Church Owner')
+                    ->first();
+            }
+
             if ($systemOwner) {
                 $ownerRole->permissions()->sync($systemOwner->permissions()->pluck('permissions.id'));
             }
 
+            // Fail loudly rather than hand the customer a broken account: a
+            // signup that cannot grant its owner the basic owner set is a
+            // deployment error, and rolling the transaction back keeps the
+            // half-built church out of the database entirely.
+            abort_if(
+                $ownerRole->permissions()->count() === 0,
+                503,
+                'The permission catalogue is not installed, so a new church cannot be given its owner access. Run php artisan db:seed --class=RolePermissionSeeder.'
+            );
+
             $user->roles()->attach($ownerRole);
+
+            // The church's default PARISH PASTOR role, created here rather than
+            // on first visit, so the Team form offers it the first time the
+            // owner opens the screen instead of an empty choice list. It is the
+            // parish-only set from RolePermissionSeeder; nothing is granted to
+            // anyone by creating it.
+            \Database\Seeders\RolePermissionSeeder::ensureParishPastorRole($church->id);
 
             // PHASE 11: no charge at signup — 14 free days instead. This
             // writes a `trialing` subscription and deliberately NO invoice;
