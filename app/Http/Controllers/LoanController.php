@@ -41,7 +41,7 @@ class LoanController extends Controller
      * for the requester path, so a pastor cannot request a loan against another
      * parish simply by editing the hidden field.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|View
     {
         abort_unless($request->user(), 401);
 
@@ -61,19 +61,24 @@ class LoanController extends Controller
 
         $user = $request->user();
 
-        if ($canManage) {
-            abort_if(
-                empty($data['organizational_unit_id']) && empty($data['member_id']),
-                422,
-                'A loan must belong to a borrower: a branch or a member.'
-            );
+        // A borrower problem is a field error, not a crash page. abort(422)
+        // answered the browser with a raw "Unprocessable Content" document —
+        // the form, and the row of accounts it was submitted from, were
+        // gone. Rendering the Loans page instead keeps the user on the screen
+        // they were working on, with the alert the view already prints.
+        $borrowerError = $canManage
+            ? (empty($data['organizational_unit_id']) && empty($data['member_id'])
+                ? 'A loan must belong to a borrower: a branch or a member.'
+                : (! empty($data['organizational_unit_id']) && ! empty($data['member_id'])
+                    ? 'A loan must belong to exactly one borrower: a branch or a member, not both.'
+                    : null))
+            : null;
 
-            abort_if(
-                ! empty($data['organizational_unit_id']) && ! empty($data['member_id']),
-                422,
-                'A loan must belong to exactly one borrower: a branch or a member, not both.'
-            );
-        } else {
+        if ($borrowerError !== null) {
+            return $this->loansPageWithError($request, $borrowerError);
+        }
+
+        if (! $canManage) {
             // The requester is the borrower. Prefer their branch — that is what
             // "the pastor of a parish asks the headquarters for a loan" means —
             // and fall back to their own member record only when they have no
@@ -83,11 +88,17 @@ class LoanController extends Controller
                 ? null
                 : Member::query()->where('email', $user->email)->value('id');
 
-            abort_if(
-                empty($data['organizational_unit_id']) && empty($data['member_id']),
-                403,
-                'Your account is not attached to a branch or a member record, so a loan cannot be requested for you yet. Ask a church administrator to link your account to a branch.'
-            );
+            // "I could not work out who this loan is for" is a problem with
+            // the request, not a refusal of the person asking. It used to be
+            // abort(403), which renders Laravel's bare "This action is
+            // unauthorized" page — so a church owner with no branch linked yet
+            // saw an AUTHORIZATION error for a data gap, with no way back.
+            if (empty($data['organizational_unit_id']) && empty($data['member_id'])) {
+                return $this->loansPageWithError(
+                    $request,
+                    'Your account is not attached to a branch or a member record, so a loan cannot be requested for you yet. Ask a church administrator to link your account to a branch.'
+                );
+            }
         }
 
         $loan = Loan::create([
@@ -98,6 +109,25 @@ class LoanController extends Controller
         return redirect()->route('finance.loans.show', $loan)->with('status', $canManage
             ? 'Loan created.'
             : 'Your loan request has been submitted. Your church\'s finance team will review it.');
+    }
+
+    /**
+     * The Loans screen, carrying a message the user can act on.
+     *
+     * Rendered (not redirected) on purpose: a redirect would have to carry the
+     * error in the session, and a flash written by a redirect is consumed by
+     * the GET that follows it only if that GET is actually made — a second
+     * tab, or a browser that re-posts, could show the page without it. The
+     * view prints `$errors` itself (finance/loans/index.blade.php).
+     */
+    private function loansPageWithError(Request $request, string $message): View
+    {
+        $this->authorize('viewAny', Loan::class);
+
+        return view('finance.loans.index', [
+            'loans' => Loan::query()->latest()->paginate(25),
+            'loanService' => $this->loans,
+        ])->withErrors(['loan' => $message]);
     }
 
     public function show(Loan $loan): View

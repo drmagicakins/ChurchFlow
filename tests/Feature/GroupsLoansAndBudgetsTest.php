@@ -166,12 +166,17 @@ class GroupsLoansAndBudgetsTest extends TestCase
     {
         $manager = $this->userWith(['loans.manage', 'finance.view']);
 
+        // Still refused, and still nothing written. The refusal is now stated
+        // on the Loans page (a 200 with the field error) rather than aborting
+        // into a bare 422 document that lost the form the user was filling in.
+        // See LoanController::loansPageWithError().
         $this->actingAs($manager)
             ->post(route('finance.loans.store'), [
                 'principal_amount' => '1000',
                 'monthly_deduction' => '100',
             ])
-            ->assertStatus(422);
+            ->assertOk()
+            ->assertSee('A loan must belong to a borrower');
 
         $this->assertSame(0, Loan::count());
     }

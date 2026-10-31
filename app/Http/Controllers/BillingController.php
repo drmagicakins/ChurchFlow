@@ -51,9 +51,24 @@ class BillingController extends Controller
         private readonly TrialService $trials,
     ) {}
 
+    /**
+     * Only the church owner (or platform admin) may change the plan.
+     *
+     * The owner test is explicit because it is the one account that must be
+     * able to reach the upgrade/downgrade screens: a church-scoped role whose
+     * permission clone predates `billing.manage`, or was edited later, must not
+     * be able to leave its own owner unable to move off Starter. The message
+     * names the missing permission so a 403 is actionable rather than bare.
+     */
     private function authorizeBilling(Request $request): void
     {
-        abort_unless($request->user()->hasPermission('billing.manage'), 403);
+        $user = $request->user();
+
+        abort_unless(
+            $user->hasPermission('billing.manage') || $user->isRegistrar(),
+            403,
+            'Only the church owner can change the subscription plan.'
+        );
     }
 
     /** The church's current subscription, newest first. */
