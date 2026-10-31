@@ -88,6 +88,23 @@ class AppServiceProvider extends ServiceProvider
                 default => new NullPaymentGateway,
             };
         });
+
+        // A real mailer with no host is a misconfiguration, and the failure it
+        // used to produce was misleading: config/mail.php defaulted MAIL_HOST
+        // to 127.0.0.1, so a half-filled .env silently dialled a local SMTP
+        // daemon and failed with "connection refused" on the FIRST email a
+        // real user triggered — a password-reset link they never received.
+        //
+        // Fail fast, in words that name the variable to set. `log` and `array`
+        // are exempt on purpose: they are the deliberate development/test
+        // mailers and need no host.
+        if (in_array(config('mail.default'), ['smtp'], true) && blank(config('mail.mailers.smtp.host'))) {
+            throw new \RuntimeException(
+                'Mail is set to SMTP but MAIL_HOST is empty, so no email can be sent. '
+                .'Set MAIL_HOST, MAIL_PORT, MAIL_USERNAME and MAIL_PASSWORD in .env, '
+                .'or set MAIL_MAILER=log to write messages to the log instead.'
+            );
+        }
     }
 
     public function boot(): void

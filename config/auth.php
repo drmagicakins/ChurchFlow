@@ -94,7 +94,12 @@ return [
         'users' => [
             'provider' => 'users',
             'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
-            'expire' => 60,
+            // A reset link is opened from an inbox, often later in the day, so
+            // the framework default of 60 MINUTES is too short for a real
+            // person. 24 hours still bounds the window a leaked link is useful
+            // for. PasswordResetTokenService reads this value, so tightening it
+            // here tightens the service too - the two cannot disagree.
+            'expire' => env('AUTH_PASSWORD_RESET_EXPIRE', 1440),
             'throttle' => 60,
         ],
     ],

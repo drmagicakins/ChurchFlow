@@ -41,7 +41,13 @@ return [
             'transport' => 'smtp',
             'scheme' => env('MAIL_SCHEME'),
             'url' => env('MAIL_URL'),
-            'host' => env('MAIL_HOST', '127.0.0.1'),
+            // NOTE: the second argument is deliberately '' and not '127.0.0.1'.
+            // With the default, a half-configured mailer silently tried to talk
+            // to a local SMTP daemon on every send and failed with a confusing
+            // "connection refused" long after the user pressed the button. An
+            // empty host + the guard below makes the misconfiguration report
+            // itself at once, in words that name the variable to set.
+            'host' => env('MAIL_HOST', ''),
             'port' => env('MAIL_PORT', 2525),
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),

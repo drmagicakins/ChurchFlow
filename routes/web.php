@@ -3,6 +3,7 @@
 // --- Phase 1 additions: merge these into routes/web.php, do not overwrite ---
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
 use Illuminate\Support\Facades\Route;
 
@@ -12,6 +13,17 @@ Route::middleware('guest')->group(function () {
 
     Route::get('/login', fn () => view('auth.login'))->name('login');
     Route::post('/login', [LoginController::class, 'store']);
+
+    // --- Phase 1: password reset ------------------------------------------
+    // Guest-only, like the rest of this group: a signed-in person has no use
+    // for a reset link, and letting one through would mix sessions.
+    //
+    // The route names are `password.request` / `password.email` / etc. because
+    // those are the conventional names framework helpers look for.
+    Route::get('/forgot-password', [PasswordResetController::class, 'requestForm'])->name('password.request');
+    Route::post('/forgot-password', [PasswordResetController::class, 'requestLink'])->name('password.email');
+    Route::get('/reset-password/{token}', [PasswordResetController::class, 'resetForm'])->name('password.reset');
+    Route::post('/reset-password', [PasswordResetController::class, 'reset'])->name('password.update');
 });
 
 // --- Phase 10/13: the platform status page (§44) ---

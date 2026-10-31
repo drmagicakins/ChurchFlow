@@ -6,10 +6,17 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable, SoftDeletes;
+    // CanResetPassword supplies sendPasswordResetNotification() and the
+    // token plumbing Laravel's broker expects. The trait is safe here because
+    // the tenant question is already settled elsewhere: this model is
+    // deliberately unscoped (see below), so a reset lookup by email cannot be
+    // filtered away by a tenant that is not known yet.
+    use HasFactory, Notifiable, SoftDeletes, \Illuminate\Auth\Passwords\CanResetPassword;
 
     // Deliberately NOT using BelongsToTenant here: users legitimately need
     // to be looked up by email during login BEFORE a tenant is known
@@ -53,6 +60,69 @@ class User extends Authenticatable
             'is_active' => 'boolean',
             'last_login_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Create (or replace) this account's password-reset token.
+     *
+     * The table is keyed by EMAIL, not by user id, which is what makes it safe
+     * in this app: `users` is unique on (church_id, email), so one email could
+     * in principle exist in two churches — and a token keyed by email would
+     * them let collide. Rather than change the schema (Laravel's own), the
+     * caller only ever offers a reset when the email identifies exactly ONE
+     * active account; see PasswordResetTokenService.
+     *
+     * Only the HASH is stored. A dump of this table cannot be replayed into a
+     * password change, which matters because the plain token travels by email.
+     */
+    public function createPasswordResetToken(): string
+    {
+        $plain = Str::random(64);
+
+        DB::table('password_reset_tokens')->updateOrInsert(
+            ['email' => $this->email],
+            ['token' => hash('sha256', $plain), 'created_at' => now()],
+        );
+
+        return $plain;
+    }
+
+    /** Does a submitted reset token match the one we issued for this email? */
+    public static function passwordResetTokenIsValid(string $email, string $plainToken): bool
+    {
+        $row = DB::table('password_reset_tokens')->where('email', $email)->first();
+
+        if (! $row || ! $row->created_at) {
+            return false;
+        }
+
+        // Same reason the login path has one: a reset link must not stay
+        // useful forever. config/auth.php's passwords.expire already expresses
+        // this in minutes, so the two cannot drift apart.
+        //
+        // The sign matters. On Carbon 3 `diffInMinutes()` returns a SIGNED
+        // value, and calling it as `now()->diffInMinutes($createdAt)` yields a
+        // NEGATIVE number when the token is in the past — so `-1500 > 1440` is
+        // false and an expired link was accepted. Probed, not assumed:
+        //   $now->diffInMinutes($past)  ->  -1500.0   (token is past expiry)
+        // The comparison is therefore made on an absolute, second-precision
+        // value, so it cannot depend on argument order or the Carbon major.
+        $expiresAt = \Illuminate\Support\Carbon::parse($row->created_at)->addMinutes(
+            (int) config('auth.passwords.users.expire', 60)
+        );
+
+        if (now()->greaterThan($expiresAt)) {
+            return false;
+        }
+
+        // hash_equals: constant-time, so a token cannot be guessed by timing.
+        return hash_equals($row->token, hash('sha256', $plainToken));
+    }
+
+    /** Spend the token — a link is single-use. */
+    public function forgetPasswordResetToken(): void
+    {
+        DB::table('password_reset_tokens')->where('email', $this->email)->delete();
     }
 
     public function church()
