@@ -38,10 +38,15 @@ class SubscriptionService
             ? $subscription->current_period_end->addYear()
             : $subscription->current_period_end->addMonthNoOverflow();
 
+        // Clearing the dunning clocks is part of renewing: a subscription that
+        // recovers must not carry a stale past_due/grace start into its next
+        // lapse, or the next dunning cycle would immediately expire it.
         $subscription->update([
             'status' => 'active',
             'current_period_start' => $subscription->current_period_end,
             'current_period_end' => $periodEnd,
+            'past_due_at' => null,
+            'grace_period_started_at' => null,
         ]);
 
         $this->syncChurchStatus($subscription->church, 'active');
@@ -51,7 +56,15 @@ class SubscriptionService
 
     public function markPastDue(Subscription $subscription): Subscription
     {
-        $subscription->update(['status' => 'past_due']);
+        $subscription->update([
+            'status' => 'past_due',
+            // §9/§34: the dunning clock starts NOW, and only a real status
+            // transition may restart it. RenewalAndDunningService reads this
+            // column instead of `updated_at`, so an unrelated write to the row
+            // can no longer extend a delinquent church's access.
+            'past_due_at' => now(),
+            'grace_period_started_at' => null,
+        ]);
         $this->syncChurchStatus($subscription->church, 'past_due');
 
         return $subscription;
@@ -59,7 +72,10 @@ class SubscriptionService
 
     public function enterGracePeriod(Subscription $subscription): Subscription
     {
-        $subscription->update(['status' => 'grace_period']);
+        $subscription->update([
+            'status' => 'grace_period',
+            'grace_period_started_at' => now(),
+        ]);
         $this->syncChurchStatus($subscription->church, 'grace_period');
 
         return $subscription;

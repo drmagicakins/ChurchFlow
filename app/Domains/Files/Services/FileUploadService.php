@@ -5,6 +5,7 @@ namespace App\Domains\Files\Services;
 use App\Models\Church;
 use App\Models\UploadedFile as UploadedFileModel;
 use App\Models\User;
+use App\Domains\Subscriptions\Services\StorageLimitService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -38,6 +39,16 @@ class FileUploadService
     ];
 
     private const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB — generous for a profile/cover photo, not a document vault
+    private readonly StorageLimitService $storageLimit;
+
+    public function __construct(?StorageLimitService $storageLimit = null)
+    {
+        // Optional so every existing `new FileUploadService()` call site keeps
+        // working unchanged (tests, and any controller that constructs it
+        // directly). Falling back to the container still resolves the real
+        // service, so the quota is enforced in production either way.
+        $this->storageLimit = $storageLimit ?? app(StorageLimitService::class);
+    }
 
     public function storeImage(
         UploadedFile $file,
@@ -62,6 +73,12 @@ class FileUploadService
             'image/webp' => 'webp',
             'image/gif' => 'gif',
         };
+
+        // §14: the church's PLAN storage quota, checked BEFORE anything is
+        // written. Refuses only the upload that would cross the line; it never
+        // deletes or hides files the church already has (see
+        // StorageLimitService — over-quota restricts new uploads only).
+        $this->storageLimit->assertCanStore($church, (int) $file->getSize());
 
         // Random token, not the client's filename — see class docblock.
         $diskPath = "churches/{$church->id}/".Str::uuid().'.'.$extension;

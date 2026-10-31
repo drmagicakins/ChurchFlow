@@ -106,9 +106,15 @@ class TrialAndPlanChangeTest extends TestCase
 
         // Pretend the church has sat in past_due for longer than the grace
         // window — the same pass the paid renewal cycle uses picks it up.
+        // `past_due_at` is what the dunning clock now reads (see
+        // RenewalAndDunningService); `updated_at` is kept in step so this test
+        // does not depend on which of the two a future change reads.
         Subscription::withoutGlobalScopes()
             ->where('id', $subscription->id)
-            ->update(['updated_at' => now()->subDays(6)]);
+            ->update([
+                'updated_at' => now()->subDays(6),
+                'past_due_at' => now()->subDays(6),
+            ]);
 
         app(RenewalAndDunningService::class)->runDailyCycle();
 

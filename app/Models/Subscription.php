@@ -14,6 +14,7 @@ class Subscription extends Model
         'church_id', 'plan_id', 'pending_plan_id', 'status', 'billing_interval',
         'current_period_start', 'current_period_end', 'trial_ends_at', 'trial_converted_at',
         'cancel_requested_at', 'cancelled_at', 'provider', 'provider_subscription_reference',
+        'past_due_at', 'grace_period_started_at',
     ];
 
     protected function casts(): array
@@ -25,6 +26,8 @@ class Subscription extends Model
             'trial_converted_at' => 'datetime',
             'cancel_requested_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'past_due_at' => 'datetime',
+            'grace_period_started_at' => 'datetime',
         ];
     }
 

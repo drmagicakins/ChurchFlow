@@ -25,12 +25,14 @@ use Illuminate\Support\Facades\Log;
  */
 class RenewalAndDunningService
 {
-    // Timing uses `updated_at` as a proxy for "when did this subscription
-    // enter its current status" rather than a dedicated timestamp column
-    // per state. Simple, but fragile if something unrelated ever touches
-    // the row while it's past_due/grace_period (e.g. changePlan) — a real
-    // deployment should add explicit past_due_at/grace_period_started_at
-    // columns if that turns out to matter.
+    // Timing is measured from the moment the subscription ENTERED its current
+    // status (past_due_at / grace_period_started_at), not from `updated_at`.
+    // Using `updated_at` meant any unrelated write to the row — a plan note, an
+    // admin touch, a cancellation flag — reset the clock and silently EXTENDED
+    // a delinquent church's access. Rows created before these columns existed
+    // have NULL and fall back to `updated_at`, so no legacy row jumps state on
+    // deploy. Both columns are written only by SubscriptionService's
+    // markPastDue()/enterGracePeriod(), so there is one writer, not two.
     private const GRACE_PERIOD_DAYS = 5;
     private const EXPIRE_AFTER_DAYS = 10; // days spent in grace_period before expiring
 
@@ -111,9 +113,20 @@ class RenewalAndDunningService
 
     private function advancePastDueToGracePeriod(array &$counts): void
     {
+        $threshold = now()->subDays(self::GRACE_PERIOD_DAYS);
+
         Subscription::withoutGlobalScopes()
             ->where('status', 'past_due')
-            ->where('updated_at', '<=', now()->subDays(self::GRACE_PERIOD_DAYS))
+            ->where(function ($query) use ($threshold) {
+                $query->where('past_due_at', '<=', $threshold)
+                    // Legacy rows (pre-2026_10_24 migration) have no explicit
+                    // timestamp. Falling back keeps their behaviour identical to
+                    // before rather than skipping or instantly advancing them.
+                    ->orWhere(function ($legacy) use ($threshold) {
+                        $legacy->whereNull('past_due_at')
+                            ->where('updated_at', '<=', $threshold);
+                    });
+            })
             ->each(function (Subscription $subscription) use (&$counts) {
                 $this->subscriptions->enterGracePeriod($subscription);
                 $counts['grace_period']++;
@@ -122,9 +135,17 @@ class RenewalAndDunningService
 
     private function expireOverdueGracePeriods(array &$counts): void
     {
+        $threshold = now()->subDays(self::EXPIRE_AFTER_DAYS);
+
         Subscription::withoutGlobalScopes()
             ->where('status', 'grace_period')
-            ->where('updated_at', '<=', now()->subDays(self::EXPIRE_AFTER_DAYS))
+            ->where(function ($query) use ($threshold) {
+                $query->where('grace_period_started_at', '<=', $threshold)
+                    ->orWhere(function ($legacy) use ($threshold) {
+                        $legacy->whereNull('grace_period_started_at')
+                            ->where('updated_at', '<=', $threshold);
+                    });
+            })
             ->each(function (Subscription $subscription) use (&$counts) {
                 $this->subscriptions->expire($subscription);
                 $counts['expired']++;

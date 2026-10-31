@@ -191,4 +191,94 @@ class RenewalAndDunningTest extends TestCase
         $this->assertSame(0, $counts['cancelled']);
         $this->assertSame('active', $subscription->fresh()->status);
     }
+
+    /**
+     * The bug this migration exists to fix.
+     *
+     * A subscription that failed its charge 8 days ago (past the 5-day grace
+     * threshold) must NOT be pushed into grace period merely because something
+     * unrelated touched its row today. Before the explicit `past_due_at`
+     * column the dunning query read `updated_at`, so that touch reset the
+     * clock and extended the church's access.
+     *
+     * The backdate MUST exceed GRACE_PERIOD_DAYS (5), otherwise the buggy
+     * query also refuses to match and this test would pass with the bug still
+     * present — verified by reverting the fix and watching it fail.
+     */
+    public function test_an_unrelated_update_does_not_reset_the_past_due_clock(): void
+    {
+        $subscription = $this->subscriptionDueToday('past_due');
+        $subscription->timestamps = false;
+        $subscription->forceFill([
+            'past_due_at' => now()->subDays(8),  // beyond the 5-day grace threshold
+            'updated_at' => now()->subDays(8),
+        ])->save();
+        $subscription->timestamps = true;
+
+        // Something unrelated writes to the row — this is what used to extend grace.
+        $subscription->timestamps = false;
+        $subscription->forceFill(['updated_at' => now()])->save();
+        $subscription->timestamps = true;
+
+        $service = new RenewalAndDunningService(new SubscriptionService(), $this->alwaysSucceedsGateway(), new \App\Domains\Subscriptions\Services\TrialService(new SubscriptionService(), $this->alwaysSucceedsGateway()));
+        $counts = $service->runDailyCycle();
+
+        $this->assertSame(1, $counts['grace_period'], 'An 8-day-old past_due subscription must advance despite a fresh updated_at.');
+        $this->assertSame('grace_period', $subscription->fresh()->status);
+    }
+
+    /**
+     * The counterpart: an unrelated update must not reset the GRACE clock
+     * either, and a genuinely overdue grace period must still expire.
+     */
+    public function test_an_unrelated_update_does_not_reset_the_grace_period_clock(): void
+    {
+        $subscription = $this->subscriptionDueToday('grace_period');
+        $subscription->timestamps = false;
+        $subscription->forceFill([
+            'past_due_at' => now()->subDays(20),
+            'grace_period_started_at' => now()->subDays(12),
+            'updated_at' => now(),
+        ])->save();
+        $subscription->timestamps = true;
+
+        $service = new RenewalAndDunningService(new SubscriptionService(), $this->alwaysSucceedsGateway(), new \App\Domains\Subscriptions\Services\TrialService(new SubscriptionService(), $this->alwaysSucceedsGateway()));
+        $counts = $service->runDailyCycle();
+
+        $this->assertSame(1, $counts['expired'], 'A 12-day-old grace period must expire even though updated_at is fresh.');
+        $this->assertSame('expired', $subscription->fresh()->status);
+    }
+
+    /** A legacy row with no explicit timestamp still gets the old behaviour. */
+    public function test_a_legacy_row_without_dunning_timestamps_still_advances_by_updated_at(): void
+    {
+        $subscription = $this->subscriptionDueToday('past_due');
+        $this->backdate($subscription, now()->subDays(6));
+        $this->assertNull($subscription->fresh()->past_due_at);
+
+        $service = new RenewalAndDunningService(new SubscriptionService(), $this->alwaysSucceedsGateway(), new \App\Domains\Subscriptions\Services\TrialService(new SubscriptionService(), $this->alwaysSucceedsGateway()));
+        $counts = $service->runDailyCycle();
+
+        $this->assertSame(1, $counts['grace_period']);
+        $this->assertSame('grace_period', $subscription->fresh()->status);
+        $this->assertNotNull($subscription->fresh()->grace_period_started_at);
+    }
+
+    /** Recovering clears the clocks so the next lapse starts a fresh count. */
+    public function test_a_renewal_clears_the_dunning_timestamps(): void
+    {
+        $subscription = $this->subscriptionDueToday();
+        $subscription->forceFill([
+            'past_due_at' => now()->subDays(3),
+            'grace_period_started_at' => now()->subDays(1),
+        ])->save();
+
+        $service = new RenewalAndDunningService(new SubscriptionService(), $this->alwaysSucceedsGateway(), new \App\Domains\Subscriptions\Services\TrialService(new SubscriptionService(), $this->alwaysSucceedsGateway()));
+        $service->runDailyCycle();
+
+        $subscription = $subscription->fresh();
+        $this->assertSame('active', $subscription->status);
+        $this->assertNull($subscription->past_due_at);
+        $this->assertNull($subscription->grace_period_started_at);
+    }
 }
