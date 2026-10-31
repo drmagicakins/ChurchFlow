@@ -239,6 +239,12 @@ class SmokeEveryPageTest extends TestCase
             // here would just be the sweep using a URL it cannot legitimately
             // produce.
             'files.show',
+            // The parish archive is OWNER-ONLY by design (isRegistrar), and this
+            // sweep signs in as a role-permission admin who is not the owner.
+            // The 403 is the feature working; their access rules and the export
+            // itself are covered by ParishArchiveTest.
+            'parish-archive.counts',
+            'parish-archive.download',
         ];
 
         $checked = 0;
