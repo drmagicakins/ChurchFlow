@@ -276,6 +276,13 @@ Route::middleware(['auth', \App\Http\Middleware\IdentifyTenant::class, \App\Http
     Route::post('/settings/team/{member}/toggle', [\App\Http\Controllers\SettingsController::class, 'toggleTeamMember'])->name('settings.team.toggle');
     Route::delete('/settings/team/{member}', [\App\Http\Controllers\SettingsController::class, 'destroyTeamMember'])->name('settings.team.destroy');
 
+    // --- Parish archive: a copy of a parish's records, before a pastor leaves ---
+    // Read-only. Both actions are owner-only in the controller (isRegistrar),
+    // because an archive of pastoral notes, prayer requests and the finance
+    // ledger is an ownership right, not a permission that can be ticked.
+    Route::get('/parish-archive/counts', [\App\Http\Controllers\ParishArchiveController::class, 'counts'])->name('parish-archive.counts');
+    Route::get('/parish-archive/download', [\App\Http\Controllers\ParishArchiveController::class, 'download'])->name('parish-archive.download');
+
     // --- Phase 7: Communication ---
     Route::get('/notifications', [\App\Http\Controllers\NotificationCenterController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/read-all', [\App\Http\Controllers\NotificationCenterController::class, 'markAllRead'])->name('notifications.read-all');
@@ -325,6 +332,9 @@ Route::middleware(['auth', \App\Http\Middleware\IdentifyTenant::class, \App\Http
         Route::get('/setup', [\App\Http\Controllers\SetupWizardController::class, 'show'])->name('setup.show');
         Route::post('/setup/complete', [\App\Http\Controllers\SetupWizardController::class, 'complete'])->name('setup.complete');
         Route::post('/setup/skip', [\App\Http\Controllers\SetupWizardController::class, 'skip'])->name('setup.skip');
+        // §11/§34: the church_profile step's required input (the church name).
+        // Kept in its own file so this route table stays readable.
+        require __DIR__.'/setup-profile.php';
 
         Route::prefix('tours/{slug}')->name('tours.')->group(function () {
             Route::get('/should-show', [\App\Http\Controllers\TourController::class, 'shouldShow'])->name('should-show');
