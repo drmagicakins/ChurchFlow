@@ -113,16 +113,23 @@ certificate issuer bundle"_ — and it then reported from a **stale local cache*
 answer you get locally is therefore unreliable. This is an environment problem, not an app bug, but it means
 "no known vulnerabilities" has not been verified here.
 
-### S3. No password reset ✅ confirmed
+### S3. No password reset ✅ **CLOSED 2026-10-31 — see §10**
 
-`route:list` shows **no** password-reset routes. A user who forgets their password has no self-service route
-back in; only an owner-set password (via Settings → Team) exists.
+`route:list` showed **no** password-reset routes. A user who forgot their password had no self-service route
+back in; only an owner-set password (via Settings → Team) existed. **Now:** a full forgot/reset flow, linked
+from the sign-in page, with real email delivery proven over SMTP (§10).
 
-### S4. Mail is `log` in every environment ✅ confirmed
+### S4. Mail is `log` in every environment ✅ confirmed — **partly addressed 2026-10-31**
 
-`MAIL_MAILER=log` in both `.env` and `.env.example`. Every notification, reminder and receipt is written to
-`laravel.log` and delivered nowhere. This is deliberate for local development but **must change before real
-users exist** — and it is why account creation sets a password inline rather than emailing an invite.
+`MAIL_MAILER=log` in both `.env` and `.env.example`, so every notification, reminder and receipt is written to
+`laravel.log` and delivered nowhere.
+
+**What changed (§10):** the reset flow was verified against a REAL SMTP server, so the transport is proven; and
+`config/mail.php` no longer defaults `MAIL_HOST` to `127.0.0.1`, so a half-filled `.env` now fails at boot with
+a message naming the variables instead of a confusing "connection refused" on a reset a user was waiting for.
+
+**Still true:** with the current `.env`, no email leaves this machine. To deliver real mail, set
+`MAIL_MAILER=smtp` plus `MAIL_HOST`/`MAIL_PORT`/`MAIL_USERNAME`/`MAIL_PASSWORD`. This is configuration, not code.
 
 ### S5. `APP_DEBUG=true` on the local environment ✅ confirmed
 
@@ -176,8 +183,10 @@ and R16 on 2026-10-31 (§1l).
 3. **`P0-1` payment gateway** (B3) — adapter done and tested; **remaining:** put a `sk_test_…` key in `.env`,
    set `PAYMENT_GATEWAY=paystack`, and complete **one real sandbox payment** before calling it done.
 4. **CI hardening** (S1) — drop `|| true` from Pint, add `composer audit` and a secret scan.
-5. **Password reset** (S3) — the first feature a real user will ask for.
-6. **Mailer** (S4) — configure a real transport before onboarding a pilot church.
+5. ~~**Password reset** (S3)~~ — **done 2026-10-31** (§10). Remaining for it: point `MAIL_*` at a real
+   provider so reset links actually leave the server.
+6. **Mailer** (S4) — configure a real transport before onboarding a pilot church. The code path is proven;
+   the credentials are the only missing part.
 7. Invoice PDFs (P1) and an E2E suite (P2), in that order.
 
 ---
@@ -233,20 +242,20 @@ in the next step had gone wrong. The suite was run **before** committing: 482 pa
 
 **12 commits** (`d6a1f47..HEAD`), each one a single coherent change:
 
-| #  | Commit                                                                    |
-| -- | ------------------------------------------------------------------------- |
-| 1  | Billing correctness: dunning clock, storage quota                          |
-| 2  | Onboarding: the church profile step can actually save a name               |
-| 3  | Starter plan: the owner can always upgrade, and data gaps are not 403s     |
-| 4  | Signup no longer creates a powerless owner; the catalogue self-heals       |
-| 5  | Departments and groups: visibility, duplicate-name rule, parish identity    |
-| 6  | Parish archive: the owner can keep a copy of a parish's records            |
-| 7  | Expired events: Delete, take nobody, and say so on the public link         |
-| 8  | Budget report: a period now includes its final day                         |
-| 9  | Team & credentials: the permission editor, the role-only account form      |
-| 10 | Brand: one favicon on every layout                                         |
-| 11 | Docs: inventory, audit, roadmap, session record                            |
-| 12 | Payments (P0-1): a real Paystack gateway, testable without a network        |
+| #   | Commit                                                                   |
+| --- | ------------------------------------------------------------------------ |
+| 1   | Billing correctness: dunning clock, storage quota                        |
+| 2   | Onboarding: the church profile step can actually save a name             |
+| 3   | Starter plan: the owner can always upgrade, and data gaps are not 403s   |
+| 4   | Signup no longer creates a powerless owner; the catalogue self-heals     |
+| 5   | Departments and groups: visibility, duplicate-name rule, parish identity |
+| 6   | Parish archive: the owner can keep a copy of a parish's records          |
+| 7   | Expired events: Delete, take nobody, and say so on the public link       |
+| 8   | Budget report: a period now includes its final day                       |
+| 9   | Team & credentials: the permission editor, the role-only account form    |
+| 10  | Brand: one favicon on every layout                                       |
+| 11  | Docs: inventory, audit, roadmap, session record                          |
+| 12  | Payments (P0-1): a real Paystack gateway, testable without a network     |
 
 **Tracked tree is clean.** The only uncommitted files left are six `_qa_*` scratch files from an earlier
 session (`_qa_login.php`, `_qa_render.php`, `_qa_session_id.txt`, `_qa_settings.mjs`, `_qa_settings2.mjs`,
@@ -281,3 +290,63 @@ php artisan test
 
 482 before B3 + 10 new gateway tests = 492, 0 failed. No existing test changed behaviour: the binding is
 opt-in, so every prior billing test still runs against the null gateway.
+
+---
+
+## 10. Password reset — added 2026-10-31
+
+**Commit `e2acad0`** — 15 files, +898/−8. Suite: **508 passed (1743 assertions), 0 failed** (492 + 16 new).
+
+### What was added
+
+| Piece                                   | Purpose                                                          |
+| --------------------------------------- | ---------------------------------------------------------------- |
+| `routes/web.php`                        | 4 guest routes: `password.request` / `.email` / `.reset` / `.update` |
+| `PasswordResetController`               | Ask for a link, render the form, apply the new password           |
+| `PasswordResetTokenService`             | Decides WHO may be reset, sends the mail, normalises the address  |
+| `PasswordResetMail` + 2 email views     | HTML **and** plain-text parts, each its own view                  |
+| `auth/forgot-password.blade.php`        | The request page                                                  |
+| `auth/reset-password.blade.php`         | The set-password page (or a "dead link" notice)                    |
+| `auth/login.blade.php`                  | "Forgot your password?" link under the password field              |
+| `User`                                  | `CanResetPassword`, `createPasswordResetToken()`, validation, spend |
+| `config/auth.php`                       | Link lifetime `60 min → 1440 min` (24 h), env-overridable          |
+
+No migration was needed — `password_reset_tokens` already existed.
+
+### The three decisions that matter
+
+1. **The page never reveals whether an email has an account.** Same page, same sentence, every time. A church's
+   staff list is not public, and "no account found" would turn this into a directory.
+2. **One email may belong to two churches.** `users` is unique on `(church_id, email)`, but
+   `password_reset_tokens` is keyed by email alone — so a link is issued **only** when the address identifies
+   exactly one active account. Otherwise nothing is sent. Guessing would reset the wrong church's account.
+3. **A reset changes the password and nothing else** — church, parish, role and permissions are untouched — and
+   the account's existing sessions are ended.
+
+### Security
+
+- Only the **sha256 hash** of a token is stored; comparison is `hash_equals` (constant time).
+- Single use, 24-hour expiry, throttled per address (3/15 min) **and** per IP (10/15 min).
+- All token failure states (expired, forged, reused) return the **same** message.
+
+### A real bug found by running it
+
+The expiry check used `now()->diffInMinutes($created_at)`, which on **Carbon 3 returns a signed value**. For a
+token in the past that is negative, so `-1500 > 1440` was false and **an expired link was accepted**. Probed
+(`$now->diffInMinutes($past)` → `-1500.0`), then fixed by comparing against an explicit expiry instant.
+
+### Proven, not assumed
+
+- **Red-proof 1:** restoring the Carbon sign bug → `an_expired_token_is_refused` **fails**.
+- **Red-proof 2:** leaking existence into the error → `an_unknown_email_gets_the_same_answer` **fails**.
+- **Real delivery:** a throwaway local SMTP server was run and a reset email sent through the **real `smtp`
+  transport** (not `Mail::fake()`). The captured message carried the correct Subject, To, From, both
+  `text/plain` and `text/html` parts, and the full working reset link. The temporary user was created inside a
+  rolled-back transaction, so nothing was left in the database.
+
+### Still required for real email to leave the server
+
+`MAIL_MAILER=log` is still the setting in `.env`. Set `MAIL_MAILER=smtp` plus
+`MAIL_HOST` / `MAIL_PORT` / `MAIL_USERNAME` / `MAIL_PASSWORD`. `config/mail.php` no longer defaults
+`MAIL_HOST` to `127.0.0.1`, and `AppServiceProvider` now refuses SMTP-with-no-host at boot naming those
+variables — so a half-filled `.env` fails immediately instead of confusingly.
