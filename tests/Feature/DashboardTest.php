@@ -114,4 +114,50 @@ class DashboardTest extends TestCase
         $this->assertStringContainsString('No departments yet', $html);
         $this->assertStringContainsString('no prior data', $html);
     }
+
+    /**
+     * The sub-heading names the place the user works in, not the owner.
+     *
+     * A parish pastor's dashboard used to read "Here's what's happening with
+     * <church name> today" — i.e. it described the church the owner registered,
+     * which is not the parish the pastor is responsible for.
+     */
+    public function test_a_parish_pastors_dashboard_names_their_parish(): void
+    {
+        $church = Church::factory()->create(['name' => 'Grace Chapel']);
+        app()->instance('tenant.church_id', $church->id);
+
+        $type = \App\Models\UnitType::create(['church_id' => $church->id, 'name' => 'Parish', 'level' => 1]);
+        $parish = \App\Models\OrganizationalUnit::create([
+            'church_id' => $church->id, 'unit_type_id' => $type->id, 'name' => 'Wisdom Parish',
+        ]);
+
+        $pastor = $this->userWith($church, ['members.view']);
+        $pastor->forceFill([
+            'organizational_unit_id' => $parish->id,
+            'is_registrar' => false,
+        ])->save();
+        $pastor->load('organizationalUnit');
+
+        $html = $this->actingAs($pastor->fresh())->get('/dashboard')->assertOk()->getContent();
+
+        $this->assertStringContainsString("Here's what's happening with Wisdom Parish today.", $html);
+        $this->assertStringNotContainsString("Here's what's happening with Grace Chapel today.", $html);
+    }
+
+    /**
+     * The owner is not parish-scoped, so they keep the church's own name.
+     */
+    public function test_the_church_owners_dashboard_still_names_the_church(): void
+    {
+        $church = Church::factory()->create(['name' => 'Grace Chapel']);
+        app()->instance('tenant.church_id', $church->id);
+
+        $owner = $this->userWith($church, ['members.view']);
+        $owner->forceFill(['is_registrar' => true])->save();
+
+        $html = $this->actingAs($owner->fresh())->get('/dashboard')->assertOk()->getContent();
+
+        $this->assertStringContainsString("Here's what's happening with Grace Chapel today.", $html);
+    }
 }

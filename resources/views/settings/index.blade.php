@@ -112,22 +112,32 @@
                 <x-form.input name="password_confirmation" label="Confirm password" type="password" required
                     autocomplete="new-password" />
 
-                <x-form.select name="role_id" label="Role" required placeholder="Choose a role" :options="$roles
-                    ->map(
-                        fn($r) => [
-                            'value' => $r->id,
-                            'label' => $r->name . ' · ' . $r->permissions->count() . ' permissions',
-                        ],
-                    )
-                    ->all()"
-                    hint="What this account may do. You can change it later." />
+                {{-- The Role field is the ONE question that decides what kind
+                     of account this is. It used to be asked twice — a free
+                     "Parish (branch)" select next to it — so the parish could
+                     be stated in two places that disagreed, and the role list
+                     offered templates nobody wanted (private per-user roles).
+                     There are two kinds of account:
 
-                {{-- §14/§37: the parish this user belongs to. A user attached
-                     to a parish sees only that parish's information; leave blank
-                     for a church-wide account. --}}
-                <x-form.select name="organizational_unit_id" label="Parish (branch)" placeholder="Church-wide (all parishes)"
-                    :options="$parishes->map(fn ($p) => ['value' => $p->id, 'label' => $p->name])->all()"
-                    hint="Restrict this user to one parish's information. Leave blank for church-wide access." />
+                       • Permission for Church Owner — church-wide, full access.
+                       • Permission for Parish Pastor — the parish role: the
+                         parish's people, activities and day-to-day running,
+                         scoped to one parish.
+
+                     The parish itself is no longer typed here: a Parish Pastor
+                     is attached to this church's parish automatically when the
+                     church has exactly one, and the owner is asked to pick the
+                     parish from the list below when there are several. --}}
+                <x-form.select name="role_id" label="Role" required placeholder="Choose a role"
+                    :options="$roles
+                        ->map(fn ($r) => [
+                            'value' => $r->id,
+                            'label' => $r->name === 'Church Owner'
+                                ? 'Permission for Church Owner · full access'
+                                : 'Permission for Parish Pastor · ' . $r->permissions->count() . ' permissions',
+                        ])
+                        ->all()"
+                    hint="What this account may do. You can change it later." />
 
                 <x-form.checkbox name="is_registrar" label="Registrar (super-admin)"
                     hint="The registrar receives and approves all subventions from every parish, and may delete users." />

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Church;
+use App\Models\OrganizationalUnit;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
@@ -11,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -110,12 +113,20 @@ class SettingsController extends Controller
                 ->unique()
                 ->values()
                 ->all(),
-            'roles' => Role::query()
-                ->where('church_id', $request->user()->church_id)
-                ->with('permissions')
-                ->withCount('users')
-                ->orderBy('name')
-                ->get(),
+            // The two roles the form offers, and only those two.
+            //
+            // The Team form used to describe a role with a free "Parish (branch)"
+            // select AND a role list, so the parish was stated twice and could
+            // contradict itself. The role now carries the parish, which leaves
+            // exactly two kinds of account to create: an owner-level one and a
+            // parish pastor's. Private per-user roles ("Pastor · …") are
+            // deliberately NOT offered — they are the owner's tick boxes, not a
+            // template to hand to somebody new.
+            //
+            // ensureParishPastorRole() covers churches that registered before
+            // the default existed; it is idempotent and never rewrites an
+            // owner's edited copy.
+            'roles' => $this->assignableRoles($request),
             // §14/§37: the parishes a team member can be attached to, so the
             // "parish" selector on the team form has something to offer. A
             // parish-scoped admin is only offered their OWN parish.
@@ -126,6 +137,82 @@ class SettingsController extends Controller
                 ->get()
                 ->groupBy('group'),
         ]);
+    }
+
+    /**
+     * The one PARISH this church has, if it has exactly one.
+     *
+     * Every church is registered with a headquarters unit (no parent), and its
+     * branches hang off it. So "the parish" is the single child unit, when
+     * there is exactly one: unambiguous, and therefore safe to choose without
+     * asking. With two or more there is no way to know which one is meant, and
+     * a wrong guess would show a pastor another branch's members.
+     */
+    private function onlyParishId(Church $church): ?int
+    {
+        $units = OrganizationalUnit::withoutGlobalScopes()
+            ->where('church_id', $church->id)
+            ->get(['id', 'parent_id']);
+
+        $withParent = $units->whereNotNull('parent_id');
+
+        if ($withParent->count() === 1) {
+            return (int) $withParent->first()->id;
+        }
+
+        // A church with no headquarters row at all (created by hand or by an
+        // older path) has no parent links to read: then the only unit, if there
+        // is exactly one, is the church itself and is not a parish.
+        return null;
+    }
+
+    /**
+     * The roles the Team form may assign: Church Owner and Parish Pastor.
+     *
+     * Church Owner is the church's own copy when it has one (so its permission
+     * set is the copy the Roles tab shows), otherwise the system-default role.
+     * Parish Pastor is created on demand for older churches.
+     *
+     * @return \Illuminate\Support\Collection<int, Role>
+     */
+    private function assignableRoles(Request $request)
+    {
+        $churchId = $request->user()->church_id;
+
+        \Database\Seeders\RolePermissionSeeder::ensureParishPastorRole($churchId);
+
+        $roles = Role::query()
+            ->where(function ($q) use ($churchId) {
+                $q->where('church_id', $churchId)->orWhereNull('church_id');
+            })
+            ->whereIn('name', ['Church Owner', \Database\Seeders\RolePermissionSeeder::PARISH_PASTOR_ROLE])
+            ->with('permissions')
+            ->withCount('users')
+            ->orderByDesc('church_id') // the church's own copy wins over the system default
+            ->orderBy('name')
+            ->get()
+            ->unique('name')
+            ->sortBy('name')
+            ->values();
+
+        // A system-default role has church_id NULL, which storeTeamMember()
+        // refuses (a role must belong to this church). Clone the default into
+        // this church instead of offering something that cannot be saved.
+        return $roles->map(function (Role $role) use ($churchId) {
+            if ($role->church_id === null) {
+                $copy = Role::withoutGlobalScopes()
+                    ->where('church_id', $churchId)
+                    ->where('name', $role->name)
+                    ->first()
+                    ?? Role::create(['church_id' => $churchId, 'name' => $role->name]);
+
+                $copy->permissions()->sync($role->permissions()->pluck('permissions.id'));
+
+                return $copy->load('permissions')->loadCount('users');
+            }
+
+            return $role;
+        })->sortBy('name')->values();
     }
 
     /**
@@ -242,9 +329,16 @@ class SettingsController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->whereNull('deleted_at')],
             'password' => ['required', 'confirmed', Password::min(8)],
-            'role_id' => ['nullable', 'integer', Rule::exists('roles', 'id')->where('church_id', $church?->id)],
-            // §14/§37: the parish this user belongs to. Blank = church-wide
-            // (they see everything their role allows, not scoped to a parish).
+            // REQUIRED now that the Role field is the only thing describing the
+            // account: without a role, "Parish Pastor" and "Church Owner" would
+            // be indistinguishable, and the account would be created with no
+            // permissions at all.
+            'role_id' => ['required', 'integer', Rule::exists('roles', 'id')->where('church_id', $church?->id)],
+            // §14/§37: the parish this user belongs to. Blank = church-wide.
+            //
+            // The form no longer ASKS for this — the selected role decides it
+            // (see below) — but the field is still accepted so an existing
+            // integration or a direct POST is not silently refused.
             'organizational_unit_id' => ['nullable', 'integer', Rule::exists('organizational_units', 'id')->where('church_id', $church?->id)],
             'is_registrar' => ['nullable', 'boolean'],
         ], [
@@ -258,10 +352,42 @@ class SettingsController extends Controller
             abort(403, 'Only the church owner can grant registrar authority.');
         }
 
-        $member = DB::transaction(function () use ($data, $church) {
+        // The role now carries the PARISH, not a separate field.
+        //
+        //   Church Owner   → church-wide (no parish): the owner is the whole
+        //                    church's account, exactly as before.
+        //   Parish Pastor  → the church's parish. When the church has exactly
+        //                    one parish below its headquarters, that is the
+        //                    one, with no question asked. When there are
+        //                    several, the owner must say which — creating the
+        //                    account against the wrong branch would show that
+        //                    pastor another parish's members, so guessing is
+        //                    not an option.
+        $role = Role::withoutGlobalScopes()
+            ->where('id', $data['role_id'])
+            ->where('church_id', $church->id)
+            ->first();
+
+        $parishId = $data['organizational_unit_id'] ?? null;
+
+        if ($role?->name === \Database\Seeders\RolePermissionSeeder::PARISH_PASTOR_ROLE) {
+            $parishId ??= $this->onlyParishId($church);
+
+            if (! $parishId) {
+                throw ValidationException::withMessages([
+                    'role_id' => 'This church has more than one parish, so a Parish Pastor has to be attached to one. Create the account, then set its Parish in the list below.',
+                ]);
+            }
+        } else {
+            // Church Owner (or anything else): church-wide unless explicitly
+            // given a parish through the list below.
+            $parishId = $parishId ?: null;
+        }
+
+        $member = DB::transaction(function () use ($data, $church, $parishId) {
             $member = User::create([
                 'church_id' => $church->id,
-                'organizational_unit_id' => $data['organizational_unit_id'] ?? null,
+                'organizational_unit_id' => $parishId,
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'password' => Hash::make($data['password']),
