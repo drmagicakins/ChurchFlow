@@ -113,4 +113,33 @@ class Event extends Model
 
         return ($this->confirmedCount() + $additional) <= $this->capacity;
     }
+
+    /**
+     * Has this event already happened?
+     *
+     * An event ENDS at `ends_at` when one was given, and at `starts_at`
+     * otherwise (a one-hour meeting with no end time is over the moment it
+     * starts). A cancelled event is treated as finished too: nothing new
+     * should be arranged for something that is not going to happen.
+     *
+     * Used to close registration for everyone — a member added to last
+     * Sunday's service roster today is not a registration, it is a mistake
+     * in the record, and it would also inflate the attendance figures.
+     */
+    public function hasExpired(): bool
+    {
+        if ($this->status === 'cancelled') {
+            return true;
+        }
+
+        $end = $this->ends_at ?? $this->starts_at;
+
+        return $end !== null && $end->isPast();
+    }
+
+    /** The label the screens show for "this event is over". */
+    public function expiryLabel(): string
+    {
+        return $this->status === 'cancelled' ? 'Cancelled' : 'Expired';
+    }
 }

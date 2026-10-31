@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Event;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -30,9 +31,30 @@ use Illuminate\View\View;
  */
 class PublicEventRegistrationController extends Controller
 {
-    public function show(string $slug): View
+    public function show(string $slug): View|Response
     {
         $event = $this->findOpenEvent($slug);
+
+        // A visitor must be TOLD, on the church's own page, that registration
+        // has closed — not shown a framework error document.
+        //
+        // This used to be `abort_if(..., 410, $message)`. That produces the right
+        // status and even carries the sentence, but renders it through Laravel's
+        // exception view: with APP_DEBUG on (the dev default) the visitor gets the
+        // full debug screen — "Gone", the exception class, a stack trace, the
+        // request headers and "Body // No request body" — with the intended
+        // message buried inside it. Nothing on that page is addressed to the
+        // person who clicked the link.
+        //
+        // The status stays 410 Gone: the page really is no longer available and
+        // that is what a crawler needs to know.
+        if ($event->hasExpired()) {
+            return response()->view('events.public-closed', [
+                'event' => $event,
+                'church' => $event->church,
+                'message' => 'This event has already taken place, so registration is closed.',
+            ], 410);
+        }
 
         $registered = $event->visitorRegistrations()
             ->where('status', 'registered')
@@ -50,9 +72,26 @@ class PublicEventRegistrationController extends Controller
         ]);
     }
 
-    public function store(Request $request, string $slug): RedirectResponse
+    public function store(Request $request, string $slug): RedirectResponse|Response
     {
         $event = $this->findOpenEvent($slug);
+
+        // The public form is exactly where an "already happened" event is most
+        // likely to still receive sign-ups: an old link keeps circulating. The
+        // page already refuses to render for one (see show()), so a POST that
+        // arrives for it is a stale form, not a registration.
+        //
+        // A stale POST is answered with the same branded 410 page as show(),
+        // rather than a bare exception document: the visitor pressed a button on
+        // a form that is still open in their browser, and still deserves to be
+        // told what happened in words and able to try again from a clean page.
+        if ($event->hasExpired()) {
+            return response()->view('events.public-closed', [
+                'event' => $event,
+                'church' => $event->church,
+                'message' => 'This event has already taken place, so registration is closed.',
+            ], 410);
+        }
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],

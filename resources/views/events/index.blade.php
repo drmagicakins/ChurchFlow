@@ -97,15 +97,30 @@
                                     {{ $event->capacity ? number_format($event->capacity) : 'Unlimited' }}
                                 </td>
                                 <td>
-                                    @php $tone = match ($event->status) {
-                                        'cancelled' => 'cf-badge--danger',
-                                        'completed' => 'cf-badge--ok',
+                                    @php $hasExpired = $event->hasExpired(); $tone = match (true) {
+                                        $event->status === 'cancelled' => 'cf-badge--danger',
+                                        $event->status === 'completed' => 'cf-badge--ok',
+                                        $hasExpired => 'cf-badge--warn',
                                         default => 'cf-badge--brand',
                                     }; @endphp
-                                    <span class="cf-badge {{ $tone }}">{{ ucfirst($event->status ?? 'scheduled') }}</span>
+                                    <span class="cf-badge {{ $tone }}">
+                                        {{ $hasExpired ? $event->expiryLabel() : ucfirst($event->status ?? 'scheduled') }}
+                                    </span>
                                 </td>
                                 <td style="text-align:right;white-space:nowrap">
                                     <a href="{{ route('events.show', $event) }}" class="cf-btn cf-btn--secondary cf-btn--sm">View</a>
+                                    {{-- A finished event can no longer take anyone, so the row
+                                         leads with the one action still worth taking: deleting it.
+                                         Same soft-delete as the detail page's "Cancel event" —
+                                         nothing is wiped, the record is kept for the audit trail. --}}
+                                    @if($canManage && $hasExpired)
+                                        <form method="POST" action="{{ route('events.destroy', $event) }}" style="display:inline"
+                                            onsubmit="return confirm('Delete this expired event? It will be removed from the calendar and this list; its registration history is kept.')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="cf-btn cf-btn--danger cf-btn--sm">Delete</button>
+                                        </form>
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach

@@ -19,6 +19,11 @@
         $visitorsWithEmail = $activeVisitors->filter(fn ($v) => filled($v->email))->count();
         $visitorsWithPhone = $activeVisitors->filter(fn ($v) => filled($v->phone))->count();
         $canSms = auth()->user()->hasPermission('sms.manage');
+
+        // Set by EventController::show(): an event that has already taken place
+        // keeps its record but takes nobody else. The controller refuses the
+        // same write if the form is replayed.
+        $hasExpired = $hasExpired ?? $event->hasExpired();
     @endphp
 
     <div class="cf-page-head">
@@ -43,12 +48,24 @@
                         {{ $event->public_slug ? 'Public form link' : 'Open public registration' }}
                     </button>
                 </form>
-                <form method="POST" action="{{ route('events.destroy', $event) }}"
-                    onsubmit="return confirm('Cancel this event? It will no longer appear on the calendar.')">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="cf-btn cf-btn--secondary cf-btn--sm">Cancel event</button>
-                </form>
+                @if ($hasExpired)
+                    {{-- A finished event is now offered as Delete — the action the
+                         calendar actually needs — rather than "Cancel event",
+                         which described something that had already happened. --}}
+                    <form method="POST" action="{{ route('events.destroy', $event) }}"
+                        onsubmit="return confirm('Delete this expired event? It will be removed from the calendar; its registration history is kept.')">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="cf-btn cf-btn--danger cf-btn--sm">Delete event</button>
+                    </form>
+                @else
+                    <form method="POST" action="{{ route('events.destroy', $event) }}"
+                        onsubmit="return confirm('Cancel this event? It will no longer appear on the calendar.')">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="cf-btn cf-btn--secondary cf-btn--sm">Cancel event</button>
+                    </form>
+                @endif
             </div>
         @endif
     </div>
@@ -110,7 +127,15 @@
                     </p>
                 @endif
 
-                @if ($canManage && $availableMembers->isNotEmpty())
+                @if ($hasExpired)
+                    {{-- Registration is closed for everyone here, branch pastor and
+                         church owner alike. Registering someone for a service that
+                         already happened would falsify the attendance record. --}}
+                    <p class="cf-small cf-muted" style="margin-top:.75rem">
+                        This event has already taken place, so no one can be registered for it any more.
+                        @if ($canManage) Delete it above when it is no longer needed. @endif
+                    </p>
+                @elseif ($canManage && $availableMembers->isNotEmpty())
                     <x-form.card title="Register a member" description="Capacity is enforced: once the event is full, further registrations are waitlisted rather than rejected."
                         :action="route('events.register', $event)" submit="Register" submit-icon="check" layout="inline">
                         <x-form.select name="member_id" label="Member" required placeholder="Choose a member..."
@@ -131,7 +156,9 @@
             <div class="cf-empty">
                 <p class="cf-empty__title">No one registered yet</p>
                 <p class="cf-small cf-muted">
-                    @if ($canManage)
+                    @if ($hasExpired)
+                        This event took place with no one on its roster.
+                    @elseif ($canManage)
                         Use the form above to register the first attendee.
                     @else
                         Registrations will appear here as members sign up.
@@ -146,7 +173,7 @@
                             <th>Member</th>
                             <th>Email</th>
                             <th>Registered</th>
-                            @if ($canManage)<th style="text-align:right">Actions</th>@endif
+                            @if ($canManage && ! $hasExpired)<th style="text-align:right">Actions</th>@endif
                         </tr>
                     </thead>
                     <tbody>
@@ -157,7 +184,7 @@
                                 <td class="cf-small cf-muted" style="white-space:nowrap">
                                     {{ $registration->registered_at?->diffForHumans() }}
                                 </td>
-                                @if ($canManage)
+                                @if ($canManage && ! $hasExpired)
                                     <td style="text-align:right">
                                         <form method="POST" action="{{ route('events.registrations.cancel', $event) }}">
                                             @csrf

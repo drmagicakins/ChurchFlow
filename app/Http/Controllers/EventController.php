@@ -85,6 +85,11 @@ class EventController extends Controller
 
         $canManage = auth()->user()->hasPermission('events.manage');
 
+        // A finished event keeps its record but stops taking people: the page
+        // hides the roster picker and offers Delete instead. The controller's
+        // register() refuses the same thing server-side (see its comment).
+        $hasExpired = $event->hasExpired();
+
         // §13: everyone who filled in the PUBLIC registration form. These are
         // visitors, not church members, so they are their own list — but the
         // organiser sees them on the same page as the member roster, because
@@ -96,14 +101,14 @@ class EventController extends Controller
 
         // Members not already on this event's list, so the "add attendee"
         // dropdown never offers someone who is already registered.
-        $availableMembers = $canManage
+        $availableMembers = $canManage && ! $hasExpired
             ? Member::query()
                 ->whereNotIn('id', $registrations->pluck('member_id'))
                 ->orderBy('full_name')
                 ->get(['id', 'full_name', 'email'])
             : collect();
 
-        return view('events.show', compact('event', 'registrations', 'availableMembers', 'canManage', 'visitors'));
+        return view('events.show', compact('event', 'registrations', 'availableMembers', 'canManage', 'visitors', 'hasExpired'));
     }
 
     /**
@@ -117,6 +122,14 @@ class EventController extends Controller
     {
         $this->authorize('update', $event);
 
+        // A finished event must not gain a LIVE public form: people would keep
+        // signing up for something that is over. Its existing sign-ups are kept
+        // as history, and the public page answers 410 for it (see
+        // PublicEventRegistrationController::show()).
+        if ($event->hasExpired()) {
+            return back()->with('error', 'This event has already taken place, so it cannot be opened for new public registrations.');
+        }
+
         $slug = PublicEventRegistrationController::ensureSlug($event);
         $event->forceFill(['registration_open' => true])->save();
 
@@ -129,6 +142,12 @@ class EventController extends Controller
     public function cancelVisitor(Event $event, EventRegistrationSubmission $visitor): RedirectResponse
     {
         $this->authorize('update', $event);
+
+        // Same rule as the member roster: a finished event's list of who came
+        // is a record, not a working document.
+        if ($event->hasExpired()) {
+            return back()->with('error', 'This event has already taken place. Its list of public registrations is a record and is no longer edited.');
+        }
 
         // Route-model binding knows nothing about the event–visitor relationship;
         // a crafted id must not cancel another event's (or church's) sign-up.
@@ -144,6 +163,12 @@ class EventController extends Controller
     public function emailReminder(Event $event): RedirectResponse
     {
         $this->authorize('update', $event);
+
+        // A reminder for a past event would mail people about something that
+        // has already happened.
+        if ($event->hasExpired()) {
+            return back()->with('error', 'This event has already taken place, so no reminder can be sent.');
+        }
 
         $recipients = $event->visitorRegistrations()
             ->where('status', '!=', 'cancelled')
@@ -172,6 +197,12 @@ class EventController extends Controller
     public function smsReminder(Request $request, Event $event): RedirectResponse
     {
         $this->authorize('update', $event);
+
+        // Same rule as the email reminder: no reminder about a past event, and
+        // above all no SMS credits spent on one.
+        if ($event->hasExpired()) {
+            return back()->with('error', 'This event has already taken place, so no reminder can be sent.');
+        }
 
         abort_unless($request->user()->hasPermission('sms.manage'), 403,
             'Sending SMS needs the SMS permission.');
@@ -204,6 +235,18 @@ class EventController extends Controller
     public function register(Request $request, Event $event): RedirectResponse
     {
         $this->authorize('view', $event);
+
+        // An event that has already happened takes no registrations — from
+        // anyone, including the church owner. The check is here, on the
+        // server, because the screens hiding the form is presentation, not
+        // enforcement: a replayed form (a bookmarked tab, a double submit)
+        // would otherwise still write a row onto last Sunday's roster and
+        // inflate its attendance figures.
+        if ($event->hasExpired()) {
+            return back()->with('error', $event->status === 'cancelled'
+                ? 'This event was cancelled, so nobody can be registered for it.'
+                : 'This event has already taken place, so registrations are closed.');
+        }
 
         $data = $request->validate(['member_id' => ['required', 'exists:members,id']]);
         $member = Member::findOrFail($data['member_id']);
@@ -245,6 +288,13 @@ class EventController extends Controller
     public function cancelRegistration(Request $request, Event $event): RedirectResponse
     {
         $this->authorize('update', $event);
+
+        // Removing someone from a finished event's list would rewrite the
+        // record of who attended after the fact — the one thing an attendance
+        // history must not allow. The event is removed, not edited.
+        if ($event->hasExpired()) {
+            return back()->with('error', 'This event has already taken place. Its attendee list is a record and is no longer edited — delete the event instead.');
+        }
 
         $data = $request->validate(['member_id' => ['required', 'exists:members,id']]);
         $member = Member::findOrFail($data['member_id']);
