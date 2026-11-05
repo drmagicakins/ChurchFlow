@@ -1,10 +1,10 @@
 <x-layout title="Branches · ChurchFlow">
     <div class="cf-page-head">
         <div>
-            <h1>{{ \Illuminate\Support\Str::plural($label) }}</h1>
+            <h1>{{ $pluralLabel }}</h1>
             <p class="cf-small cf-muted" style="margin-top:.3rem">
                 {{ number_format($units->total()) }} {{ \Illuminate\Support\Str::plural($label, $units->total()) }} ·
-                {{ $label }}es are the top level of your church's structure — departments, members, events and
+                {{ $pluralLabel }} are the top level of your church's structure — departments, members, events and
                 announcements can all be scoped to one.
             </p>
         </div>
@@ -41,7 +41,7 @@
     @if ($canManage)
         <div data-panel="branch-create" hidden style="margin-bottom:1.2rem">
             <x-form.card title="Create a {{ strtolower($label) }}"
-                description="Your plan sets how many {{ strtolower($label) }}es you can add; the limit is checked here before anything is saved."
+                description="Your plan sets how many {{ strtolower($pluralLabel) }} you can add; the limit is checked here before anything is saved."
                 :action="route('branches.store')" submit="Create {{ $label }}" submit-icon="branches" layout="inline">
                 <x-form.input name="name" label="{{ $label }} name" required
                     placeholder="e.g. Ikeja, Surulere, Main Campus" />
@@ -64,7 +64,7 @@
     <div class="cf-card cf-card--flush">
         @if ($units->isEmpty())
             <div class="cf-empty">
-                <p class="cf-empty__title">No {{ strtolower(\Illuminate\Support\Str::plural($label)) }} yet</p>
+                <p class="cf-empty__title">No {{ strtolower($pluralLabel) }} yet</p>
                 <p class="cf-small cf-muted">
                     @if ($canManage)
                         Create your first {{ strtolower($label) }} above. Once it exists you can scope members,
@@ -106,8 +106,8 @@
                                     {{ number_format($unit->departments_count ?? 0) }}</td>
                                 @if ($canManage)
                                     <td style="text-align:right">
-                                        <form method="POST" action="{{ route('branches.destroy', $unit) }}"
-                                            onsubmit="return confirm('Remove {{ $unit->name }}? Records pointing at it will simply become unscoped.')">
+                                        <form method="POST" action="{{ route('branches.destroy', ['branch' => $unit]) }}"
+                                            onsubmit="return confirm('Remove {{ e($unit->name) }}? Records pointing at it will simply become unscoped.')">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit"

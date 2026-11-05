@@ -41,6 +41,13 @@ class AuditableObserver
             'new_values' => $strip($new),
             'ip_address' => Request::ip(),
             'user_agent' => Request::userAgent(),
+            // audit_logs.created_at is `timestamp ... useCurrent()`, so the
+            // database default is the only stamp. When the engine defines that
+            // column without a default (SQLite ignores useCurrent), the row
+            // lands with created_at = NULL — and a NULL sorts first on a
+            // latest() query, which is how unrelated rows ended up at the top
+            // of a dashboard. Stamp it explicitly so every entry is dated.
+            'created_at' => now(),
         ]);
     }
 }

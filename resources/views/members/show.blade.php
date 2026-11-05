@@ -10,6 +10,21 @@
             'transferred', 'deceased' => 'cf-badge--danger',
             default => '',
         };
+
+        // The edit form below uses the SAME fields and the same
+        // UpdateMemberRequest the PUT route already validated — nothing about
+        // how a member is stored changes. Shown only to someone the policy
+        // allows to update this member (members.edit), and scoped to the
+        // branches this user can see, so the dropdown can never offer a branch
+        // the request would reject.
+        $canEdit = auth()->user()->can('update', $member);
+        $branches = $canEdit
+            ? \App\Models\OrganizationalUnit::query()->orderBy('name')->get()
+            : collect();
+        $statuses = [
+            'active' => 'Active', 'inactive' => 'Inactive', 'visitor' => 'Visitor',
+            'transferred' => 'Transferred', 'deceased' => 'Deceased', 'draft' => 'Draft',
+        ];
     @endphp
 
     <div class="cf-page-head">
@@ -25,6 +40,12 @@
             </p>
         </div>
         <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+            @if($canEdit)
+                <button type="button" class="cf-btn cf-btn--primary cf-btn--sm" data-toggle="member-edit"
+                    aria-expanded="false" aria-controls="member-edit-panel">
+                    <x-ui.icon name="users" class="h-4 w-4" /> Edit member
+                </button>
+            @endif
             @if(auth()->user()->hasPermission('members.edit'))
                 <a href="{{ route('members.index', ['q' => $member->membership_number]) }}" class="cf-btn cf-btn--secondary cf-btn--sm">Find in list</a>
             @endif
@@ -43,6 +64,84 @@
         <div class="cf-alert cf-alert--ok" role="status">
             <span class="cf-alert__icon"><x-ui.icon name="check" class="h-4 w-4" /></span>
             <div class="cf-alert__body"><p class="cf-alert__title">{{ session('status') }}</p></div>
+        </div>
+    @endif
+
+    @if($canEdit)
+        {{-- The edit form. Hidden until "Edit member" is pressed, and opened
+             automatically if the last submission failed validation, so the
+             errors are never hidden behind a collapsed panel. --}}
+        <div id="member-edit-panel" data-panel="member-edit"
+            @if(!$errors->any()) hidden @endif style="margin-bottom:1.2rem">
+            <x-form.card title="Edit {{ $member->full_name }}"
+                description="Correct or complete this member's details. Saving updates this record only — nothing is removed."
+                :action="route('members.update', ['member' => $member])" method="PUT"
+                submit="Save changes" submit-icon="check" layout="inline">
+
+                <x-form.input name="full_name" label="Full name" required
+                    :value="old('full_name', $member->full_name)" autocomplete="name" />
+
+                <x-form.input name="email" label="Email address" type="email"
+                    :value="old('email', $member->email)" autocomplete="email"
+                    placeholder="name@example.com" />
+
+                <x-form.input name="phone" label="Phone number" type="tel"
+                    :value="old('phone', $member->phone)" autocomplete="tel"
+                    placeholder="+234 800 000 0000" />
+
+                <x-form.select name="membership_status" label="Membership status"
+                    :value="old('membership_status', $member->membership_status)"
+                    :options="$statuses" />
+
+                @if($branches->isNotEmpty())
+                    <x-form.select name="organizational_unit_id" label="Branch"
+                        :value="old('organizational_unit_id', $member->organizational_unit_id)"
+                        placeholder="Not assigned"
+                        :options="$branches->map(fn ($b) => ['value' => $b->id, 'label' => $b->name])->all()" />
+                @endif
+
+                <x-form.select name="gender" label="Gender"
+                    :value="old('gender', $member->gender)" placeholder="Not stated"
+                    :options="['male' => 'Male', 'female' => 'Female', 'other' => 'Other']" />
+
+                <x-form.input name="date_of_birth" label="Date of birth" type="date"
+                    :value="old('date_of_birth', $member->date_of_birth?->format('Y-m-d'))" />
+
+                <x-form.input name="date_joined" label="Date joined" type="date"
+                    :value="old('date_joined', $member->date_joined?->format('Y-m-d'))" />
+
+                <x-form.input name="baptism_date" label="Baptism date" type="date"
+                    :value="old('baptism_date', $member->baptism_date?->format('Y-m-d'))" />
+
+                <x-form.input name="emergency_contact_name" label="Emergency contact"
+                    :value="old('emergency_contact_name', $member->emergency_contact_name)"
+                    placeholder="Full name" />
+
+                <x-form.input name="emergency_contact_phone" label="Emergency contact phone" type="tel"
+                    :value="old('emergency_contact_phone', $member->emergency_contact_phone)" />
+
+                {{-- is_worker is a boolean column. The rule accepts a boolean,
+                     so the hidden "0" is what an unticked box sends — without
+                     it an unchecked box would simply be absent and the old
+                     value could never be turned off. --}}
+                <div class="cf-field cf-field--wide">
+                    <input type="hidden" name="is_worker" value="0">
+                    <label class="cf-label" style="display:flex;align-items:center;gap:.5rem;font-weight:500">
+                        <input type="checkbox" name="is_worker" value="1"
+                            style="width:1rem;height:1rem"
+                            @checked((bool) old('is_worker', $member->is_worker))>
+                        Serves as a worker
+                    </label>
+                    <p class="cf-hint">Shown as a "Worker" badge next to the name.</p>
+                </div>
+
+                <x-form.textarea name="address" label="Home address" rows="2"
+                    :value="old('address', $member->address)" />
+
+                <x-form.textarea name="notes" label="Notes" rows="2"
+                    :value="old('notes', $member->notes)"
+                    hint="Visible to staff who have member access." />
+            </x-form.card>
         </div>
     @endif
 
@@ -168,4 +267,38 @@
             </div>
         </div>
     </div>
+
+    @push('scripts')
+        <script nonce="{{ \App\Http\Middleware\SecurityHeaders::nonce() }}">
+            (function () {
+                // Opens/collapses the edit form. The script is pushed
+                // unconditionally and guarded here at runtime, which is the
+                // pattern used on the members list page: a conditional push is
+                // fragile in Blade, and a user without members.edit has neither
+                // the button nor the panel, so this is a no-op for them.
+                var btn = document.querySelector('[data-toggle="member-edit"]');
+                var panel = document.querySelector('[data-panel="member-edit"]');
+                if (!btn || !panel) return;
+
+                btn.addEventListener('click', function () {
+                    var isOpen = !panel.hasAttribute('hidden');
+                    if (isOpen) {
+                        panel.setAttribute('hidden', '');
+                    } else {
+                        panel.removeAttribute('hidden');
+                        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                    btn.setAttribute('aria-expanded', String(!isOpen));
+                });
+
+                // A failed save must not leave its messages behind a collapsed
+                // panel: that reads as "Saving did nothing".
+                if (panel.querySelector('[aria-invalid="true"], .cf-error, .cf-alert--error')) {
+                    panel.removeAttribute('hidden');
+                    btn.setAttribute('aria-expanded', 'true');
+                    panel.scrollIntoView({ block: 'start' });
+                }
+            })();
+        </script>
+    @endpush
 </x-layout>

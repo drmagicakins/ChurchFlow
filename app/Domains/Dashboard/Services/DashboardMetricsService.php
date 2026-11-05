@@ -121,14 +121,21 @@ class DashboardMetricsService
      * AuditableObserver), not a bespoke "activity" table that could get out
      * of sync with what actually happened.
      *
+     * Scoped to $churchId when one is given. The feed used to read the audit
+     * table unfiltered, so a brand-new church's owner was shown another
+     * tenant's actions (and a platform-default church's rows that are not
+     * theirs at all) instead of their own empty history.
+     *
      * @return Collection<int, array{icon:string, tone:string, label:string, when: Carbon}>
      */
-    public function recentActivities(int $limit = 6): Collection
+    public function recentActivities(int $limit = 6, ?int $churchId = null): Collection
     {
         return AuditLog::query()
+            ->when($churchId !== null, fn ($q) => $q->where('church_id', $churchId))
             ->latest('created_at')
             ->take($limit)
             ->get()
+            ->filter(fn (AuditLog $log) => $log->created_at !== null)
             ->map(fn (AuditLog $log) => $this->describe($log));
     }
 

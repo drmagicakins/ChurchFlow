@@ -34,10 +34,23 @@ class PastoralCaseController extends Controller
             'member_id' => ['required', 'exists:members,id'],
             'type' => ['required', 'in:counseling,welfare,hospital_visit,new_member_followup,other'],
             'description' => ['nullable', 'string', 'max:5000'],
+            'status' => ['nullable', 'in:open,in_progress,closed'],
             'assigned_to' => ['nullable', 'exists:users,id'],
         ]);
 
-        $member = Member::findOrFail($data['member_id']);
+        // The member picker posts an id, and validation above proves one exists —
+        // but existence is checked against the table, not against what THIS user
+        // may see (tenant and parish scope). So resolve it through the scoped
+        // query and, if it is not visible here, say that on the form instead of
+        // letting findOrFail() answer with a bare "not found".
+        $member = Member::find($data['member_id']);
+
+        if (! $member) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'member_id' => 'Member not found. Choose a member from your own church and parish.',
+            ]);
+        }
+
         $assignTo = !empty($data['assigned_to']) ? \App\Models\User::find($data['assigned_to']) : null;
 
         $case = $this->service->openCase($member, $data['type'], $request->user(), $data['description'] ?? null, $assignTo);
@@ -49,7 +62,12 @@ class PastoralCaseController extends Controller
     {
         $this->authorize('view', $case);
 
-        return view('pastoral.cases.show', ['case' => $case->load('notes', 'appointments')]);
+        return view('pastoral.cases.show', ['case' => $case->load([
+            'member', 'assignee', 'openedBy', 'appointments',
+            // The history shows who wrote each entry; loading the authors here
+            // keeps the page to a fixed number of queries instead of one per note.
+            'notes.author',
+        ])]);
     }
 
     public function addNote(Request $request, PastoralCase $case): RedirectResponse

@@ -65,7 +65,9 @@ class DashboardController extends Controller
             'financeStats' => $canFinance ? $metrics->financeStats() : null,
             'financialSeries' => $canFinance ? $metrics->financialSeries(6) : null,
             'activitySummary' => $canMembers ? $metrics->activitySummary() : null,
-            'recentActivities' => $user->hasPermission('settings.manage') ? $metrics->recentActivities(6) : null,
+            'recentActivities' => $user->hasPermission('settings.manage')
+                ? $metrics->recentActivities(6, $user->church_id)
+                : null,
             'departmentsOverview' => $canMembers ? $metrics->departmentsOverview(6) : null,
             'todaysSchedule' => Event::query()
                 ->whereBetween('starts_at', [now()->startOfDay(), now()->endOfDay()])

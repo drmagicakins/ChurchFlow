@@ -30,6 +30,23 @@ class OrganizationalUnitController extends Controller
         return auth()->user()?->church?->label('branch', 'Branch') ?? 'Branch';
     }
 
+    /**
+     * Display label with the church's own term ("Parish", "Province", ...).
+     *
+     * This is often an ALL-CAPS name ("PARISH"), where a plain "{$label}es"
+     * would read "PARISHes", so the first letter is kept and the rest lower
+     * cased first: "Parishes", "Provinces", "Branches". A term that is not
+     * a single word is left exactly as the church wrote it.
+     */
+    private function pluralLabel(string $label): string
+    {
+        if (str_contains(trim($label), ' ')) {
+            return $label;
+        }
+
+        return ucfirst(mb_strtolower($label)).'es';
+    }
+
     public function index(): View
     {
         $this->authorize('viewAny', OrganizationalUnit::class);
@@ -46,6 +63,7 @@ class OrganizationalUnitController extends Controller
             'units' => $units,
             'unitTypes' => $unitTypes,
             'label' => $this->topLevelLabel(),
+            'pluralLabel' => $this->pluralLabel($this->topLevelLabel()),
             'canManage' => auth()->user()->hasPermission('settings.manage'),
         ]);
     }

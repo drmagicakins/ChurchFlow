@@ -1,5 +1,24 @@
 <x-layout title="Pastoral Cases · ChurchFlow">
-    @php $canManage = auth()->user()->hasPermission('pastoral.manage'); @endphp
+    @php
+        $canManage = auth()->user()->hasPermission('pastoral.manage');
+
+        // The people a case can be opened for, identified the way a church
+        // actually knows them: by NAME, with the membership number as the tie-
+        // breaker. The form used to ask for a raw numeric "Member ID" — the
+        // table's internal id — so choosing a member meant guessing a number no
+        // screen ever showed, and a wrong guess failed as "Member ID not found".
+        // The value sent is still the id the controller validates; only the way
+        // it is chosen changed. Tenant/parish scoping applies as everywhere else.
+        $memberOptions = \App\Models\Member::query()
+            ->orderBy('full_name')
+            ->limit(500)
+            ->get()
+            ->map(fn ($m) => [
+                'value' => $m->id,
+                'label' => $m->full_name.($m->membership_number ? ' — '.$m->membership_number : ''),
+            ])
+            ->all();
+    @endphp
 
     <div class="cf-page-head">
         <div>
@@ -27,19 +46,37 @@
         <x-form.card title="Open a pastoral case"
             description="A case is visible only to you and to anyone holding pastoral.manage. It is never visible to general administrators."
             :action="route('pastoral.cases.store')" submit="Open case" layout="inline">
-            <x-form.input name="member_id" label="Member ID" type="number" required
-                hint="The member this case concerns." />
+            @if (count($memberOptions))
+                <x-form.select name="member_id" label="Member" required
+                    placeholder="Choose the member this case concerns"
+                    :options="$memberOptions"
+                    hint="Search by name. The membership number is shown after the dash." />
+            @else
+                {{-- Nothing to choose from yet: say so, instead of offering a
+                     box that can only fail. --}}
+                <div class="cf-field cf-field--wide">
+                    <p class="cf-alert cf-alert--error" role="alert" style="margin:0">
+                        @if ($canManage)
+                            No members exist yet, so there is nobody to open a case for.
+                            <a href="{{ route('members.index') }}">Add a member first</a>.
+                        @else
+                            No members are visible to you yet. Ask an administrator to add one.
+                        @endif
+                    </p>
+                </div>
+            @endif
 
             <x-form.select name="type" label="Case type" required placeholder="Choose a type" :options="[
                 'counseling' => 'Counseling',
                 'welfare' => 'Welfare / benevolence',
                 'hospital_visit' => 'Hospital visit',
-                'new_member_follow_up' => 'New-member follow-up',
+                'new_member_followup' => 'New-member follow-up',
+                'other' => 'Other',
             ]" />
 
             <x-form.select name="status" label="Status" :value="'open'" :options="['open' => 'Open', 'in_progress' => 'In progress', 'closed' => 'Closed']" />
 
-            <x-form.textarea name="summary" label="Summary" rows="4" wide required
+            <x-form.textarea name="description" label="Summary" rows="4" wide required
                 placeholder="What is this case about, in a sentence or two?"
                 hint="Record facts, not conclusions — the detail belongs in the case notes once it is open." />
         </x-form.card>

@@ -13,6 +13,7 @@ use App\Models\Plan;
 use App\Models\Subscription;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /**
@@ -94,11 +95,111 @@ class BillingController extends Controller
         ]);
     }
 
+    /**
+     * The church's full invoice history.
+     *
+     * Filtering happens server-side and is limited to the two columns shown as
+     * chips/dropdown (`type`, `status`), so the paginated list, the statement
+     * figures and the page-of-totals figure all describe the same query.
+     * Tenant isolation is unchanged: Invoice uses BelongsToTenant, so every
+     * one of these queries is already scoped to the signed-in church.
+     */
     public function invoices(Request $request): View
     {
         $this->authorizeBilling($request);
 
-        return view('billing.invoices', ['invoices' => Invoice::query()->latest()->paginate(25)]);
+        $data = $request->validate([
+            'type' => ['nullable', 'in:subscription,sms_credits'],
+            'status' => ['nullable', 'string', 'max:32'],
+        ]);
+
+        $type = $data['type'] ?? null;
+        $status = $data['status'] ?? null;
+
+        $invoices = Invoice::query()
+            ->when($type, fn ($q) => $q->where('type', $type))
+            ->when($status, fn ($q) => $q->where('status', $status))
+            ->latest()
+            ->paginate(25);
+
+        // The statement figures are computed over the WHOLE account, not the
+        // filtered page — "Total billed" that changed when you filtered would
+        // be the one number nobody trusts. Tax is included, so this matches the
+        // per-invoice Total column and Invoice::total().
+        $paid = Invoice::query()->where('status', 'paid');
+
+        $summary = [
+            'currency' => Invoice::query()->latest()->value('currency') ?? 'NGN',
+            'paid_count' => (clone $paid)->count(),
+            'paid_total' => (float) (clone $paid)->sum(DB::raw('amount + tax_amount')),
+            'month_total' => (float) (clone $paid)
+                ->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])
+                ->sum(DB::raw('amount + tax_amount')),
+        ];
+
+        return view('billing.invoices', [
+            'invoices' => $invoices,
+            'summary' => $summary,
+            'type' => $type,
+            'status' => $status,
+            'statuses' => Invoice::query()->distinct()->orderBy('status')->pluck('status')->filter()->values(),
+            // Each row's printable document, keyed by invoice id. Handed to the
+            // view as data so the View/Print/Download buttons carry their own
+            // figures — no extra request, and no second source to drift from.
+            'invoiceDocument' => fn (Invoice $invoice) => $this->buildInvoiceDocument(
+                $invoice,
+                $summary['currency'],
+                $request->user()->church?->name ?? 'Your church',
+                $request->user()->email,
+            ),
+        ]);
+    }
+
+    /**
+     * The printable/downloadable invoice document, as data.
+     *
+     * Built here rather than in the Blade file so the figures (which currency
+     * to format with, when tax is zero and can be omitted, whether the invoice
+     * is settled) are decided in one place. `amount` is the subtotal and a
+     * negative value is a proration credit (§13) — labelled as such rather
+     * than shown as a mysterious negative charge.
+     *
+     * @return array<string, mixed>
+     */
+    private function buildInvoiceDocument(Invoice $invoice, ?string $fallbackCurrency, string $churchName, ?string $accountEmail): array
+    {
+        $currency = $invoice->currency ?: $fallbackCurrency;
+        $symbol = Plan::currencySymbol($currency);
+        $money = fn (string $value): string => $symbol.number_format((float) $value, 2);
+
+        $typeLabel = match ($invoice->type) {
+            'subscription' => 'Subscription',
+            'sms_credits' => 'SMS credits',
+            default => ucfirst(str_replace('_', ' ', (string) $invoice->type)),
+        };
+
+        $isCredit = bccomp((string) $invoice->amount, '0', 2) < 0;
+
+        return [
+            'number' => 'INV-'.$invoice->created_at->format('Y').'-'.str_pad((string) $invoice->id, 5, '0', STR_PAD_LEFT),
+            'date' => $invoice->created_at->format('d M Y'),
+            'paidAt' => $invoice->status === 'paid'
+                ? ($invoice->paid_at ?? $invoice->created_at)->format('d M Y')
+                : null,
+            'church' => $churchName,
+            'email' => $accountEmail,
+            'status' => $invoice->status,
+            'statusLabel' => ucfirst((string) $invoice->status),
+            'provider' => $invoice->provider ? ucfirst((string) $invoice->provider) : null,
+            'providerReference' => $invoice->provider_reference,
+            'description' => $invoice->description ?: $typeLabel,
+            'typeLabel' => $typeLabel,
+            'amount' => $money((string) $invoice->amount),
+            'subtotal' => $money((string) $invoice->amount),
+            'taxLabel' => (float) $invoice->tax_rate > 0 ? 'Tax ('.rtrim(rtrim(number_format((float) $invoice->tax_rate, 2), '0'), '.').'%)' : 'Tax',
+            'tax' => (float) $invoice->tax_amount > 0 ? $money((string) $invoice->tax_amount) : '—',
+            'total' => $money($invoice->total()).($isCredit ? ' credit' : ''),
+        ];
     }
 
     /** §13: recorded, not instant — access continues to period end. */

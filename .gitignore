@@ -44,3 +44,12 @@ Thumbs.db
 /dev-lines.php
 /dev-view.php
 /dev-health-probe.php
+# Deployment credentials (FTP/FTPS, database, SMTP). These are supplied at
+# deploy time and must never enter the repository or a build artifact.
+/churchflow-deployment-secrets.env
+/*-deployment-secrets.env
+# Local QA scratch scripts and screenshots produced while verifying a change.
+/_qa_*
+/_shot_*
+/_test_out.txt
+/_test_err.txt
