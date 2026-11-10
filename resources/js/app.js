@@ -245,8 +245,6 @@ if (document.readyState === 'loading') {
     boot();
 }
 
-Alpine.start();
-
 /*
  | ---------------------------------------------------------------------------
  | Data grid: instant filter + selection
@@ -303,3 +301,20 @@ Alpine.data('cfDataGrid', ({ perPage = 25 } = {}) => ({
             : this.selected.filter((id) => !ids.includes(id));
     },
 }));
+
+/*
+ | ---------------------------------------------------------------------------
+ | Alpine.start() — MUST be the last statement in this file
+ | ---------------------------------------------------------------------------
+ | Alpine evaluates every x-data / x-show / @click expression the moment it
+ | starts. A component registered AFTER start() does not exist yet, so
+ | `x-data="cfDataGrid(...)"` resolves to undefined and every `x-show` inside
+ | it evaluates against nothing — which Alpine treats as false and hides.
+ |
+ | That is exactly what happened to the finance ledger: the grid's rows were
+ | all `display: none` because cfDataGrid was registered below this call, so
+ | the transaction table rendered empty on every account page even though the
+ | rows were in the HTML. Moving start() to the end fixes it for every
+ | component in this file, not just the grid.
+ */
+Alpine.start();

@@ -14,7 +14,11 @@ class AnnouncementController extends Controller
     {
         $this->authorize('viewAny', Announcement::class);
 
+        // visibleTo() keeps church-wide announcements (branch NULL) in a parish
+        // pastor's list — TenantScope alone hides them, because this table has
+        // an organizational_unit_id column. See Announcement::scopeVisibleTo().
         $announcements = Announcement::query()
+            ->visibleTo($request->user())
             ->published()
             ->latest('publish_at')
             ->paginate(20);
@@ -33,9 +37,32 @@ class AnnouncementController extends Controller
             ->orderBy('name')
             ->get();
         $departments = \App\Models\Department::query()->visibleTo($request->user())->orderBy('name')->get();
-        $groups = \App\Models\Group::query()->orderBy('name')->get();
+        $groups = \App\Models\Group::query()->visibleTo($request->user())->orderBy('name')->get();
 
-        return view('announcements.index', compact('announcements', 'branches', 'departments', 'groups'));
+        // The audiences this user may actually post to. A parish pastor may
+        // reach their own branch, a department and a group; only the church
+        // owner may address the entire church or another branch. The form is
+        // built from this list so it cannot offer a choice the controller will
+        // refuse — and the controller still refuses it if one is posted anyway.
+        //
+        // 'Entire church' is therefore absent for a parish pastor. They still
+        // SEE church-wide announcements in the list below; this only governs
+        // what they may broadcast.
+        $audiences = $request->user()->isParishScoped() ? [] : ['church_wide' => 'Entire church'];
+
+        if ($branches->isNotEmpty()) {
+            $audiences['branch'] = 'A specific branch';
+        }
+
+        if ($departments->isNotEmpty()) {
+            $audiences['department'] = 'A department';
+        }
+
+        if ($groups->isNotEmpty()) {
+            $audiences['group'] = 'A group';
+        }
+
+        return view('announcements.index', compact('announcements', 'branches', 'departments', 'groups', 'audiences'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -58,7 +85,62 @@ class AnnouncementController extends Controller
             'publish_at' => ['nullable', 'date'],
         ]);
 
-        $data['created_by'] = $request->user()->id;
+        $user = $request->user();
+
+        // §19 audience rules. A parish pastor may reach their own branch, a
+        // department and a group — but NOT the whole church, and not another
+        // branch. Only the church owner (super admin) may address the entire
+        // church or any branch. Enforced here, not only by hiding options in
+        // the form: a hidden <option> is presentation, and only the server
+        // check survives a crafted POST.
+        //
+        // Note this is about POSTING, not about reading. A parish pastor still
+        // RECEIVES church-wide announcements in their list — that is
+        // scopeVisibleTo()'s job, and it is deliberately unaffected by this
+        // rule. Refusing to let someone broadcast to the whole church is not
+        // the same as hiding the church's own notices from them.
+        if ($data['audience_type'] === 'church_wide' && $user->isParishScoped()) {
+            return back()
+                ->withInput()
+                ->withErrors(['audience_type' => 'Only the church owner can post to the entire church.']);
+        }
+
+        if ($data['audience_type'] === 'branch') {
+            $target = (int) ($data['organizational_unit_id'] ?? 0);
+
+            if ($user->isParishScoped() && $target !== (int) $user->organizational_unit_id) {
+                return back()
+                    ->withInput()
+                    ->withErrors(['organizational_unit_id' => 'You can only post to your own branch.']);
+            }
+        }
+
+        // A department or group must belong to this church. The `exists` rule
+        // above only proves the id is real somewhere; without this, a crafted
+        // POST could target another tenant's department by id.
+        if ($data['audience_type'] === 'department' && ! empty($data['department_id'])) {
+            $owns = \App\Models\Department::query()->whereKey($data['department_id'])->exists();
+            if (! $owns) {
+                return back()->withInput()->withErrors(['department_id' => 'That department was not found.']);
+            }
+        }
+
+        if ($data['audience_type'] === 'group' && ! empty($data['group_id'])) {
+            $owns = \App\Models\Group::query()->whereKey($data['group_id'])->exists();
+            if (! $owns) {
+                return back()->withInput()->withErrors(['group_id' => 'That group was not found.']);
+            }
+        }
+
+        // Only the field that matches the chosen audience is stored. Without
+        // this, a stale value left in a hidden select (the form keeps every
+        // field in the DOM) would be written alongside the real audience and
+        // the row would claim two targets at once.
+        $data['organizational_unit_id'] = $data['audience_type'] === 'branch' ? ($data['organizational_unit_id'] ?? null) : null;
+        $data['department_id'] = $data['audience_type'] === 'department' ? ($data['department_id'] ?? null) : null;
+        $data['group_id'] = $data['audience_type'] === 'group' ? ($data['group_id'] ?? null) : null;
+
+        $data['created_by'] = $user->id;
         $announcement = Announcement::create($data);
 
         SendAnnouncementEmailsJob::dispatch($announcement->id);

@@ -48,6 +48,11 @@ Thumbs.db
 # deploy time and must never enter the repository or a build artifact.
 /churchflow-deployment-secrets.env
 /*-deployment-secrets.env
+# Local FTPS deployment helpers and staged release artifacts. Never part of
+# the application; may contain transient connection state.
+/_deploy/
+/_deploy_stage/
+/*.deployment.log
 # Local QA scratch scripts and screenshots produced while verifying a change.
 /_qa_*
 /_shot_*

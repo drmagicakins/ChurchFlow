@@ -9,6 +9,10 @@ read-only, no schema change
 and with the two remaining suite failures closed (§1l): one stale test, one real budget-report bug
 **Updated 2026-10-31 (later)** with the expired public page (§1m): it now explains itself in the church's own
 words instead of showing Laravel's debug screen (`// No request body`)
+**Updated 2026-11-09** with the empty finance ledger (§1n): `Alpine.start()` ran before the grid component was
+registered, so every transaction row was hidden by `x-show`
+**Updated 2026-11-09 (later)** with the announcement 404 (§1o): a church-wide announcement stores a NULL branch,
+which `TenantScope` hid from parish pastors — including the row they had just created
 **Branch:** `main` — tracking `origin/main` — **0 ahead, 0 behind**
 **HEAD:** `d6a1f47` "SMS service distinguished from parish and church owner"
 **Working tree:** dirty (all changes below are **uncommitted**). Nothing has been committed or pushed.
@@ -16,6 +20,135 @@ words instead of showing Laravel's debug screen (`// No request body`)
 ---
 
 ## 1. Verified test results (actual output)
+
+### 1o. Posting an announcement 404'd unless a branch was chosen (2026-11-09)
+
+**Reported:** creating an announcement showed **`404 | Not Found`** when the audience was the entire church, a
+group or a department — but worked when a specific branch was chosen. Plus three audience rules that were not
+enforced at all.
+
+**Root cause — the same shape as §1j's parish archive and the `Department::visibleTo()` fix.** The
+`announcements` table carries an `organizational_unit_id` column, so `TenantScope` narrows every query to the
+bound parish. A **church-wide** announcement stores `NULL` there (it is not filed against any branch), so the
+redirect to `announcements.show` after posting could not find the row it had just created. A **branch**
+announcement stores the parish id, which is exactly why only that case worked.
+
+| File | Change |
+| --- | --- |
+| `app/Models/Announcement.php` | +56 — `scopeVisibleTo()` (replaces the parish filter, keeps the church guard) and `resolveRouteBindingQuery()` so no route can forget it |
+| `app/Http/Controllers/AnnouncementController.php` | +71/−2 — `visibleTo()` on the index, `Group::visibleTo()` on the picker, the audience rules in `store()`, and the `$audiences` list the form is built from |
+| `resources/views/announcements/index.blade.php` | the audience `<select>` now renders `$audiences` instead of a hard-coded array |
+| `tests/Feature/AnnouncementAudienceTest.php` | **new**, 11 tests |
+
+**The audience rules, now enforced in the controller (not only by hiding options):**
+
+| Actor | Entire church | Own branch | Another branch | Department | Group |
+| --- | --- | --- | --- | --- | --- |
+| Parish pastor | **refused** | yes | **refused** | yes | yes |
+| Church owner (super admin) | yes | yes | yes | yes | yes |
+
+A hidden `<option>` is presentation; only the server check survives a crafted POST, so the rule lives in
+`store()` and the form merely stops offering what would be refused.
+
+> **Correction (same day).** The first version of this section had the pastor's "Entire church" cell as **yes**,
+> and a test (`test_a_parish_pastor_can_post_a_church_wide_announcement_without_a_404`) that asserted it. That
+> was a misreading of the brief, which says a branch church must NOT post to the entire church except the super
+> admin. The guard, the dropdown and that test were all corrected; the test is now
+> `test_the_owner_can_post_a_church_wide_announcement_without_a_404`, and the pastor's side is covered by
+> `test_a_parish_pastor_cannot_post_to_the_entire_church` plus
+> `test_a_parish_pastor_can_open_a_church_wide_announcement_posted_by_the_owner`.
+>
+> **Posting is not reading.** A parish pastor is refused the church-wide *audience*, but still RECEIVES
+> church-wide announcements in their list and can open them — that is `scopeVisibleTo()`'s job and it is
+> deliberately unaffected. Refusing to let someone broadcast to the whole church is not the same as hiding the
+> church's own notices from them, and conflating the two would have re-broken the 404 from the other side.
+>
+> The form's default audience is now the first one the user may actually post to (`array_key_first($audiences)`)
+> rather than a hard-coded `church_wide`, which a pastor is refused — otherwise the form would have opened on a
+> choice the controller rejects.
+
+**Two further defects closed in the same pass:**
+
+1. **A stale hidden field could be stored.** The form keeps every audience field in the DOM (so switching
+   audience never loses a typed value), which means a leftover `organizational_unit_id` could arrive alongside a
+   `department` audience and the row would claim two targets at once. Only the field matching the chosen
+   audience is now written; the others are explicitly nulled.
+2. **`exists:` alone did not prove ownership.** It proves the id is real *somewhere*, so a crafted POST could
+   target another tenant's department or group by id. Both are now re-checked through the tenant-scoped model.
+
+**Red-proof (two, both done):**
+
+| Removed | Result |
+| --- | --- |
+| `resolveRouteBindingQuery()` | **3 failed** — `Expected response status code [200] but received 404` on the church-wide, department and group tests, the three audiences in the report |
+| the `church_wide` guard in `store()` | the pastor's church-wide POST succeeded and `test_a_parish_pastor_cannot_post_to_the_entire_church` failed |
+
+Both restored → **15/15 green**.
+
+**Verified in a real browser:** the owner is offered all four audiences; posting a church-wide announcement
+redirects to `/announcements/8`, which returns **200** (was 404). Signed in as a parish-scoped pastor, the
+audience dropdown offers **only** `branch` — no "Entire church" — and a crafted `audience_type=church_wide`
+POST answers **302 back to `/announcements`** with nothing created.
+
+**Tests:** `AnnouncementAudienceTest` **15 passed**; full suite **564 passed (2156 assertions)**, 0 failures,
+167.88s.
+
+**Dev-database note:** to drive the pastor path in a browser, `qa-pastor@churchflow.test` (id 11) was temporarily
+granted `announcements.manage` and given a known password. Both were reverted afterwards (permission detached,
+password reset to a random value) and the two QA announcements created during verification were deleted. No
+other row was touched.
+
+**Not changed:** `TenantScope`, `AnnouncementPolicy`, the routes, `SendAnnouncementEmailsJob`,
+`isVisibleToMember()`, and every other view. No migration. Nothing was deleted.
+
+### 1n. The finance ledger showed no transactions (2026-11-09)
+
+**Reported:** `/finance/accounts/{id}` — the Transaction ledger table was empty, although the account had rows.
+
+**Root cause — `Alpine.start()` ran before the component was registered.** In `resources/js/app.js` the call
+`Alpine.start()` sat at line 248, while `Alpine.data('cfDataGrid', …)` — the component the grid's
+`x-data="cfDataGrid({ perPage: 25 })"` names — was registered at line 271, **below** it. Alpine evaluates every
+`x-data`/`x-show` expression the moment it starts, so `cfDataGrid` did not exist yet: the expression resolved to
+`undefined`, and every row's `x-show="isRowVisible($el)"` evaluated against nothing, which Alpine treats as
+false and hides with `display: none`.
+
+**Verified in a real browser, not inferred.** The rows were present in the HTML (`rowCount: 4`) but
+`visibleRows: 0`, `firstRowDisplay: "none"`, and the grid's Alpine data stack had `hasFilter: false` /
+`hasIsRowVisible: false` — the component was never attached. `window.Alpine` itself was loaded and the sidebar's
+`cfNav` worked, which is why the page looked otherwise normal.
+
+> **A measurement trap worth recording.** The browser harness's `page.evaluate` runs in an **isolated world**,
+> where `window.Alpine` reads as `undefined` even though the module has executed. That sent the investigation
+> down a false trail (CSP nonce, MIME type, module evaluation) for several probes. Reading the same expression
+> through CDP `Runtime.evaluate` in the **main world** returned `object` — the module was fine all along. Use the
+> main world when the question is "did the page's own JS run".
+
+| File | Change |
+| --- | --- |
+| `resources/js/app.js` | `Alpine.start()` moved from line 248 to the **end** of the file, after both `Alpine.data()` registrations, with a comment saying why it must stay last |
+| `resources/views/finance/accounts/show.blade.php` | two further defects found while verifying — see below |
+
+**Two more defects found in the same table, both fixed:**
+
+1. **Transfer rows had no sign or colour.** The amount renderer tested only `type === 'income'` and
+   `type === 'expense'`, but `FinancialAccount::balance()` counts `income`/`donation`/`transfer_in` as credits and
+   `expense`/`transfer_out` as debits. A `transfer_out` therefore rendered as a plain positive amount, so the
+   ledger disagreed with the balance shown above it. The renderer now uses the same two sets as `balance()`.
+2. **Voided rows never said "Voided".** The status column and the row actions read `$t->is_voided`, but the
+   column is `is_void` (`Transaction::$fillable`). The attribute did not exist, so the expression was always
+   false and a voided row showed its approval status instead. Both reads corrected to `is_void`.
+
+**Verified after the fix** (real browser, main world): `visibleRows: 4 / 4`, count line
+`"Showing 4 of 4 records."`, and the four rows render `−₦55,000.00` (expense, red), `−₦20,000.00`
+(transfer_out, red), `+₦10,000.00` (donation, green), `+₦200,000.00` (income, green).
+
+**Assets rebuilt:** `npm run build` → new hashes (`app-CUW5dO4F.js`). The bundle now registers both components
+before `start()`.
+
+**Tests:** full suite **549 passed (2115 assertions)**, 0 failures, 145.82s.
+
+**Not changed:** the controller, the model, the routes, the `data-table` component, the CSS, and every other
+view. No migration. Nothing was deleted.
 
 ```
 php artisan test

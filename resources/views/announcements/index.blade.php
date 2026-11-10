@@ -26,8 +26,13 @@
         {{-- x-data carries the audience model the conditional selects below bind to.
              Initialised from old() so a failed submit keeps the audience the user chose
              (and the field that was flagged as missing stays visible). --}}
+        {{-- The default audience is the first one this user may actually post
+             to. It used to be hard-coded to 'church_wide', which a parish pastor
+             is now refused — the form would have opened on a choice the
+             controller rejects. --}}
+        @php $defaultAudience = old('audience_type', array_key_first($audiences) ?? 'church_wide'); @endphp
         <div data-panel="ann-create" hidden style="margin-bottom:1.2rem"
-            x-data="{ audience: '{{ old('audience_type', 'church_wide') }}' }">
+            x-data="{ audience: '{{ $defaultAudience }}' }">
             <x-form.card
                 title="Post an announcement"
                 description="Choosing an audience decides who sees this and who is emailed — church-wide goes to everyone with an email address."
@@ -38,12 +43,13 @@
             >
                 <x-form.input name="title" label="Title" required placeholder="e.g. Service time change this Sunday" />
 
-                <x-form.select name="audience_type" label="Audience" :value="old('audience_type', 'church_wide')" :options="[
-                    'church_wide' => 'Entire church',
-                    'branch' => 'A specific branch',
-                    'department' => 'A department',
-                    'group' => 'A group',
-                ]" hint="Emails are sent to every member in this audience who has an address."
+                {{-- The options come from the controller ($audiences), which
+                     offers only what this user may actually post to. A parish
+                     pastor gets their own branch, not every branch; the church
+                     owner gets all of them. The controller re-checks on submit,
+                     so this list is convenience, not the guard. --}}
+                <x-form.select name="audience_type" label="Audience" :value="$defaultAudience" :options="$audiences"
+                    hint="Emails are sent to every member in this audience who has an address."
                     x-model="audience" data-audience-select />
 
                 {{-- §19: the audience dropdown chooses WHICH extra field applies.

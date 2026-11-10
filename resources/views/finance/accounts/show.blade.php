@@ -185,7 +185,11 @@
                         'rejected' => 'cf-badge--danger',
                         default => 'cf-badge--warn',
                     };
-                    $label = $t->is_voided ?? false ? 'Voided' : str_replace('_', ' ', ucfirst($t->approval_status));
+                    // The column is `is_void` (see Transaction::$fillable).
+                    // This read `is_voided`, which does not exist, so the
+                    // expression was always false and a voided row showed its
+                    // approval status instead of "Voided".
+                    $label = $t->is_void ? 'Voided' : str_replace('_', ' ', ucfirst($t->approval_status));
 
                     return '<span class="cf-badge ' . $tone . '">' . e($label) . '</span>';
                 },
@@ -196,17 +200,24 @@
                 'align' => 'right',
                 'search' => false,
                 'render' => function ($t) use ($symbol) {
-                    $isCredit = $t->type === 'income';
+                    // The sign and colour must agree with FinancialAccount::balance(),
+                    // which counts income/donation/transfer_in as credits and
+                    // expense/transfer_out as debits. This used to test only
+                    // 'income' and 'expense', so a transfer_out rendered as a
+                    // plain positive amount with no sign — the ledger then
+                    // disagreed with the balance shown above it.
+                    $isCredit = in_array($t->type, ['income', 'donation', 'transfer_in'], true);
+                    $isDebit = in_array($t->type, ['expense', 'transfer_out'], true);
                     $colour = $isCredit
                         ? 'color:var(--ok-ink,#047857)'
-                        : ($t->type === 'expense'
+                        : ($isDebit
                             ? 'color:var(--danger,#b91c1c)'
                             : '');
 
                     return '<span class="cf-mono" style="white-space:nowrap;' .
                         $colour .
                         '">' .
-                        ($isCredit ? '+' : ($t->type === 'expense' ? '−' : '')) .
+                        ($isCredit ? '+' : ($isDebit ? '−' : '')) .
                         $symbol .
                         number_format((float) $t->amount, 2) .
                         '</span>';
@@ -223,7 +234,8 @@
         <x-slot:rowActions>
             @if ($canRecord)
                 @php
-                    $rowActions = fn($t) => $t->is_voided ?? false
+                    // `is_void`, not `is_voided` — see the Status column above.
+                    $rowActions = fn($t) => $t->is_void
                         ? '<span class="cf-tiny cf-muted">voided</span>'
                         : '<form method="POST" action="' .
                             route('finance.transactions.void', $t) .
