@@ -13,7 +13,7 @@ use Illuminate\Support\Collection;
  *
  *   retention = general_calc + minister_calc
  *   others    = admin_calc + salary
- *   shortfall = others - retention
+ *   shortfall = retention - others
  *   if shortfall > 0: remittance = shortfall - loan_deduction
  *   else:             remittance = 0
  *
@@ -48,7 +48,10 @@ class SubventionCalculationEngine
 
         $retentionTotal = $this->sumByClassification($breakdown, 'retention');
         $deductionTotal = $this->sumByClassification($breakdown, 'deduction');
-        $shortfall = bcsub($deductionTotal, $retentionTotal, 2);
+        // Shortfall = what the branch keeps (retention) minus what it must
+        // cover (deductions). A positive shortfall is what the branch remits
+        // to HQ; a negative one means the deductions exceeded the retention.
+        $shortfall = bcsub($retentionTotal, $deductionTotal, 2);
 
         $loan = Loan::query()
             ->where('organizational_unit_id', $submission->organizational_unit_id)
@@ -74,6 +77,9 @@ class SubventionCalculationEngine
             'retention_total' => $retentionTotal,
             'deduction_total' => $deductionTotal,
             'shortfall' => $shortfall,
+            // Recorded on the row so a reader never has to guess which way
+            // round the figure was written — see SubventionCalculation.
+            'shortfall_direction' => SubventionCalculation::SHORTFALL_RETENTION_MINUS_DEDUCTIONS,
             'loan_id' => $loan?->id,
             'loan_deduction_applied' => $loanDeductionApplied,
             'remittance_amount' => $remittanceAmount,

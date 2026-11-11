@@ -202,7 +202,7 @@ method synchronously.
 - **The configurable rule engine** (`SubventionCalculationEngine`) is the
   direct generalization of the legacy `calculate-subvention.php` formula:
   `retention = Σ(rules tagged retention)`, `deduction = Σ(rules tagged
-  deduction)`, `shortfall = deduction − retention`, `remittance =
+  deduction)`, `shortfall = retention − deduction`, `remittance =
   max(shortfall − loan_deduction, 0)`. Every number that used to be a PHP
   variable (`general_rate`, `minister_rate`, `admin_rate`, `admin_max`) is
   now a `SubventionRule` row (percentage / fixed / capped_percentage,

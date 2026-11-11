@@ -99,8 +99,8 @@ class SubventionWorkflowServiceTest extends TestCase
             'status' => 'active',
         ]);
 
-        // shortfall will be 1000 (salary passthrough, no retention) — bigger than the 200 monthly deduction
-        $submission = $this->makeSubmission($church, ['salary' => '1000'], $loan);
+        // retention 2500 (25% of 10,000) − salary 1000 = shortfall 1500 — bigger than the 200 monthly deduction
+        $submission = $this->makeSubmission($church, ['general_tithe' => '10000', 'salary' => '1000'], $loan);
 
         $service = $this->service();
         $service->submit($submission, $submitter);
@@ -116,8 +116,8 @@ class SubventionWorkflowServiceTest extends TestCase
         $calculation = $submission->latestCalculation;
         $this->assertNotNull($calculation->loan_payment_id, 'The calculation must record which LoanPayment it produced.');
 
-        // Remittance = shortfall(1000) - loan_deduction_applied(200) = 800
-        $this->assertSame('800.00', $calculation->remittance_amount);
+        // Remittance = shortfall(1500) - loan_deduction_applied(200) = 1300
+        $this->assertSame('1300.00', $calculation->remittance_amount);
     }
 
     public function test_approving_twice_is_rejected_and_never_creates_a_second_loan_payment(): void

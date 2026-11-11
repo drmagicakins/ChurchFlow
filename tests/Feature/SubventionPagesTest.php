@@ -193,4 +193,49 @@ class SubventionPagesTest extends TestCase
             ->assertOk()
             ->assertSee('Salary figure looks wrong.');
     }
+
+    /**
+     * The direction is recorded on the row, not guessed from the data. A row
+     * stored before the correction is flipped even when its stored shortfall
+     * is exactly 0.00 — the case an inferred cut-off would have misread.
+     */
+    public function test_a_row_marked_with_the_old_direction_is_shown_the_right_way_round(): void
+    {
+        $church = Church::factory()->create();
+        app()->instance('tenant.church_id', $church->id);
+        $user = $this->userWith($church, ['subvention.submit']);
+        $submission = $this->submission($church);
+
+        app(SubventionWorkflowService::class)->submit($submission, $user);
+
+        // Rewrite the stored row as the old engine would have left it:
+        // deductions − retention, here a 1,000 surplus stored as -1000.
+        $calc = $submission->fresh()->latestCalculation;
+        $calc->forceFill([
+            'shortfall' => '-1000.00',
+            'shortfall_direction' => \App\Models\SubventionCalculation::SHORTFALL_DEDUCTIONS_MINUS_RETENTION,
+        ])->save();
+
+        $this->assertSame(1000.0, $calc->fresh()->shortfallInCurrentDirection());
+
+        $this->actingAs($user)
+            ->get(route('subvention.submissions.show', $submission->fresh()))
+            ->assertOk()
+            ->assertSee('₦1,000.00');
+    }
+
+    public function test_a_new_calculation_records_the_corrected_direction(): void
+    {
+        $church = Church::factory()->create();
+        app()->instance('tenant.church_id', $church->id);
+        $user = $this->userWith($church, ['subvention.submit']);
+        $submission = $this->submission($church);
+
+        app(SubventionWorkflowService::class)->submit($submission, $user);
+
+        $this->assertSame(
+            \App\Models\SubventionCalculation::SHORTFALL_RETENTION_MINUS_DEDUCTIONS,
+            $submission->fresh()->latestCalculation->shortfall_direction
+        );
+    }
 }

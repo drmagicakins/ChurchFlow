@@ -67,12 +67,12 @@ class SubventionCalculationEngineTest extends TestCase
         // retention = 2500 + 1000 = 3500; deduction = 500 + 2000 = 2500
         $this->assertSame('3500.00', $calc->retention_total);
         $this->assertSame('2500.00', $calc->deduction_total);
-        // shortfall = deduction - retention = 2500 - 3500 = -1000 (a surplus)
-        $this->assertSame('-1000.00', $calc->shortfall);
-        $this->assertSame('0.00', $calc->remittance_amount, 'A surplus branch owes nothing.');
+        // shortfall = retention - deduction = 3500 - 2500 = 1000 (remittable)
+        $this->assertSame('1000.00', $calc->shortfall);
+        $this->assertSame('1000.00', $calc->remittance_amount);
     }
 
-    public function test_calculation_produces_a_positive_remittance_when_deductions_exceed_retention(): void
+    public function test_calculation_produces_no_remittance_when_deductions_exceed_retention(): void
     {
         $church = Church::factory()->create();
         app()->instance('tenant.church_id', $church->id);
@@ -96,12 +96,12 @@ class SubventionCalculationEngineTest extends TestCase
 
         $calc = (new SubventionCalculationEngine())->calculate($submission);
 
-        // retention = 250+100 = 350; deduction = 50+2000 = 2050; shortfall = 1700
+        // retention = 250+100 = 350; deduction = 50+2000 = 2050; shortfall = 350 - 2050 = -1700
         $this->assertSame('350.00', $calc->retention_total);
         $this->assertSame('2050.00', $calc->deduction_total);
-        $this->assertSame('1700.00', $calc->shortfall);
+        $this->assertSame('-1700.00', $calc->shortfall);
         $this->assertSame('0.00', $calc->loan_deduction_applied, 'No active loan on this branch.');
-        $this->assertSame('1700.00', $calc->remittance_amount);
+        $this->assertSame('0.00', $calc->remittance_amount, 'Deductions exceeded retention, so nothing is payable.');
     }
 
     public function test_admin_fee_is_clamped_at_its_cap(): void
@@ -155,15 +155,15 @@ class SubventionCalculationEngineTest extends TestCase
             'subvention_rule_set_id' => $ruleSet->id,
             'figures' => [
                 'general_tithe' => '0', 'minister_tithe' => '0',
-                'admin_base' => '0', 'salary' => '1000.00', // shortfall will be exactly 1000
+                'admin_base' => '0', 'salary' => '1000.00', // shortfall will be exactly -1000
             ],
         ]);
 
         $calc = (new SubventionCalculationEngine())->calculate($submission);
 
-        $this->assertSame('1000.00', $calc->shortfall);
-        // Corrected vs. legacy: clamped at the shortfall (1000), not the full monthly_deduction (5000).
-        $this->assertSame('1000.00', $calc->loan_deduction_applied);
+        $this->assertSame('-1000.00', $calc->shortfall);
+        // Nothing is remittable, so no loan deduction is applied at all.
+        $this->assertSame('0.00', $calc->loan_deduction_applied);
         $this->assertSame('0.00', $calc->remittance_amount);
     }
 

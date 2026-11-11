@@ -14,7 +14,7 @@ return new class extends Migration
 
             $table->decimal('retention_total', 14, 2);
             $table->decimal('deduction_total', 14, 2);
-            $table->decimal('shortfall', 14, 2); // deduction_total - retention_total; can be negative (surplus)
+            $table->decimal('shortfall', 14, 2); // retention_total - deduction_total; can be negative (deductions exceeded retention)
 
             $table->foreignId('loan_id')->nullable()->constrained('loans')->nullOnDelete();
             $table->decimal('loan_deduction_applied', 14, 2)->default(0);

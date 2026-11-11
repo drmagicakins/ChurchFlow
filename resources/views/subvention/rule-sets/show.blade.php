@@ -112,7 +112,7 @@
             <ul class="cf-small cf-muted" style="margin:0;padding-left:1.1rem;display:grid;gap:.3rem">
                 <li><strong>Retention</strong> rules are summed into the branch's retention total.</li>
                 <li><strong>Deduction</strong> rules are summed into the deduction total.</li>
-                <li>Shortfall = deductions − retention. A positive shortfall is what the branch remits to HQ.</li>
+                <li>Shortfall = retention − deductions. A positive shortfall is what the branch remits to HQ.</li>
                 <li>An active loan on the branch is deducted from the shortfall, never below zero.</li>
             </ul>
         </div>

@@ -3,6 +3,13 @@
         $symbol = '₦';
         $money = fn ($v) => $symbol.number_format((float) $v, 2);
         $calc = $submission->latestCalculation;
+
+        // Calculations are versioned and never rewritten, so a row stored
+        // before the shortfall direction was corrected still holds
+        // (deductions − retention). The model reads the cut-off from the
+        // database and presents the figure the right way round.
+        $shortfall = $calc ? $calc->shortfallInCurrentDirection() : 0.0;
+
         $canEdit = auth()->user()->can('update', $submission);
         $canReview = auth()->user()->can('review', $submission);
 
@@ -153,8 +160,8 @@
                                     <td class="cf-mono" style="text-align:right;white-space:nowrap">{{ $money($calc->deduction_total) }}</td>
                                 </tr>
                                 <tr>
-                                    <th colspan="2" style="text-align:left">Shortfall <span class="cf-tiny cf-muted">(deductions − retention)</span></th>
-                                    <td class="cf-mono" style="text-align:right;white-space:nowrap">{{ $money($calc->shortfall) }}</td>
+                                    <th colspan="2" style="text-align:left">Shortfall <span class="cf-tiny cf-muted">(retention − deductions)</span></th>
+                                    <td class="cf-mono" style="text-align:right;white-space:nowrap">{{ $money($shortfall) }}</td>
                                 </tr>
                                 @if(bccomp((string) $calc->loan_deduction_applied, '0', 2) > 0)
                                     <tr>
@@ -169,9 +176,13 @@
                             </tfoot>
                         </table>
 
-                        @if(bccomp((string) $calc->shortfall, '0', 2) < 1)
+                        @if($shortfall < 0)
                             <p class="cf-small cf-muted" style="margin:.8rem 0 0">
-                                Retention covered the branch's deductions, so nothing is payable to HQ this period.
+                                The branch's deductions exceeded its retention, so nothing is payable to HQ this period.
+                            </p>
+                        @elseif($shortfall == 0.0)
+                            <p class="cf-small cf-muted" style="margin:.8rem 0 0">
+                                Retention exactly covered the branch's deductions, so nothing is payable to HQ this period.
                             </p>
                         @endif
                     </div>
