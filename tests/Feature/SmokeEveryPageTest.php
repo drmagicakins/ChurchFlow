@@ -245,6 +245,13 @@ class SmokeEveryPageTest extends TestCase
             // itself are covered by ParishArchiveTest.
             'parish-archive.counts',
             'parish-archive.download',
+            // Same owner-only shape, same reason. Both are isRegistrar()-gated
+            // ("Only the church owner can manage API keys" / "...the custom
+            // domain") and this sweep deliberately is not the owner. Their own
+            // 403s are the feature working; the pages and the rules are covered
+            // by ApiAccessController/CustomDomainController's own tests.
+            'api-access.index',
+            'custom-domain.index',
         ];
 
         $checked = 0;

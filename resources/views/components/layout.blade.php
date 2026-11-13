@@ -250,21 +250,203 @@
 
                 <div class="cfd-topbar__right">
                     @if($user)
-                        <a href="{{ route('notifications.index') }}" class="cfd-iconbtn" aria-label="Notifications{{ $unread > 0 ? ' ('.$unread.' unread)' : '' }}">
-                            <x-ui.icon name="bell" />
-                            @if($unread > 0)<span class="cfd-iconbtn__count">{{ $unread > 9 ? '9+' : $unread }}</span>@endif
-                        </a>
-                        <span class="cfd-user">
-                            <span class="cfd-user__avatar" aria-hidden="true">{{ \Illuminate\Support\Str::of($user->name)->explode(' ')->map(fn ($w) => mb_substr($w, 0, 1))->take(2)->implode('') }}</span>
-                            <span class="cfd-user__meta">
-                                <strong>{{ $user->name }}</strong>
-                                <small>{{ $user->roles->first()?->name ?? 'Member' }}</small>
-                            </span>
-                        </span>
-                        <form method="POST" action="{{ route('logout') }}">
-                            @csrf
-                            <button type="submit" class="cf-btn cf-btn--secondary cf-btn--sm">Sign out</button>
-                        </form>
+                        {{-- ============ NOTIFICATIONS ============ --}}
+                        {{-- The bell is a BUTTON now, not a link: it opens a panel.
+                             "View all" inside the panel goes to the built page. The
+                             count is still rendered server-side so it is correct on
+                             first paint and with JavaScript still loading. --}}
+                        <div class="cfd-menu" x-data="cfNotifications('{{ route('notifications.feed') }}', {{ $unread }})" @click.outside="close()" @keydown.escape.window="close()" x-init="load()">
+                            <button type="button" class="cfd-iconbtn" @click="toggle()"
+                                    :aria-expanded="open ? 'true' : 'false'" aria-controls="cf-notif-panel"
+                                    aria-label="Notifications{{ $unread > 0 ? ' ('.$unread.' unread)' : '' }}">
+                                <x-ui.icon name="bell" />
+                                <span class="cfd-iconbtn__count" x-show="count > 0" x-cloak x-text="count > 99 ? '99+' : count">{{ $unread > 99 ? '99+' : $unread }}</span>
+                                @if($unread > 0)<span class="cf-badge cf-badge--dot" aria-hidden="true"></span>@endif
+                            </button>
+
+                            <div class="cfd-menu__panel cfd-menu__panel--wide" id="cf-notif-panel" x-show="open" x-cloak
+                                 x-transition.opacity.duration.120ms role="menu">
+                                <div class="cfd-menu__head">
+                                    <strong>Notifications</strong>
+                                    <span class="cf-badge cf-badge--brand" x-show="count > 0" x-cloak x-text="count + ' unread'"></span>
+                                </div>
+
+                                <div class="cfd-menu__list">
+                                    {{-- Server-rendered first paint; replaced by the
+                                         feed below once it loads. --}}
+                                    <template x-if="items.length === 0">
+                                        <div class="cfd-menu__empty">
+                                            @if($recentNotifications->isEmpty())
+                                                Nothing yet. Decisions and updates appear here.
+                                            @endif
+                                        </div>
+                                    </template>
+
+                                    @if($recentNotifications->isNotEmpty())
+                                        <div x-show="items.length === 0">
+                                            @foreach($recentNotifications as $n)
+                                                <a href="{{ $n->action_url ?: route('notifications.index') }}" class="cfd-menu__item {{ $n->read_at ? '' : 'is-unread' }}">
+                                                    <span class="cfd-menu__dot"></span>
+                                                    <span class="cfd-menu__body">
+                                                        <span class="cfd-menu__title">{{ $n->title }}</span>
+                                                        @if($n->body)<span class="cfd-menu__sub">{{ \Illuminate\Support\Str::limit($n->body, 70) }}</span>@endif
+                                                        <span class="cfd-menu__when">{{ $n->created_at?->diffForHumans() }}</span>
+                                                    </span>
+                                                </a>
+                                            @endforeach
+                                        </div>
+                                    @endif
+
+                                    <template x-for="n in items" :key="n.id">
+                                        <a :href="n.url || '{{ route('notifications.index') }}'" class="cfd-menu__item" :class="n.unread ? 'is-unread' : ''">
+                                            <span class="cfd-menu__dot"></span>
+                                            <span class="cfd-menu__body">
+                                                <span class="cfd-menu__title" x-text="n.title"></span>
+                                                <span class="cfd-menu__sub" x-text="n.body" x-show="n.body"></span>
+                                                <span class="cfd-menu__when" x-text="n.when"></span>
+                                            </span>
+                                        </a>
+                                    </template>
+                                </div>
+
+                                <a href="{{ route('notifications.index') }}" class="cfd-menu__foot">View all notifications</a>
+                            </div>
+                        </div>
+
+                        {{-- ============ PROFILE ============ --}}
+                        <div class="cfd-menu" x-data="{ open: false }" @click.outside="open = false" @keydown.escape.window="open = false">
+                            <button type="button" class="cfd-user cfd-user--btn" @click="open = !open"
+                                    :aria-expanded="open ? 'true' : 'false'" aria-controls="cf-profile-panel" aria-haspopup="menu">
+                                <span class="cfd-user__avatar" aria-hidden="true">
+                                    @if($avatarUrl)
+                                        <img src="{{ $avatarUrl }}" alt="" class="cfd-user__img">
+                                    @else
+                                        {{ $user->initials() }}
+                                    @endif
+                                </span>
+                                <span class="cfd-user__meta">
+                                    <strong>{{ $user->name }}</strong>
+                                    <small>{{ $user->roles->first()?->name ?? 'Member' }}</small>
+                                </span>
+                                <x-ui.icon name="chevron" class="h-4 w-4 cfd-user__caret" />
+                            </button>
+
+                            <div class="cfd-menu__panel" id="cf-profile-panel" x-show="open" x-cloak
+                                 x-transition.opacity.duration.120ms role="menu" aria-label="Account">
+                                <div class="cfd-menu__me">
+                                    <span class="cfd-user__avatar cfd-user__avatar--lg" aria-hidden="true">
+                                        @if($avatarUrl)
+                                            <img src="{{ $avatarUrl }}" alt="" class="cfd-user__img">
+                                        @else
+                                            {{ $user->initials() }}
+                                        @endif
+                                    </span>
+                                    <span class="cfd-menu__me-meta">
+                                        <strong>{{ $user->name }}</strong>
+                                        <small>{{ $user->email }}</small>
+                                    </span>
+                                </div>
+
+                                {{-- Profile picture --}}
+                                <div class="cfd-menu__section">
+                                    <p class="cfd-menu__label">Profile picture</p>
+                                    <form method="POST" action="{{ route('profile.photo.update') }}" enctype="multipart/form-data" class="cfd-menu__upload">
+                                        @csrf
+                                        {{-- No inline onchange: the CSP has a nonce, so
+                                             inline handlers are blocked outright. The form
+                                             is submitted from the Alpine scope instead. --}}
+                                        <input type="file" name="photo" id="cf-avatar-input" accept="image/png,image/jpeg,image/webp,image/gif"
+                                               class="cfd-menu__file" required
+                                               x-on:change="$el.form.requestSubmit()">
+                                        <label for="cf-avatar-input" class="cf-btn cf-btn--secondary cf-btn--sm cf-btn--block" style="cursor:pointer">
+                                            {{ $avatarUrl ? 'Change picture' : 'Upload picture' }}
+                                        </label>
+                                    </form>
+                                    <p class="cfd-menu__hint">PNG, JPG, WebP or GIF up to 5MB.</p>
+                                    @if($avatarUrl)
+                                        <form method="POST" action="{{ route('profile.photo.destroy') }}">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="cfd-menu__link cfd-menu__link--danger">Remove picture</button>
+                                        </form>
+                                    @endif
+                                </div>
+
+                                {{-- Password --}}
+                                <div class="cfd-menu__section" x-data="{ open: false }">
+                                    <button type="button" class="cfd-menu__link" @click="open = !open" :aria-expanded="open ? 'true' : 'false'" aria-controls="cf-password-form">
+                                        <x-ui.icon name="lock" class="h-4 w-4" /> Change password
+                                    </button>
+                                    <form method="POST" action="{{ route('profile.password.update') }}" id="cf-password-form" x-show="open" x-cloak class="cfd-menu__form">
+                                        @csrf
+                                        <input type="password" name="current_password" class="cf-input" placeholder="Current password" required autocomplete="current-password">
+                                        <input type="password" name="password" class="cf-input" placeholder="New password (min 8)" required minlength="8" autocomplete="new-password">
+                                        <input type="password" name="password_confirmation" class="cf-input" placeholder="Confirm new password" required minlength="8" autocomplete="new-password">
+                                        <button type="submit" class="cf-btn cf-btn--primary cf-btn--sm cf-btn--block">Save password</button>
+                                    </form>
+                                </div>
+
+                                {{-- Two-step authentication --}}
+                                <div class="cfd-menu__section" x-data="{ open: false }">
+                                    <button type="button" class="cfd-menu__link" @click="open = !open" :aria-expanded="open ? 'true' : 'false'" aria-controls="cf-2fa-form">
+                                        <x-ui.icon name="shield" class="h-4 w-4" />
+                                        <span>Two-step authentication</span>
+                                        @if($user->hasTwoFactorEnabled())
+                                            <span class="cf-badge cf-badge--ok" style="margin-left:auto">On</span>
+                                        @else
+                                            <span class="cf-badge" style="margin-left:auto">Off</span>
+                                        @endif
+                                    </button>
+
+                                    <div id="cf-2fa-form" x-show="open" x-cloak class="cfd-menu__form">
+                                        @if($user->hasTwoFactorEnabled())
+                                            <p class="cfd-menu__hint" style="margin:0">Your account asks for a code from your authenticator app at each sign-in.</p>
+                                            <form method="POST" action="{{ route('profile.two-factor.recovery-codes') }}">
+                                                @csrf
+                                                <button type="submit" class="cf-btn cf-btn--secondary cf-btn--sm cf-btn--block">New recovery codes</button>
+                                            </form>
+                                            <form method="POST" action="{{ route('profile.two-factor.disable') }}">
+                                                @csrf
+                                                <input type="password" name="current_password" data-cf="password" class="cf-input" placeholder="Confirm with your password" required autocomplete="current-password">
+                                                <button type="submit" class="cf-btn cf-btn--secondary cf-btn--sm cf-btn--block">Turn off two-step</button>
+                                            </form>
+                                        @elseif(filled($user->two_factor_secret))
+                                            {{-- Setup started — show the provisioning URI so the
+                                                 person can scan or type it, then confirm. --}}
+                                            @php $totpUri = app(\App\Domains\Security\Services\TwoFactorService::class)->provisioningUri((string) $user->two_factor_secret, $user->email); @endphp
+                                            <p class="cfd-menu__hint" style="margin:0">Add this to your authenticator app, then enter the 6-digit code.</p>
+                                            {{-- No third-party QR service: a secret would
+                                                 leave the app just to be drawn. The code is
+                                                 shown for typing; the URI is what a QR
+                                                 encodes, and every authenticator app can
+                                                 import it directly. --}}
+                                            <code class="cfd-menu__secret">{{ $user->two_factor_secret }}</code>
+                                            <a href="{{ $totpUri }}" class="cfd-menu__link" style="font-size:.78rem">Open in authenticator app</a>
+                                            <form method="POST" action="{{ route('profile.two-factor.confirm') }}">
+                                                @csrf
+                                                <input type="text" name="code" class="cf-input" placeholder="6-digit code" required inputmode="numeric" autocomplete="one-time-code" maxlength="7">
+                                                <button type="submit" class="cf-btn cf-btn--primary cf-btn--sm cf-btn--block">Turn on two-step</button>
+                                            </form>
+                                        @else
+                                            <p class="cfd-menu__hint" style="margin:0">Add a second check at sign-in using an authenticator app on your phone.</p>
+                                            <form method="POST" action="{{ route('profile.two-factor.enable') }}">
+                                                @csrf
+                                                <button type="submit" class="cf-btn cf-btn--primary cf-btn--sm cf-btn--block">Set up two-step</button>
+                                            </form>
+                                        @endif
+                                    </div>
+                                </div>
+
+                                <div class="cfd-menu__section cfd-menu__section--flush">
+                                    <form method="POST" action="{{ route('logout') }}">
+                                        @csrf
+                                        <button type="submit" class="cfd-menu__link cfd-menu__link--danger">
+                                            <x-ui.icon name="logout" class="h-4 w-4" /> Sign out
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
                     @endif
                 </div>
             </header>
@@ -272,6 +454,23 @@
             <main class="cf-content">
                 @if(session('status'))
                     <div class="cf-alert cf-alert--ok">{{ session('status') }}</div>
+                @endif
+
+                {{-- Recovery codes are shown ONCE, immediately after two-step is
+                     turned on (or regenerated). They are stored HASHED, so this
+                     flash is the only copy the person will ever see. --}}
+                @if(session('recovery_codes'))
+                    <div class="cf-alert cf-alert--ok" role="status" style="display:block">
+                        <p style="margin:0 0 .5rem;font-weight:600">
+                            Save these recovery codes somewhere safe. Each works once and they
+                            are never shown again.
+                        </p>
+                        <div class="cfd-recovery">
+                            @foreach(session('recovery_codes') as $code)
+                                <code>{{ $code }}</code>
+                            @endforeach
+                        </div>
+                    </div>
                 @endif
 
                 @if($errors->any())
@@ -392,6 +591,50 @@
                         const items = focusables();
                         if (items.length) items[0].focus();
                     });
+                },
+            }));
+
+            /*
+             | The notification bell's dropdown.
+             |
+             | `items` starts EMPTY on purpose: the server already rendered the
+             | newest few into the panel, and those stay visible until the feed
+             | arrives. Starting with a spinner-shaped empty list would make a
+             | correct page look broken for the length of one request.
+             |
+             | The count is decremented locally when an unread item is opened, so
+             | the badge does not sit on a number the person has just read. The
+             | authoritative count still comes from the server on the next load;
+             | nothing is marked read here.
+             */
+            Alpine.data('cfNotifications', (feedUrl, initialCount) => ({
+                open: false,
+                count: Number(initialCount) || 0,
+                items: [],
+                loading: false,
+                loaded: false,
+
+                toggle() {
+                    this.open = !this.open;
+                    if (this.open) this.load();
+                },
+                close() { this.open = false; },
+
+                load() {
+                    if (this.loading) return;
+                    this.loading = true;
+
+                    fetch(feedUrl, { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
+                        .then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
+                        .then((data) => {
+                            this.items = Array.isArray(data.items) ? data.items : [];
+                            this.count = Number(data.unread) || 0;
+                            this.loaded = true;
+                        })
+                        // A failed feed leaves the server-rendered items in place.
+                        // The bell must not empty itself because one request failed.
+                        .catch(() => {})
+                        .finally(() => { this.loading = false; });
                 },
             }));
         });

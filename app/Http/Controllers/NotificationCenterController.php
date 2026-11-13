@@ -34,6 +34,38 @@ class NotificationCenterController extends Controller
         ]);
     }
 
+    /**
+     * The header bell's dropdown: the few most recent items, as JSON.
+     *
+     * Deliberately separate from index() — the full page paginates and carries
+     * filters, while the dropdown needs a short list and the count. Read-only,
+     * and scoped to the caller, so it leaks nothing that index() would not.
+     */
+    public function feed(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $user = $request->user();
+
+        $items = AppNotification::query()
+            ->where('user_id', $user->id)
+            ->latest('id')
+            ->limit(6)
+            ->get()
+            ->map(fn (AppNotification $n) => [
+                'id' => $n->id,
+                'title' => $n->title,
+                'body' => $n->body,
+                'type' => $n->type,
+                'url' => $n->action_url,
+                'unread' => $n->read_at === null,
+                'when' => $n->created_at?->diffForHumans(),
+            ]);
+
+        return response()->json([
+            'unread' => AppNotification::query()->where('user_id', $user->id)->unread()->count(),
+            'items' => $items,
+        ]);
+    }
+
     public function markRead(Request $request, AppNotification $notification): RedirectResponse
     {
         abort_unless($notification->user_id === $request->user()->id, 403);

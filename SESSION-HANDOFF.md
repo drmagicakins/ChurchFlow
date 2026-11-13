@@ -13,6 +13,10 @@ words instead of showing Laravel's debug screen (`// No request body`)
 registered, so every transaction row was hidden by `x-show`
 **Updated 2026-11-09 (later)** with the announcement 404 (§1o): a church-wide announcement stores a NULL branch,
 which `TenantScope` hid from parish pastors — including the row they had just created
+**Updated 2026-11-13** with the Paystack sandbox payment environment (§1p): keys wired in, a dedicated
+signature-verifying webhook endpoint, and the callback URL — plus three suite-cleanup fixes the switch exposed
+**Updated 2026-11-13 (later)** with the account menu (§1q): profile picture, password change, two-step
+authentication and the notification bell's dropdown
 **Branch:** `main` — tracking `origin/main` — **0 ahead, 0 behind**
 **HEAD:** `d6a1f47` "SMS service distinguished from parish and church owner"
 **Working tree:** dirty (all changes below are **uncommitted**). Nothing has been committed or pushed.
@@ -20,6 +24,184 @@ which `TenantScope` hid from parish pastors — including the row they had just 
 ---
 
 ## 1. Verified test results (actual output)
+
+### 1q. The header: account dropdown, notification bell, profile pictures (2026-11-13)
+
+**Asked for:** a profile dropdown that reveals profile-picture upload, password change, two-step
+authentication and Sign out; a notification bell with a red count badge and its own dropdown whose
+"View all" links to the existing notifications page; and profile-picture upload for the church owner
+and parish pastors alike.
+
+**The header had a bell and a Sign out button — but they were plain links/forms.** The bell went straight
+to `/notifications` (no count on the icon itself beyond a `9+` badge, no dropdown), and the avatar was
+initials-only with no menu at all. Two-step authentication did not exist anywhere in the app, and `users`
+had no picture column.
+
+| File | Change |
+| --- | --- |
+| `database/migrations/2026_11_13_000001_add_profile_and_two_factor_to_users.php` | **new** — `avatar_upload_id` (FK, nullOnDelete), `two_factor_secret` (encrypted), `two_factor_recovery_codes`, `two_factor_confirmed_at` |
+| `app/Models/User.php` | +`avatarUpload()`, `avatarUrl()`, `hasTwoFactorEnabled()`, `initials()`; secret/codes added to `$hidden` |
+| `app/Domains/Security/Services/TwoFactorService.php` | **new** — RFC 6238 TOTP, recovery codes, no new dependency |
+| `app/Http/Controllers/ProfileController.php` | **new** — photo upload/remove, password change, 2FA enable/confirm/disable/recovery-codes |
+| `app/Http/Controllers/Auth/LoginController.php` | +`twoFactorChallenge()` and the challenge handoff in `store()` |
+| `app/Http/Controllers/NotificationCenterController.php` | +`feed()` (JSON, ≤6 items) — `index()` untouched |
+| `resources/views/auth/two-factor.blade.php` | **new** — the second step |
+| `resources/views/components/layout.blade.php` | the topbar's right side rebuilt as two Alpine menus |
+| `resources/views/components/ui/icon.blade.php` | +`chevron`, `logout` |
+| `resources/css/app.css` | +dropdown, avatar, recovery-code styles |
+| `routes/web.php` | +7 `profile.*` routes, +`two-factor.login`, +`notifications.feed` |
+| `tests/Feature/ProfileAndTwoFactorTest.php` | **new**, 20 tests |
+
+**Profile pictures reuse the member-photo path, deliberately.** `avatar_upload_id` points at
+`uploaded_files` exactly as `members.photo_upload_id` does, so avatars inherit the content-sniffed MIME
+allow-list, the plan storage quota and signed-URL serving with no new file code. A plain path column would
+have invited a public link to a person's photograph. Replacing a picture deletes the old file **after** the
+new id is saved, so a failure cannot leave the user with no photo.
+
+**Two-step is written here, not imported.** It is one HMAC and a MOD; every package that offers it also
+brings a QR renderer. **Verified against all six RFC 6238 test vectors** (SHA-1, last 6 digits of the
+8-digit table) before any UI was built, so a real authenticator app will agree.
+
+**The rule the 2FA design protects:** `hasTwoFactorEnabled()` requires `two_factor_confirmed_at`, so an
+**abandoned setup can never lock its owner out**. Recognising the secret alone is not enough.
+
+**Four defects found by running it, all fixed:**
+
+1. **CSP blocked the upload.** `onchange="this.form.submit()"` is an inline handler, and the app ships a
+   nonce-based CSP that forbids them — so choosing a file did nothing. Replaced with `x-on:change`.
+2. **The recovery field blocked submission.** It sat inside a collapsed `<details>` with `required`
+   (the prop's default), so the browser aborted with "An invalid form control is not focusable" and the
+   wrong-code message never rendered. Neither box is `required` now; the server rejects a submission with
+   neither.
+3. **A nested `<form>` on the 2FA page.** Browsers drop the inner form, so "Sign in as a different
+   account" would have submitted the verify form. Moved outside.
+4. **The notification panel ran off-screen on a phone.** Measured at **x = −82px on a 390px viewport**;
+   now pinned to the viewport below `48rem` (measured after: x = 12, right edge 378).
+
+**Verified in a real browser (0 console errors throughout):**
+
+| Flow | Result |
+| --- | --- |
+| Bell | opens the panel, count badge, "View all notifications" → `/notifications` |
+| Profile menu | avatar, email, Upload/Change picture, Change password, Two-step (Off/On), Sign out |
+| Photo upload | "Profile picture updated.", renders from a signed `/files/1` URL |
+| Password | old password rejected, new password signs in |
+| 2FA on | password alone → `/two-factor`, dashboard NOT reachable |
+| Wrong code | refused with "That code is not valid." |
+| Real TOTP code | → `/dashboard` |
+| Recovery codes | 10 codes rendered once after setup |
+| 2FA off | requires the password, then disables |
+
+**Red-proof:** forcing the 2FA gate off and the code check to `true` → **3 failed**
+(`password_alone_does_not_sign_in`, `wrong_code_at_the_second_step`, and the recovery-code test). Restored → green.
+
+**Full suite: `613 passed (2313 assertions)`, 0 failed.**
+
+**Dev-data note:** `owner@churchflow.test` was used for the browser runs. 2FA was enabled, confirmed and
+then disabled; the password was changed and **restored to `Owner@12345`**; one avatar upload remains on the
+account (from the upload test). Nothing else was written.
+
+> **A destructive mistake, recorded.** Cleaning up temporary files, `Remove-Item _qa_*.mjs` matched 20
+> **tracked** files from earlier sessions (`_qa_pages.mjs`, `_qa_pastor*.mjs`, `_qa_probe*.mjs`, `_shot_*.png`…).
+> All were restored byte-for-byte with `git restore` and `git status` shows no deletions; the lesson is to
+> delete named files, never a glob.
+
+**Not changed:** the sidebar and its `$canSee` filtering (the pre-existing uncommitted `$churchPlan` /
+`$ownerOnlyFeatures` work is intact), `NotificationCenterController::index()`, the notifications page, the
+auth views other than the new challenge page, every policy, and every other controller. No file was deleted.
+
+---
+
+### 1p. Paystack sandbox payment environment (2026-11-13)
+
+**Asked for:** wire the supplied Paystack TEST keys into the app "professionally", and provide the callback
+URL and the webhook URL — without deleting anything.
+
+**The app already had the gateway; what it did not have was a way for Paystack to talk to it.**
+`PaystackGateway` (initiate/verify) was real and tested. But the only webhook route was the *generic*
+`/api/v1/webhooks/payments`, which authenticates with our own `PAYMENT_WEBHOOK_SECRET` header — and Paystack
+never sends that. It signs the raw body with the account **secret key** and puts the HMAC-SHA512 in
+`x-paystack-signature`. So a real Paystack delivery would have been rejected 401 for ever, and the only way to
+"make it work" would have been to loosen the generic endpoint — i.e. let the open internet activate churches.
+
+| File | Change |
+| --- | --- |
+| `app/Http/Controllers/PaystackWebhookController.php` | **new** — verify signature, translate `charge.success`/`charge.failed` into the normalized shape `PaymentWebhookHandler` already understands |
+| `routes/api.php` | +1 route `POST /api/v1/webhooks/paystack` (`api.v1.webhooks.paystack`); the generic route is untouched |
+| `app/Domains/Subscriptions/Gateways/PaystackGateway.php` | +`verifyWebhookSignature()` (constant-time `hash_equals` over the RAW body); +`webhookSecret` ctor arg; `callback_url` now honours config |
+| `config/services.php` | +`paystack.callback_url`, +`paystack.webhook_secret` (both documented, both optional) |
+| `app/Providers/AppServiceProvider.php` | passes the two new config values to the gateway |
+| `.env` (gitignored) | `PAYMENT_GATEWAY=paystack`, the two test keys, `APP_URL=https://churchflow.com.ng` |
+| `.env.example` | the two new variables, documented (no values) |
+| `tests/Feature/PaystackWebhookTest.php` | **new**, 12 tests / 26 assertions |
+
+**The two URLs to configure in the Paystack dashboard:**
+
+| | URL |
+| --- | --- |
+| Callback (dashboard) | `https://churchflow.com.ng/checkout/1/failed` — a literal URL; see the correction below |
+| Webhook (dashboard) | `https://churchflow.com.ng/api/v1/webhooks/paystack` |
+
+> **A fixed callback URL cannot name a checkout — and Paystack will not accept a placeholder.** It is sent
+> to Paystack per transaction, so `${APP_URL}` with a literal `{checkout}` would be a dead link. The default
+> (`route('checkout.verify', $checkout)`) is already correct on the real domain because `APP_URL` is now
+> `https://churchflow.com.ng`. Setting `PAYSTACK_CALLBACK_URL` is only for a deliberate single landing page —
+> and it would misroute SMS-credit checkouts, which have no plan.
+>
+> **Correction (2026-11-13, after the dashboard rejected it).** This section first listed
+> `https://churchflow.com.ng/checkout/{checkout}/verify` as the dashboard value. Pasting it into Paystack's
+> "Callback URL" field returns **"Test callback URL must be a valid URL"** — that field is validated as a
+> literal URL, so `{braces}` are invalid whatever the domain. The correct dashboard value is a plain,
+> existing URL such as `https://churchflow.com.ng/checkout/1/failed` (verified: the route exists and answers
+> 302 to `/login` for an unauthenticated caller, i.e. no 404). It is only a **fallback** anyway: the app
+> sends a per-checkout `callback_url` with every initialise request, so Paystack uses that one and ignores
+> the dashboard value. The placeholder text is kept out of `.env` and `.env.example` now; both name the real
+> route instead.
+
+**Verified over real HTTP** (`php -S`, port 8000, against the live `.env`):
+
+| Delivery | Result |
+| --- | --- |
+| unsigned | **401** |
+| correctly signed with the `.env` secret key | **200** `{"received":true}` |
+| wrong signature | **401** |
+| generic endpoint with no shared secret | **503** — still fails closed |
+
+**The key is live:** a read-only `POST /transaction/initialize` with an empty body reached Paystack and came
+back `400 "Email Address is required"` — that message only appears for an authenticated key, so the sandbox key
+is valid. No money moved and nothing was written.
+
+**Red-proof:** replacing the signature comparison with `return true` → **4 failed** (unsigned 401, wrong
+signature 401, raw-body test, helper test). Restored → green.
+
+**Three suite fixes the switch exposed (all caused by this work, none by the app):**
+
+1. `phpunit.xml` now forces `APP_URL=http://localhost:8000`. Laravel's test client resolves relative URIs
+   through `url()`, so the https deployment URL made *every* test request "secure" — which broke
+   `test_hsts_header_is_only_set_on_an_https_request` for a reason unrelated to HSTS.
+2. `phpunit.xml` now forces `PAYMENT_GATEWAY=null` and blanks the Paystack keys. `phpunit.xml` `<env>`
+   overrides `.env`, so a developer testing a real sandbox checkout does not turn the whole suite into a
+   network-path suite. **This is the trap to remember:** setting `PAYMENT_GATEWAY=paystack` in `.env` made
+   9 tests fail, including `TrialAndPlanChangeTest`, because `TrialService::convert()` calls
+   `chargeRecurring()`, which Paystack correctly refuses to fake. The app's refusal is right; the tests
+   wanted the null gateway.
+3. `SmokeEveryPageTest` `$skip` gained `api-access.index` and `custom-domain.index` — both `isRegistrar()`-only,
+   the same shape and the same reason as the `parish-archive.*` entries already there. This failure came from
+   the **pre-existing uncommitted API-access work**, not from this section; the sweep simply had not been run
+   against those routes yet.
+
+**Full suite: `593 passed (2249 assertions)`, 0 failed, 97.9s.**
+
+**Not changed:** `PaymentWebhookController` (the generic endpoint), `PaymentWebhookHandler`, `CheckoutController`,
+`CheckoutService`, `ActivateChurchFromCheckout`, every model, view and migration. No migration was written.
+Nothing was deleted, and the pre-existing uncommitted work (subvention, custom domain, API access, `Church.php`)
+was preserved untouched.
+
+**Not proven, and not claimed:** an actual sandbox *payment*. That needs a real card in the Paystack hosted
+checkout, which only a person can complete. The gateway path, the signature check and both endpoints are
+verified; the end-to-end money movement is not.
+
+---
 
 ### 1o. Posting an announcement 404'd unless a branch was chosen (2026-11-09)
 

@@ -26,7 +26,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'church_id', 'organizational_unit_id', 'name', 'email', 'password',
-        'is_platform_admin', 'is_registrar', 'is_active',
+        'is_platform_admin', 'is_registrar', 'is_active', 'avatar_upload_id',
     ];
 
     protected static function booted(): void
@@ -48,13 +48,19 @@ class User extends Authenticatable
         });
     }
 
-    protected $hidden = ['password', 'remember_token'];
+    // The TOTP secret and the recovery codes are secrets: hidden from every
+    // JSON response so a stray `return $user` cannot leak the second factor.
+    protected $hidden = ['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'];
 
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            // Encrypted at rest: a database dump alone must not yield a working
+            // second factor for every user.
+            'two_factor_secret' => 'encrypted',
+            'two_factor_confirmed_at' => 'datetime',
             'is_platform_admin' => 'boolean',
             'is_registrar' => 'boolean',
             'is_active' => 'boolean',
@@ -123,6 +129,54 @@ class User extends Authenticatable
     public function forgetPasswordResetToken(): void
     {
         DB::table('password_reset_tokens')->where('email', $this->email)->delete();
+    }
+
+    /** The profile photo (see FileUploadService) — served via a signed URL. */
+    public function avatarUpload()
+    {
+        return $this->belongsTo(UploadedFile::class, 'avatar_upload_id');
+    }
+
+    /**
+     * A time-limited URL for the profile picture, or null when the person has
+     * none (in which case callers show their initials).
+     *
+     * The file model is tenant-scoped, so reading it during a request with no
+     * tenant bound would return null; the explicit key lookup avoids silently
+     * losing a picture the user can see they uploaded.
+     */
+    public function avatarUrl(): ?string
+    {
+        if (! $this->avatar_upload_id) {
+            return null;
+        }
+
+        $upload = $this->relationLoaded('avatarUpload')
+            ? $this->avatarUpload
+            : UploadedFile::withoutGlobalScopes()->find($this->avatar_upload_id);
+
+        return $upload?->signedUrl();
+    }
+
+    /**
+     * Is two-step authentication fully set up (secret stored AND proved with a
+     * valid code)? Only a CONFIRMED setup may challenge at login — an abandoned
+     * setup must never lock its owner out.
+     */
+    public function hasTwoFactorEnabled(): bool
+    {
+        return filled($this->two_factor_secret) && $this->two_factor_confirmed_at !== null;
+    }
+
+    /** The letters shown in place of a missing photo, e.g. "GO". */
+    public function initials(): string
+    {
+        return (string) \Illuminate\Support\Str::of($this->name)
+            ->explode(' ')
+            ->filter()
+            ->map(fn ($w) => mb_substr($w, 0, 1))
+            ->take(2)
+            ->implode('');
     }
 
     public function church()

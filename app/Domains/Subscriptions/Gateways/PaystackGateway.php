@@ -39,6 +39,8 @@ class PaystackGateway implements PaymentGatewayInterface
         private readonly ?string $secretKey = null,
         /** Where Paystack sends the browser back to; defaults to our own verify route. */
         private readonly ?string $callbackUrl = null,
+        /** Key used to verify Paystack's webhook signature (x-paystack-signature). */
+        private readonly ?string $webhookSecret = null,
     ) {}
 
     public function initiate(Checkout $checkout): string
@@ -58,7 +60,13 @@ class PaystackGateway implements PaymentGatewayInterface
                 'amount' => $this->toMinorUnits((string) $checkout->amount),
                 'currency' => strtoupper((string) $checkout->currency),
                 'reference' => $reference,
-                'callback_url' => $this->callbackUrl ?: route('checkout.verify', $checkout),
+                // Where Paystack sends the browser after payment. An explicit
+                // PAYSTACK_CALLBACK_URL wins, otherwise the signed-in verify
+                // route for THIS checkout (the historical default). The return
+                // only triggers server-side verification — never trust alone.
+                'callback_url' => $this->callbackUrl
+                    ?: config('services.payments.paystack.callback_url')
+                    ?: route('checkout.verify', $checkout),
                 'metadata' => [
                     'checkout_id' => $checkout->id,
                     'purpose' => $checkout->purpose,
@@ -155,6 +163,30 @@ class PaystackGateway implements PaymentGatewayInterface
             .'provider_subscription_reference schema decision (Paystack plan code + authorization code) '
             .'before it can be written safely.'
         );
+    }
+
+    /**
+     * Paystack's webhook authenticity check (HMAC-SHA512 over the RAW body,
+     * keyed with the secret key, sent in `x-paystack-signature`).
+     *
+     * The raw bytes are what was signed, so the caller must pass the request
+     * body exactly as received — never a re-encoded array. Comparison is
+     * constant-time and fails closed: no secret key, no header, or a mismatch
+     * all mean "not Paystack".
+     */
+    public function verifyWebhookSignature(string $rawBody, ?string $signatureHeader): bool
+    {
+        // Paystack signs with the account's SECRET key. PAYSTACK_WEBHOOK_SECRET
+        // is accepted as an override so a deployment can rotate the webhook key
+        // independently; when it is blank the secret key is used, which is the
+        // normal, dashboard-default arrangement.
+        $key = $this->webhookSecret ?: $this->secretKey;
+
+        if (blank($key) || blank($signatureHeader)) {
+            return false;
+        }
+
+        return hash_equals(hash_hmac('sha512', $rawBody, (string) $key), (string) $signatureHeader);
     }
 
     private function key(): string

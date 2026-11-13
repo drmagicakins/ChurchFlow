@@ -68,6 +68,24 @@ return [
         'paystack' => [
             'secret_key' => env('PAYSTACK_SECRET_KEY'),
             'public_key' => env('PAYSTACK_PUBLIC_KEY'),
+
+            /*
+            | Where Paystack sends the browser after a payment. When unset, each
+            | checkout falls back to its own signed-in verify route
+            | (checkout.verify), which is what makes the flow work on any host
+            | without configuration. Set PAYSTACK_CALLBACK_URL only when a
+            | single fixed page is wanted (it must still verify server-side).
+            */
+            'callback_url' => env('PAYSTACK_CALLBACK_URL'),
+
+            /*
+            | Optional override for the key Paystack signs webhooks with. Blank
+            | means "use PAYSTACK_SECRET_KEY", which is Paystack's own default:
+            | the dashboard signs with the account secret key and exposes no
+            | separate webhook key. Do not invent one — see
+            | PaystackWebhookController.
+            */
+            'webhook_secret' => env('PAYSTACK_WEBHOOK_SECRET'),
         ],
     ],
 

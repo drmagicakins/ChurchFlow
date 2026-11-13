@@ -19,6 +19,19 @@
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>
+
+        <!--
+            A fixed http APP_URL for the suite.
+
+            Laravel's test client resolves a relative URI through url(), so the
+            suite's requests inherit whatever scheme APP_URL carries. With the
+            real https deployment URL in .env, every test request became
+            "secure", and any test asserting the INSECURE behaviour (e.g. HSTS
+            is only sent over https) failed for a reason that has nothing to do
+            with the code under test. Tests that need https still pass an
+            absolute URL, which is what they mean anyway.
+        -->
+        <env name="APP_URL" value="http://localhost:8000" force="true"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
@@ -31,5 +44,21 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+
+        <!--
+            Payments are forced OFF for the suite, explicitly.
+
+            phpunit.xml <env> overrides .env, so a developer who sets
+            PAYMENT_GATEWAY=paystack in .env to test a real sandbox checkout
+            does NOT silently turn every test into a network-path test.
+            PaymentGatewayTest asserts the network-free default and a real
+            gateway without a key must not fake success; both need `null`.
+            Tests that want Paystack set config() themselves.
+        -->
+        <env name="PAYMENT_GATEWAY" value="null"/>
+        <env name="PAYSTACK_SECRET_KEY" value=""/>
+        <env name="PAYSTACK_PUBLIC_KEY" value=""/>
+        <env name="PAYSTACK_CALLBACK_URL" value=""/>
+        <env name="PAYSTACK_WEBHOOK_SECRET" value=""/>
     </php>
 </phpunit>

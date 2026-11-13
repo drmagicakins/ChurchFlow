@@ -120,6 +120,21 @@
             'M16 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z',
             'M10 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z',
         ],
+        // Developer / plan features: API keys and the custom domain.
+        'key' => [
+            'M14.5 9.5a4.5 4.5 0 1 0-4.2 4.5L9 15.3V18H6.3l-.8.8V21H3v-2.6L10.2 11',
+            'M16 8h.01',
+        ],
+        'globe' => [
+            'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z',
+            'M3.5 9h17M3.5 15h17',
+            'M12 3c2.4 2.4 3.6 5.4 3.6 9s-1.2 6.6-3.6 9c-2.4-2.4-3.6-5.4-3.6-9S9.6 5.4 12 3Z',
+        ],
+        // Header menus: the caret that says a control opens a panel, and the
+        // sign-out glyph. Listed explicitly because the fallback is a sparkle,
+        // and a sparkle beside "Sign out" would be actively misleading.
+        'chevron' => ['M6 9l6 6 6-6'],
+        'logout' => ['M9 21H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h4', 'M16 17l5-5-5-5', 'M21 12H9'],
     ];
 
     $set = $paths[$name] ?? $paths['sparkle'];

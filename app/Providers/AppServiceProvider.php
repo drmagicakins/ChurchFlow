@@ -84,6 +84,8 @@ class AppServiceProvider extends ServiceProvider
             return match ($configured) {
                 'paystack' => new \App\Domains\Subscriptions\Gateways\PaystackGateway(
                     secretKey: config('services.payments.paystack.secret_key'),
+                    callbackUrl: config('services.payments.paystack.callback_url'),
+                    webhookSecret: config('services.payments.paystack.webhook_secret'),
                 ),
                 default => new NullPaymentGateway,
             };

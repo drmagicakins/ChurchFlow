@@ -14,6 +14,13 @@ Route::middleware('guest')->group(function () {
     Route::get('/login', fn () => view('auth.login'))->name('login');
     Route::post('/login', [LoginController::class, 'store']);
 
+    // The second step of a sign-in for an account with two-step enabled.
+    // Guest-only like the rest: LoginController has already logged the user
+    // out and parked their id in the session, so this page is reachable only
+    // while a challenge is pending, and the POST refuses without one.
+    Route::get('/two-factor', fn () => view('auth.two-factor'))->name('two-factor.login');
+    Route::post('/two-factor', [LoginController::class, 'twoFactorChallenge']);
+
     // --- Phase 1: password reset ------------------------------------------
     // Guest-only, like the rest of this group: a signed-in person has no use
     // for a reset link, and letting one through would mix sessions.
@@ -288,6 +295,20 @@ Route::middleware(['auth', \App\Http\Middleware\IdentifyTenant::class, \App\Http
     Route::post('/settings/team/{member}/toggle', [\App\Http\Controllers\SettingsController::class, 'toggleTeamMember'])->name('settings.team.toggle');
     Route::delete('/settings/team/{member}', [\App\Http\Controllers\SettingsController::class, 'destroyTeamMember'])->name('settings.team.destroy');
 
+    // --- §14/§46: plan features a church owner actually uses ---
+    // API keys and the custom domain are Denomination-and-above. Both are
+    // owner-only and re-checked against the plan on every WRITE in the
+    // controller, so a downgrade takes effect immediately rather than leaving
+    // an issued key or a claimed hostname working.
+    Route::get('/api-access', [\App\Http\Controllers\ApiAccessController::class, 'index'])->name('api-access.index');
+    Route::post('/api-access/tokens', [\App\Http\Controllers\ApiAccessController::class, 'store'])->name('api-access.tokens.store');
+    Route::post('/api-access/tokens/{token}/revoke', [\App\Http\Controllers\ApiAccessController::class, 'revoke'])->name('api-access.tokens.revoke');
+
+    Route::get('/custom-domain', [\App\Http\Controllers\CustomDomainController::class, 'index'])->name('custom-domain.index');
+    Route::post('/custom-domain', [\App\Http\Controllers\CustomDomainController::class, 'store'])->name('custom-domain.store');
+    Route::post('/custom-domain/verify', [\App\Http\Controllers\CustomDomainController::class, 'verify'])->name('custom-domain.verify');
+    Route::delete('/custom-domain', [\App\Http\Controllers\CustomDomainController::class, 'destroy'])->name('custom-domain.destroy');
+
     // --- Parish archive: a copy of a parish's records, before a pastor leaves ---
     // Read-only. Both actions are owner-only in the controller (isRegistrar),
     // because an archive of pastoral notes, prayer requests and the finance
@@ -296,9 +317,24 @@ Route::middleware(['auth', \App\Http\Middleware\IdentifyTenant::class, \App\Http
     Route::get('/parish-archive/download', [\App\Http\Controllers\ParishArchiveController::class, 'download'])->name('parish-archive.download');
 
     // --- Phase 7: Communication ---
+    // --- The signed-in person's own account (header dropdown) -------------
+    // Self-service only: every action reads $request->user() and nothing else,
+    // so no permission can be used to change somebody else's password, photo
+    // or second factor. Officers, pastors and the owner all use the same path.
+    Route::post('/profile/photo', [\App\Http\Controllers\ProfileController::class, 'updatePhoto'])->name('profile.photo.update');
+    Route::delete('/profile/photo', [\App\Http\Controllers\ProfileController::class, 'destroyPhoto'])->name('profile.photo.destroy');
+    Route::post('/profile/password', [\App\Http\Controllers\ProfileController::class, 'updatePassword'])->name('profile.password.update');
+    Route::post('/profile/two-factor', [\App\Http\Controllers\ProfileController::class, 'enableTwoFactor'])->name('profile.two-factor.enable');
+    Route::post('/profile/two-factor/confirm', [\App\Http\Controllers\ProfileController::class, 'confirmTwoFactor'])->name('profile.two-factor.confirm');
+    Route::post('/profile/two-factor/disable', [\App\Http\Controllers\ProfileController::class, 'disableTwoFactor'])->name('profile.two-factor.disable');
+    Route::post('/profile/two-factor/recovery-codes', [\App\Http\Controllers\ProfileController::class, 'regenerateRecoveryCodes'])->name('profile.two-factor.recovery-codes');
+
     Route::get('/notifications', [\App\Http\Controllers\NotificationCenterController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/read-all', [\App\Http\Controllers\NotificationCenterController::class, 'markAllRead'])->name('notifications.read-all');
     Route::post('/notifications/{notification}/read', [\App\Http\Controllers\NotificationCenterController::class, 'markRead'])->name('notifications.read');
+    // The bell's dropdown contents (JSON). Declared after the {notification}
+    // route names and with a distinct literal path, so nothing can shadow it.
+    Route::get('/notifications/feed', [\App\Http\Controllers\NotificationCenterController::class, 'feed'])->name('notifications.feed');
 
     Route::resource('sms/campaigns', \App\Http\Controllers\SmsCampaignController::class)
         ->parameters(['campaigns' => 'campaign'])
