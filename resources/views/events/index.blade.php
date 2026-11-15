@@ -114,8 +114,13 @@
                                          Same soft-delete as the detail page's "Cancel event" —
                                          nothing is wiped, the record is kept for the audit trail. --}}
                                     @if($canManage && $hasExpired)
+                                        {{-- data-confirm, not onsubmit: the app's CSP forbids inline handlers,
+                                             so the old onsubmit="return confirm(...)" never ran. --}}
                                         <form method="POST" action="{{ route('events.destroy', $event) }}" style="display:inline"
-                                            onsubmit="return confirm('Delete this expired event? It will be removed from the calendar and this list; its registration history is kept.')">
+                                            data-confirm="This event has already taken place. Removing it from the calendar keeps its attendee history, but it will no longer be listed."
+                                            data-confirm-title="Delete this event?"
+                                            data-confirm-tone="danger"
+                                            data-confirm-ok="Yes, delete it">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="cf-btn cf-btn--danger cf-btn--sm">Delete</button>

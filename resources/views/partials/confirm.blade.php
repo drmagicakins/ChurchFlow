@@ -43,6 +43,24 @@
             <h2 class="cf-confirm__title" id="cf-confirm-title" x-text="title || 'Are you sure?'"></h2>
             <p class="cf-confirm__message" id="cf-confirm-message" x-text="message"></p>
 
+            {{--
+                OPTIONAL LIST OF WHAT IS AT STAKE.
+
+                Some actions cost more than one sentence can carry — cancelling an
+                event that is happening right now, with a full roster and a public
+                link already shared, is not the same decision as cancelling an
+                empty future one. A dialog that says only "Are you sure?" invites
+                exactly the misclick it is meant to prevent.
+
+                The list is additive: callers that pass a plain `message` (every
+                existing data-confirm in the app) render byte-for-byte as before.
+            --}}
+            <ul class="cf-confirm__reasons" x-show="reasons.length" x-cloak>
+                <template x-for="(reason, i) in reasons" :key="i">
+                    <li x-text="reason"></li>
+                </template>
+            </ul>
+
             <div class="cf-confirm__actions">
                 <button type="button" class="cf-btn cf-btn--secondary" @click="cancel()" x-ref="cancelBtn"
                     x-text="cancelLabel || 'Cancel'"></button>
@@ -118,6 +136,30 @@
         color: var(--muted, #64748b);
     }
 
+    .cf-confirm__reasons {
+        margin: -0.4rem 0 1.2rem;
+        padding: 0.75rem 0.9rem 0.75rem 1.9rem;
+        list-style: disc;
+        text-align: left;
+        background: rgba(100, 116, 139, 0.08);
+        border: 1px solid var(--line, #e5e7eb);
+        border-radius: 0.6rem;
+        font-size: 0.85rem;
+        line-height: 1.5;
+        color: var(--ink, #0f172a);
+        max-height: 15rem;
+        overflow-y: auto;
+    }
+
+    .cf-confirm__reasons li + li {
+        margin-top: 0.4rem;
+    }
+
+    .cf-confirm__panel {
+        max-height: calc(100vh - 2rem);
+        overflow-y: auto;
+    }
+
     .cf-confirm__actions {
         display: flex;
         gap: 0.6rem;
@@ -151,6 +193,7 @@
             visible: false,
             title: 'Are you sure?',
             message: '',
+            reasons: [],
             tone: 'danger',
             confirmLabel: 'OK',
             cancelLabel: 'Cancel',
@@ -178,6 +221,7 @@
 
                     this.open({
                         message: msg,
+                        reasons: JSON.parse(form.getAttribute('data-confirm-reasons') || '[]'),
                         title: form.getAttribute('data-confirm-title') ||
                             'Are you sure?',
                         tone: form.getAttribute('data-confirm-tone') || 'danger',
@@ -207,6 +251,7 @@
             open(detail) {
                 this.title = detail.title || 'Are you sure?';
                 this.message = detail.message || '';
+                this.reasons = Array.isArray(detail.reasons) ? detail.reasons : [];
                 this.tone = detail.tone || 'danger';
                 this.confirmLabel = detail.confirmLabel || 'OK';
                 this.cancelLabel = detail.cancelLabel || 'Cancel';
@@ -263,6 +308,7 @@
             window.dispatchEvent(new CustomEvent('cf-confirm-open', {
                 detail: {
                     message: message,
+                    reasons: options.reasons || [],
                     title: options.title,
                     tone: options.tone,
                     confirmLabel: options.confirmLabel,

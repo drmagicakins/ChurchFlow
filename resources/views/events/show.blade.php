@@ -16,7 +16,10 @@
         // people coming are guests they have never met.
         $visitors = $visitors ?? collect();
         $activeVisitors = $visitors->where('status', '!=', 'cancelled');
-        $visitorsWithEmail = $activeVisitors->filter(fn ($v) => filled($v->email))->count();
+        // §16: the EMAIL audience is the same member roster + visitor list the SMS
+        // uses (EventReminderAudience), so this count includes church members.
+        $emailRecipients = $emailRecipients ?? [];
+        $visitorsWithEmail = count($emailRecipients);
         $canSms = auth()->user()->hasPermission('sms.manage');
 
         // §16: the SMS audience is the MEMBER roster plus the public form's
@@ -31,6 +34,16 @@
         // keeps its record but takes nobody else. The controller refuses the
         // same write if the form is replayed.
         $hasExpired = $hasExpired ?? $event->hasExpired();
+
+        // What cancelling costs (see EventCancellationImpact). Null for someone who
+        // cannot manage events; the buttons below only render for managers anyway.
+        $cancelImpact = $cancelImpact ?? null;
+
+        // One string for data-confirm-reasons: the dialog reads it with JSON.parse,
+        // so a stray quote in an event title cannot break the attribute.
+        $cancelReasons = $cancelImpact
+            ? json_encode($cancelImpact['reasons'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_QUOT | JSON_HEX_APOS)
+            : '[]';
     @endphp
 
     <div class="cf-page-head">
@@ -60,14 +73,31 @@
                          calendar actually needs — rather than "Cancel event",
                          which described something that had already happened. --}}
                     <form method="POST" action="{{ route('events.destroy', $event) }}"
-                        onsubmit="return confirm('Delete this expired event? It will be removed from the calendar; its registration history is kept.')">
+                        data-confirm="This event has already taken place. Removing it from the calendar keeps its attendee history, but nobody will be able to look it up on the calendar any more."
+                        data-confirm-title="Delete this event from the calendar?"
+                        data-confirm-reasons="{{ $cancelReasons }}"
+                        data-confirm-tone="danger"
+                        data-confirm-ok="Yes, delete it">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="cf-btn cf-btn--danger cf-btn--sm">Delete event</button>
                     </form>
                 @else
+                    {{--
+                        The inline onsubmit="return confirm(...)" this replaced was
+                        never shown at all: the app ships a nonce-based CSP that
+                        forbids inline handlers, so the button cancelled the event
+                        on a single click with no confirmation whatsoever. The
+                        app-wide dialog is used instead (partials/confirm), and it
+                        is given the actual stakes from EventCancellationImpact.
+                    --}}
                     <form method="POST" action="{{ route('events.destroy', $event) }}"
-                        onsubmit="return confirm('Cancel this event? It will no longer appear on the calendar.')">
+                        data-confirm="Cancelling marks this event cancelled and removes it from the calendar. Its attendee list and history are kept."
+                        data-confirm-title="{{ $cancelImpact['headline'] ?? 'Cancel this event?' }}"
+                        data-confirm-reasons="{{ $cancelReasons }}"
+                        data-confirm-tone="{{ ($cancelImpact['severity'] ?? 'normal') === 'high' ? 'danger' : 'primary' }}"
+                        data-confirm-ok="{{ $cancelImpact['confirm_label'] ?? 'Yes, cancel the event' }}"
+                        data-confirm-cancel="No, keep the event">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="cf-btn cf-btn--secondary cf-btn--sm">Cancel event</button>
@@ -251,7 +281,9 @@
                     <div>
                         <h3 class="cf-label" style="margin:0 0 .3rem">Email reminder</h3>
                         <p class="cf-tiny cf-muted" style="margin:0 0 .5rem">
-                            Sends “{{ $event->title }}” details to all {{ $visitorsWithEmail }} visitor(s) with an email.
+                            Sends “{{ $event->title }}” details to all
+                            {{ $visitorsWithEmail }} {{ \Illuminate\Support\Str::plural('person', $visitorsWithEmail) }}
+                            with an email — members on the roster and visitors from the public form.
                         </p>
                         <form method="POST" action="{{ route('events.remind.email', $event) }}">
                             @csrf
@@ -260,6 +292,12 @@
                                 <x-ui.icon name="doc" class="h-4 w-4" /> Send email reminder
                             </button>
                         </form>
+                        @if ($visitorsWithEmail === 0)
+                            <p class="cf-tiny cf-muted" style="margin:.4rem 0 0">
+                                Nobody registered for this event has an email address yet. Members are
+                                emailed at the address on their record.
+                            </p>
+                        @endif
                     </div>
 
                     <div>

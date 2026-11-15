@@ -2,8 +2,10 @@
 
 namespace App\Domains\Events\Jobs;
 
+use App\Domains\Events\Services\EventReminderAudience;
 use App\Mail\EventReminderMail;
 use App\Models\Event;
+use App\Models\EventRegistration;
 use App\Models\EventRegistrationSubmission;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -13,8 +15,14 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Mail;
 
 /**
- * §16 "send event reminder" — emails every visitor on an event's public
- * registration list.
+ * §16 "send event reminder" — emails everyone on the event's list: the guests
+ * who filled in the public form AND the church's own members registered from
+ * inside the app.
+ *
+ * It used to read `event_registration_submissions` only, so a church that
+ * registered its congregation never emailed them — the audience was one table
+ * wide. See EventReminderAudience, which now resolves both and is shared with
+ * the SMS job so the two channels reach the same people.
  *
  * Queued for the same reason SendAnnouncementEmailsJob is: a list of a couple
  * of hundred addresses must not hold the pastor's browser open. Email is
@@ -30,20 +38,28 @@ class SendEventReminderEmailsJob implements ShouldQueue
 
     public function __construct(private readonly int $eventId) {}
 
-    public function handle(): void
+    public function handle(EventReminderAudience $audience): void
     {
         $event = Event::withoutGlobalScopes()->findOrFail($this->eventId);
 
-        EventRegistrationSubmission::withoutGlobalScopes()
-            ->where('event_id', $event->id)
-            ->where('status', '!=', 'cancelled')
-            ->whereNotNull('email')
-            ->orderBy('id')
-            ->chunkById(100, function ($rows) use ($event) {
-                foreach ($rows as $row) {
-                    Mail::to($row->email)->queue(new EventReminderMail($event, $row));
-                    $row->forceFill(['email_reminded_at' => now()])->save();
-                }
-            });
+        foreach ($audience->emailRecipients($event) as $recipient) {
+            Mail::to($recipient['email'])->queue(new EventReminderMail($event, $recipient['name']));
+
+            // Stamp the row the person came FROM: a member on `event_registrations`,
+            // a guest on `event_registration_submissions`. Stamping the wrong one
+            // would report a reminder that never happened.
+            $this->markReminded($recipient['key']);
+        }
+    }
+
+    private function markReminded(string $key): void
+    {
+        [$kind, $id] = explode(':', $key, 2);
+
+        $model = $kind === 'member'
+            ? EventRegistration::class
+            : EventRegistrationSubmission::class;
+
+        $model::withoutGlobalScopes()->whereKey((int) $id)->update(['email_reminded_at' => now()]);
     }
 }

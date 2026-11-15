@@ -117,6 +117,13 @@ class EventController extends Controller
         // visitors — before this, a church that registered its congregation from
         // inside the app saw "Nobody on this list has a phone number yet" next to
         // ten registered people, because only visitor rows were counted.
+        // §Cancel: what pressing "Cancel event" actually costs, in the church's own
+        // terms (running now, created a day ago, full roster, live public link,
+        // reminders already sent). Reporting only — see the service's docblock.
+        $cancelImpact = auth()->user()->hasPermission('events.manage')
+            ? app(\App\Domains\Events\Services\EventCancellationImpact::class)->summarise($event)
+            : null;
+
         $smsAudience = app(EventSmsAudience::class);
         $smsRecipients = auth()->user()->hasPermission('sms.manage')
             ? $smsAudience->sendable($event)
@@ -125,9 +132,14 @@ class EventController extends Controller
             ? $smsAudience->skipped($event)
             : [];
 
+        // §16: the EMAIL audience, resolved by the same service the SMS uses, so
+        // the email panel counts the church's members as well as its guests.
+        $emailRecipients = app(\App\Domains\Events\Services\EventReminderAudience::class)
+            ->emailRecipients($event);
+
         return view('events.show', compact(
             'event', 'registrations', 'availableMembers', 'canManage', 'visitors', 'hasExpired',
-            'smsRecipients', 'smsSkipped',
+            'smsRecipients', 'smsSkipped', 'cancelImpact', 'emailRecipients',
         ));
     }
 
@@ -190,18 +202,22 @@ class EventController extends Controller
             return back()->with('error', 'This event has already taken place, so no reminder can be sent.');
         }
 
-        $recipients = $event->visitorRegistrations()
-            ->where('status', '!=', 'cancelled')
-            ->whereNotNull('email')
-            ->count();
+        // The SAME audience the SMS uses: members on the roster plus the public
+        // form's visitors. Counting visitors alone meant a church that registered
+        // its own members never emailed them — the people most likely to attend.
+        $recipients = app(\App\Domains\Events\Services\EventReminderAudience::class)
+            ->emailRecipients($event);
 
-        if ($recipients === 0) {
-            return back()->withErrors(['reminder' => 'Nobody who filled in the event form has an email address yet.']);
+        if ($recipients === []) {
+            return back()->withErrors([
+                'reminder' => 'Nobody registered for this event has a usable email address yet. '
+                    .'Members are emailed at the address saved on their record; visitors give one on the public form.',
+            ]);
         }
 
         SendEventReminderEmailsJob::dispatch($event->id);
 
-        return back()->with('status', "Reminder queued for {$recipients} visitor(s) with an email address.");
+        return back()->with('status', 'Reminder queued for '.count($recipients).' recipient(s) with an email address.');
     }
 
     /**
