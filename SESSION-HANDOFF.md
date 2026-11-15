@@ -17,6 +17,15 @@ which `TenantScope` hid from parish pastors — including the row they had just 
 signature-verifying webhook endpoint, and the callback URL — plus three suite-cleanup fixes the switch exposed
 **Updated 2026-11-13 (later)** with the account menu (§1q): profile picture, password change, two-step
 authentication and the notification bell's dropdown
+**Updated 2026-11-14** with the pre-migrate data restore (§1r): the backup's data copied into the live schema,
+four named accounts excluded, **nothing else removed** — and the restore is built in a WORKING COPY, the live
+file has not been promoted yet
+**Updated 2026-11-15** with the promoted restore (§1r, now live) and the **profile-picture upload fix** (§1s):
+PHP's `upload_max_filesize` of 2M — and a `max:` rule given MEGABYTES where Laravel measures a file's size in
+KILOBYTES — turned a 2 KB ceiling into "The photo failed to upload." for any real photo
+**Updated 2026-11-15 (later)** with §1t: §1s's fix exposed the real cause — **`UPLOAD_ERR_NO_TMP_DIR`**.
+`artisan serve` strips `TEMP`/`TMP` from the child process, so on Windows PHP used `C:\Windows` (unwritable)
+as its upload temp dir and **every** upload failed, whatever its size
 **Branch:** `main` — tracking `origin/main` — **0 ahead, 0 behind**
 **HEAD:** `d6a1f47` "SMS service distinguished from parish and church owner"
 **Working tree:** dirty (all changes below are **uncommitted**). Nothing has been committed or pushed.
@@ -24,6 +33,319 @@ authentication and the notification bell's dropdown
 ---
 
 ## 1. Verified test results (actual output)
+
+### 1r. Restoring the pre-migrate backup's data into the live schema (2026-11-14)
+
+**Asked for:** restore the 2026-10-26 backup without deleting or removing anything from the platform, then —
+explicitly — remove `wisdomcrud@gmail.com` and every `qa-*` account, update this handoff, and run the app.
+
+**The state found by `_backup_check.php` (read-only):**
+
+| Table         | Backup | Live |
+| ------------- | -----: | ---: |
+| users         |      8 |    1 |
+| churches      |      7 |    0 |
+| members       |      8 |    0 |
+| plans         |      4 |    0 |
+| subscriptions |      3 |    0 |
+| roles         |      7 |    0 |
+| permissions   |     22 |    0 |
+| migrations    |     54 |   60 |
+
+The live file had the **newer schema** (60 migrations) but **no data** apart from `wisdomcrud@gmail.com`
+(id 1, `church_id=NULL`) plus 4 cache and 6 session rows. The backup had the data but an **older schema**
+(54 migrations — the dunning timestamps, department-name uniqueness, `groups.parish`, profile/2FA,
+shortfall direction and `custom_domains` migrations are all absent from it).
+
+**Why the file was not simply swapped:** copying the backup over `database.sqlite` would have thrown away six
+applied migrations, and with them the columns the current code reads. Restoring a _file_ would also have
+taken `wisdomcrud@gmail.com` with it before anyone decided its fate.
+
+**The approach actually used — additive, built off to the side:**
+
+1. Rollback snapshot: `database/database.pre-restore-2026-11-14.sqlite` (a byte copy of the live file).
+2. Working copy: `database/database.restore-working.sqlite` starts as a copy of the **live** schema, so the
+   60 migrations and the newer columns survive.
+3. The backup is `ATTACH`ed read-only and its rows are `INSERT`ed table by table, joining only the columns
+   the two schemas share; the live-only columns take their migration defaults.
+4. `migrations` is deliberately **not** copied — the live table is newer and authoritative.
+5. `PRAGMA foreign_keys = OFF` during the copy (SQLite anyway reports `0` on this connection), which avoids
+   ordering constraints across the 73 tables.
+
+**`member_id` is not `user_id` — a real bug I introduced and caught (§4 R17).** The first build filtered
+`family_member`, `group_member` and `department_member` by the excluded _user_ ids. Those tables' `member_id`
+points at the **members** table, so three rows belonging to real church members was silently dropped:
+`family_member` #1/#2 and `group_member` #1 for **Bisi Emmanuel** (member 2) and **Rosemary Fakinwa**
+(member 3), both of Grace Chapel. The verification caught the count mismatch (`family_member` 2 → 0,
+`group_member` 1 → 0); the filter was removed and the links must be copied unfiltered. Nothing to do with
+`qa-*` and nothing was authorised to disappear.
+
+**Exclusions — the only removals authorised:**
+
+| Account                     | Id  | Also removed             |
+| --------------------------- | --- | ------------------------ |
+| `wisdomcrud@gmail.com`      | 1   | the live-only row itself |
+| `qa-admin@churchflow.test`  | 2   | its `role_user` row      |
+| `qa-owner@churchflow.test`  | 3   | its `role_user` row      |
+| `qa-pastor@churchflow.test` | 11  | its `role_user` row      |
+
+**Kept:** `admin@churchflow.test` (#4), `owner@churchflow.test` (#5), `peteranjorin@gmail.com` (#6),
+`drmagicakins@gmail.com` (#7), `fkilback@example.org` (#8) — six rows expected as five users.
+
+**Row counts copied on the verified build (everything else intact):** audit*logs 118, permission_role 58,
+permissions 22, cache_locks 47, cache 14, invoices 9, sessions 8, members 8, churches 7, departments 7,
+roles 7, attendance_records 6, sms_transactions 6, approvals 5, checkouts 5, jobs 5, loans 5,
+payment_webhook_events 5, subvention_calculations 5, subvention_submissions 5, support_ticket_replies 5,
+groups 4, plans 4, subvention_periods 4, subvention_rules 4, attendance_sessions 3, event*\* 3, events 3,
+organizational_units 3, sms_wallets 3, subscriptions 3, announcements 2, event_registrations 2,
+event_registration_submissions 2, families 2, financial_accounts 2, health_incidents 2, platform_settings 2,
+prayer_requests 2, support_tickets 2, tasks 2, transactions 2, unit_types 2, analytics_events 1,
+appointments 1, bank_accounts 1, failed_jobs 1, sms_campaigns 1, sms_campaign_recipients 1,
+subvention_rule_sets 1, role_user 3 (5 − 2 excluded).
+
+**Referential sanity on the working copy:** 0 users pointing at a missing church, 0 `role_user` rows pointing
+at a missing user, 0 `role_user` rows pointing at a missing role, 0 members pointing at a missing church.
+
+**Churches left without an owner by the exclusion — reported, deliberately NOT removed:**
+
+| #   | Church                  | Status  | Note                                                      |
+| --- | ----------------------- | ------- | --------------------------------------------------------- |
+| 1   | QA Support Church       | active  | its only role-holder was `qa-owner` (#3) — now owner-less |
+| 4   | Grady-Graham Church     | active  | owner is `fkilback@example.org`, who holds no owner role  |
+| 5   | Cassin, Stehr and Smith | active  | same — no user holds an owner role for this church        |
+| 6   | Probe Church            | pending | fixture church                                            |
+| 7   | Probe Church            | pending | fixture church                                            |
+
+The roles "QA Everything" and "QA Parish Role" are likewise kept, now with no holder. Neither the churches nor
+the roles were deleted: nobody asked for that, and a church is not the AI's to remove.
+
+**Logins after the restore:** only `owner@churchflow.test` has a password recorded anywhere (`Owner@12345`,
+see §4 R18). `wisdomcrud@gmail.com` was the one account signed into this database, and it is gone by request.
+
+**Status: PROMOTED 2026-11-15.** `_restore_build.php` was re-run (working copy rebuilt with the `member_id`
+filter removed), `_restore_verify.php` reported **no unexpected count differences** (`family_member` 2,
+`group_member` 1, `department_member` 5, `users` 5, `role_user` 3), and `database.sqlite` was then replaced with
+the verified working copy. `php artisan migrate --force` answered `INFO Nothing to migrate.` (**60/60 Ran**),
+`_rowcounts.php` now reads users 5, churches 7, organizational_units 3, members 8, plans 4, subscriptions 3,
+roles 7, permissions 22, migrations 60. Model reads through the app return the same counts
+(`User::withoutGlobalScopes()` = 5, `Church::withoutGlobalScopes()` = 7). Password check (read-only, throwaway
+script deleted): only `owner@churchflow.test` accepts `Owner@12345`, as §R18 said. Smoke tests after the swap:
+`SmokeEveryPageTest` 1 passed (3 assertions), `ParishPastorPermissionsTest` 13 passed (44 assertions),
+`AnnouncementAudienceTest` 15 passed (41 assertions). The rollback file
+`database/database.pre-restore-2026-11-14.sqlite` is untouched (R19).
+
+**Helpers created (all new, untracked, read-only unless stated):** `_backup_check.php` (pre-existing),
+`_restore_plan.php`, `_restore_conflicts.php`, `_removal_impact.php`, `_church_cols.php`,
+`_investigate_diff.php`, `_check_extra_tables.php`, `_restore_build.php` (the only writer, and it writes
+only `database.restore-working.sqlite`), `_restore_verify.php`.
+
+### 1u. Event SMS "was removed" — the audience was one table wide (2026-11-15, later)
+
+**Reported:** "Cannot send sms for event, I think it was removed."
+
+**Nothing had been removed.** The screen, the route (`events.remind.sms`), `EventController::smsReminder`,
+the job and the permission are all present and working. The **audience** was the fault:
+
+|                                               | Where it lives                    | Was it texted?           |
+| --------------------------------------------- | --------------------------------- | ------------------------ |
+| Visitors (public registration form)           | `event_registration_submissions`  | **yes** — and only these |
+| Church members registered from inside the app | `event_registrations` → `members` | **no**                   |
+
+The job queried `EventRegistrationSubmission` alone. So an event whose roster is the church's own
+congregation reported _"Nobody who filled in the event form has a phone number yet"_ — true, and useless —
+while ten people were registered on the same page. Worse, the whole reminder panel was gated on
+`$activeVisitors->isNotEmpty()`, so with no visitors the **SMS section never rendered at all**. That is
+exactly what "it was removed" looks like.
+
+**Proven on the real data (church 2, event #4 "Supernatural Sunday")** — before: 0 visitor phones, 0 SMS.
+After: **5 sendable** (Bisi Emmanuel, Rosemary Fakinwa, Tobi Adeleke, Erick Garcia, Alaba Balogun) and **3
+correctly skipped with a reason** (two scientific-notation numbers, one with no phone).
+
+| File                                                                                   | Change                                                                                                                                                                                                                                               |
+| -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/Domains/Events/Services/EventSmsAudience.php`                                     | **new** — resolves the WHOLE audience (visitors + member roster), skips unusable numbers with a reason, and de-duplicates by number. The screen, the controller and the job all read it, so the button's count and the messages sent cannot disagree |
+| `app/Domains/Communication/Services/PhoneNumber.php`                                   | **new** — normalises to E.164 (`0812…` → `+234812…`) and **refuses** spreadsheet-damaged values such as `2.3481E+12`, whose digits are genuinely lost                                                                                                |
+| `app/Domains/Events/Jobs/SendEventReminderSmsJob.php`                                  | audience from the shared service; stamps `sms_reminded_at` on the row that produced each recipient; wallet is explicitly the church-wide one                                                                                                         |
+| `app/Http/Controllers/EventController.php`                                             | `show()` passes the audience and the skips; `smsReminder()` counts the same list and its errors now describe the real situation                                                                                                                      |
+| `resources/views/events/show.blade.php`                                                | the panel shows for members-only events; states how many numbers are reached and lists every skipped person **and why**                                                                                                                              |
+| `database/migrations/2026_11_15_000001_add_sms_reminded_at_to_event_registrations.php` | **new, applied** — nullable `sms_reminded_at` on `event_registrations` (visitors already had it). Additive; every existing row keeps NULL = not reminded                                                                                             |
+| `tests/Feature/EventSmsAudienceTest.php`                                               | **new**, 17 tests / 62 assertions                                                                                                                                                                                                                    |
+
+**The number-quality problem this exposed, reported not altered:** three imported members hold
+`2.3481E+12`, `2.34906E+12` and `2.35032E+12` — Excel's scientific notation, which destroyed the digits.
+They cannot be recovered by any code; the numbers must be re-entered. Nobody's data was changed. The app now
+**names** them on the event page instead of silently not sending.
+
+**Tests (17):** members reach the audience; members-only events show the SMS panel; visitors still work; both
+sources together; cancelled registrations excluded; a person on both lists texted once; scientific notation and
+missing numbers skipped with reasons; the page names them; the job texts every sendable recipient and nobody
+else; **the button's count equals the messages sent**; the right table is stamped; units come from the church
+wallet; `sms.manage` is required; the owner is told the count; and the normaliser's five real formats plus five
+refusals.
+
+**Red-proof:** excluding the member roster (the original behaviour) → **12 failed**. Restored → 17/17 green.
+
+**Full suite: `637 passed (2384 assertions)`, 0 failed.**
+
+**Not changed:** the reminder email path, the public registration form, `EventPolicy`, any permission, and the
+visitor SMS behaviour. No data was rewritten.
+
+### 1t. The real upload fault: `UPLOAD_ERR_NO_TMP_DIR` (2026-11-15, later)
+
+**Reported (after §1s):** "That photo could not be uploaded. It may be larger than the 2MB this server
+accepts…" — and then, decisively: **"the image I uploaded was less than 500mb"**.
+
+**The file size was never the problem.** §1s's honest message simply revealed a different fault. Reproduced
+against the live server with files of **300 KB, 900 KB, 1.5 MB, 1.9 MB and 2.5 MB** — every one refused, the
+300 KB one included. The size rule could not be what rejected a 300 KB file.
+
+**The actual error**, read straight out of the response instead of inferred:
+
+```
+PHP Request Startup: File upload error - unable to create a temporary file
+$_FILES['photo']['error'] = 6        // UPLOAD_ERR_NO_TMP_DIR
+```
+
+**Chain of causes:**
+
+1. PHP spools every upload to a temp file **before** Laravel runs — so this fails long before validation.
+2. `upload_tmp_dir` is unset, so PHP uses `sys_get_temp_dir()`.
+3. On Windows that falls back to **`C:\Windows`** when the process has no `TEMP`/`TMP` variable — and
+   `C:\Windows` is not writable.
+4. `php artisan serve` builds the child `php -S` environment from `$_ENV`, and, when an `.env` file exists,
+   passes every variable **not** on `$passthroughVariables` as `false` — Symfony's `Process` treats `false` as
+   _delete this variable_. `TEMP` and `TMP` are not on that list, so the server ran with neither.
+5. `upload_tmp_dir` is `PHP_INI_SYSTEM`, so `ini_set()` returns **`false`** at runtime (measured). No application
+   code — middleware, provider, controller — can repair it per request.
+
+| File                                               | Change                                                                                                                                                                                                                                                                                                   |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/Console/Commands/ServeCommand.php`            | **new** — extends Laravel's serve command; `startProcess()` gives the child `TEMP`/`TMP`/`TMPDIR` pointing at `storage/app/upload-tmp`; `serverCommand()` passes `-d upload_max_filesize/-d post_max_size/-d upload_tmp_dir` read from `public/.user.ini`, because the built-in server ignores that file |
+| `app/Domains/Files/Services/FileUploadService.php` | +`NO_TEMP_DIR_MESSAGE`; `storeImage()` names `UPLOAD_ERR_NO_TMP_DIR` as a **500 server fault** instead of letting `isValid()` report "corrupted or incomplete"                                                                                                                                           |
+| `public/.user.ini`                                 | +`upload_tmp_dir = ../storage/app/upload-tmp` (a relative value resolves against this file's directory, so it is always inside the app)                                                                                                                                                                  |
+| `tests/Feature/ProfileAndTwoFactorTest.php`        | +2 tests (25 → **27**)                                                                                                                                                                                                                                                                                   |
+
+**Why the app raises `TEMP` rather than just setting the ini:** `php -S` reads php.ini and the `-d` flags, but a
+`-d` for `upload_tmp_dir` still needs a path that EXISTS and is writable. Setting `TEMP` costs nothing, gives
+PHP a real directory even if the ini path is removed later, and covers helpers and libraries that call
+`sys_get_temp_dir()` too.
+
+**Verified on the live server (:8000), restarted through the new command** — the child's command line now
+carries `-d upload_max_filesize=5M -d post_max_size=8M -d upload_tmp_dir=…\storage\app\upload-tmp`:
+
+| Upload | Result                                                                                |
+| ------ | ------------------------------------------------------------------------------------- |
+| 300 KB | **302 · "Profile picture updated."** (was refused)                                    |
+| 900 KB | 302 · "Profile picture updated."                                                      |
+| 1.5 MB | 302 · "Profile picture updated."                                                      |
+| 1.9 MB | 302 · "Profile picture updated."                                                      |
+| 2.5 MB | 302 · "Profile picture updated."                                                      |
+| 6 MB   | refused: _"That photo is larger than the 5MB limit…"_ — the ceiling now really is 5MB |
+
+Also proven with `TEMP` and `TMP` deliberately **cleared** before starting the server — the exact failing
+condition: `sys_get_temp_dir()` reported `storage\app\upload-tmp`, `writable=yes`, upload `302`. A real file
+was written and `uploaded_files` + `users.avatar_upload_id` were updated, then the row was left in place as a
+normal profile picture.
+
+**Tests (+2):** `test_a_server_with_no_upload_temp_directory_is_reported_as_a_server_fault` (500, names the
+temp directory and `upload_tmp_dir`, never says "corrupted") and
+`test_the_serve_command_provides_a_writable_upload_temp_directory` (the directory exists and is writable; the
+class is still a real Laravel serve command). **Red-proof:** disabling the `abort_if` made the first failure
+red; restored → 27/27 green.
+
+**Full suite: `620 passed (2338 assertions)`, 0 failed.**
+
+> **A mistake worth recording.** The first attempt at this fix used `ini_set('upload_tmp_dir')` inside
+> `AppServiceProvider::boot()`. It looked right and would have changed nothing at all: the setting is
+> `PHP_INI_SYSTEM`, `ini_set()` returns `false`, and the boot code was silently useless. It was removed (the
+> file is byte-identical to HEAD). **Do not "fix" upload limits from application code.**
+>
+> **Second mistake:** the verification harness first started servers that were never stopped, leaving five
+> `php -S` processes on port 8123. All were stopped; port 8000 (the developer's own server) was only ever
+> restarted, never killed without restarting it.
+
+**Not changed:** `StorageLimitService`, the upload route, `FileUploadService`'s MIME/quota rules, every
+permission and policy, and the pre-existing untracked `server.php` dev router (Laravel picks it up when present;
+it was left exactly as it was). No migration, nothing deleted.
+
+### 1s. "The photo failed to upload." — a 2 KB ceiling behind a 5MB promise (2026-11-15)
+
+**Reported:** uploading a profile picture from the account menu answered **"The photo failed to upload."**
+Then: make sure every user and member can upload globally.
+
+**Two separate defects, and neither was in the controller's logic — it uploaded correctly when called
+directly.** A probe driving the real controller on the restored database returned `302`,
+`'Profile picture updated.'`, `avatar_upload_id = 1`. The failure lived at the HTTP and validation boundaries.
+
+| #   | Defect                                                                                                                                                                                                                                                                                                                                                                 | Evidence                                                                                     |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| 1   | PHP's `upload_max_filesize` was **2M** (`C:\Users\DELL\.config\herd\bin\php84\php.ini`), while the screen promised **5MB**. A bigger file never reaches Laravel: PHP discards it and passes a zero-byte upload flagged `UPLOAD_ERR_INI_SIZE`, so the `image` rule fails with Laravel's stock `validation.uploaded` string — the reported message, which names no cause | a 2.8MB image came back `{"photo":["The photo failed to upload."]}`; a 70-byte one succeeded |
+| 2   | **My own fix, caught before it shipped:** `max:` on a FILE is measured in **KILOBYTES**. Passing `maxUploadMb()` (= 5) set a **5 KB** ceiling — `max:5` yields _"must not be greater than 5 kilobytes"_.                                                                                                                                                               | `_size_probe.php` printed `max:5 FAILS` / `max:5120 passes` for the same 2.8MB file          |
+
+> **Why the original test suite never saw either bug.** `test_a_user_can_upload_a_profile_picture` posts
+> `UploadedFile::fake()->image('me.jpg', 200, 200)` — a few hundred bytes, comfortably under a 5 KB limit and
+> under a 2M one. The guard was green while every real photograph failed.
+
+| File                                               | Change                                                                                                                                                                                                                                                  |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/Domains/Files/Services/FileUploadService.php` | `MAX_SIZE_BYTES` made `public`; `+phpUploadLimitBytes()` (parses `2M`/`512K`/`-1`), `maxUploadBytes()` (the smaller of 5MB and PHP's limit), `maxUploadMb()`, `maxUploadKb()`; `storeImage()`'s size refusal now names the real limit                   |
+| `app/Http/Controllers/ProfileController.php`       | rule `max:'.FileUploadService::maxUploadKb()`; two messages (`photo.uploaded`, `photo.max`) naming the actual ceiling instead of the stock text                                                                                                         |
+| `resources/views/components/layout.blade.php`      | the hint reads the real limit instead of a hard-coded `5MB` (one line)                                                                                                                                                                                  |
+| `public/.user.ini`                                 | **new** — `upload_max_filesize = 5M`, `post_max_size = 8M`, `max_file_uploads = 20`, so CGI/FPM serving (Herd, php-cgi) accepts what the app promises. `php artisan serve` ignores it, which is why the code measures the limit rather than assuming it |
+| `tests/Feature/ProfileAndTwoFactorTest.php`        | +5 tests (20 → **25**), see below                                                                                                                                                                                                                       |
+
+**Why the app now asks PHP for its limit rather than just trusting `.user.ini`:** `artisan serve` and the
+test suite never read `.user.ini`, so the page would still promise a ceiling the running SAPI refuses. The
+validation therefore compares against `maxUploadBytes()`, and the hint shows the same number — what is
+promised and what is enforced can no longer disagree, on any server.
+
+**Who can upload — verified per account, not assumed.** Each row through the real controller with its own
+tenant bound:
+
+| Account                     | Role                                          |   Church | Result                                                                                                 |
+| --------------------------- | --------------------------------------------- | -------: | ------------------------------------------------------------------------------------------------------ |
+| #5 `owner@churchflow.test`  | Church Owner                                  |        2 | 302 · Profile picture updated.                                                                         |
+| #6 `peteranjorin@gmail.com` | Church Owner                                  |        3 | 302 · Profile picture updated.                                                                         |
+| #7 `drmagicakins@gmail.com` | Pastor · Akinyemi Mathew · #7 (parish-scoped) |        2 | 302 · Profile picture updated.                                                                         |
+| #8 `fkilback@example.org`   | no role                                       |        4 | 302 · Profile picture updated.                                                                         |
+| #4 `admin@churchflow.test`  | Platform Admin                                | **none** | 409 "not attached to a church yet" — unchanged, correct: it is a platform account, not a church member |
+
+The route lives in the `auth`-only group and the controller reads `$request->user()` alone — no permission,
+role, plan or parish check stands in front of it, which is what makes it work for a pastor and a role-less
+account alike.
+
+**Verified over real HTTP**, `php -S` with the raised limits against a throwaway database copy, signed in
+with a CSRF token and cookies:
+
+| Upload      | Result                                                                  |
+| ----------- | ----------------------------------------------------------------------- |
+| 2.8 MB PNG  | 302 · **"Profile picture updated."** (was `419`/refused before the fix) |
+| 70-byte PNG | 302 · "Profile picture updated."                                        |
+| Row written | `uploaded_files` gets the file, `users.avatar_upload_id` points at it   |
+
+**Tests (+5, all passing; full suite `618 passed (2329 assertions)`, 0 failed):**
+
+| Guard                                                                        | Asserts                                                                                      |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `test_a_realistic_multi_megabyte_photo_is_accepted`                          | a real 1.5 MB JPEG uploads and is stored at its real size                                    |
+| `test_the_advertised_upload_limit_is_in_kilobytes_and_at_least_one_megabyte` | the ceiling is ≥ 1 MB and both helpers describe the same number (the 5 KB bug cannot return) |
+| `test_the_advertised_limit_never_exceeds_the_servers_own_upload_limit`       | the app never promises more than PHP will accept                                             |
+| `test_an_oversized_photo_is_refused_with_the_actual_limit_named`             | the message names the real MB figure, is **not** "failed to upload", and nothing is stored   |
+| `test_a_parish_pastor_can_upload_a_profile_picture_too`                      | a genuinely parish-scoped pastor succeeds on the same path                                   |
+
+**Red-proof:** reverting the rule to `max:'.maxUploadMb()` → **2 failed**
+(`a_realistic_multi_megabyte_photo_is_accepted`, `a_parish_pastor_can_upload_a_profile_picture_too`).
+Restored → 25/25 green.
+
+**Two fixture mistakes of mine, both caught by the suite and corrected (recorded so they are not repeated):**
+`UploadedFile::fake()->image()->size(1500)` pads a reported size onto a tiny file, so it proves nothing about
+the ceiling — the test now writes real bytes. And `imagecreatetruecolor(4000, 4000)` allocates a ~64MB bitmap
+that exhausted the suite's memory limit; the oversized fixture now pads a small JPEG with COM segments
+(max 65533 bytes each). **Do not reintroduce a large `image()` canvas in a test.**
+
+**Not changed:** the upload route, `StorageLimitService`, `Member`'s photo path, `avatarUrl()`, every
+permission and policy, and the sidebar's `$canSee` logic. No migration. Nothing was deleted. The pre-existing
+uncommitted Developer-menu hunks in `layout.blade.php` are untouched — only the hint line at 415 is mine.
 
 ### 1q. The header: account dropdown, notification bell, profile pictures (2026-11-13)
 
@@ -37,20 +359,20 @@ to `/notifications` (no count on the icon itself beyond a `9+` badge, no dropdow
 initials-only with no menu at all. Two-step authentication did not exist anywhere in the app, and `users`
 had no picture column.
 
-| File | Change |
-| --- | --- |
+| File                                                                            | Change                                                                                                                                   |
+| ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `database/migrations/2026_11_13_000001_add_profile_and_two_factor_to_users.php` | **new** — `avatar_upload_id` (FK, nullOnDelete), `two_factor_secret` (encrypted), `two_factor_recovery_codes`, `two_factor_confirmed_at` |
-| `app/Models/User.php` | +`avatarUpload()`, `avatarUrl()`, `hasTwoFactorEnabled()`, `initials()`; secret/codes added to `$hidden` |
-| `app/Domains/Security/Services/TwoFactorService.php` | **new** — RFC 6238 TOTP, recovery codes, no new dependency |
-| `app/Http/Controllers/ProfileController.php` | **new** — photo upload/remove, password change, 2FA enable/confirm/disable/recovery-codes |
-| `app/Http/Controllers/Auth/LoginController.php` | +`twoFactorChallenge()` and the challenge handoff in `store()` |
-| `app/Http/Controllers/NotificationCenterController.php` | +`feed()` (JSON, ≤6 items) — `index()` untouched |
-| `resources/views/auth/two-factor.blade.php` | **new** — the second step |
-| `resources/views/components/layout.blade.php` | the topbar's right side rebuilt as two Alpine menus |
-| `resources/views/components/ui/icon.blade.php` | +`chevron`, `logout` |
-| `resources/css/app.css` | +dropdown, avatar, recovery-code styles |
-| `routes/web.php` | +7 `profile.*` routes, +`two-factor.login`, +`notifications.feed` |
-| `tests/Feature/ProfileAndTwoFactorTest.php` | **new**, 20 tests |
+| `app/Models/User.php`                                                           | +`avatarUpload()`, `avatarUrl()`, `hasTwoFactorEnabled()`, `initials()`; secret/codes added to `$hidden`                                 |
+| `app/Domains/Security/Services/TwoFactorService.php`                            | **new** — RFC 6238 TOTP, recovery codes, no new dependency                                                                               |
+| `app/Http/Controllers/ProfileController.php`                                    | **new** — photo upload/remove, password change, 2FA enable/confirm/disable/recovery-codes                                                |
+| `app/Http/Controllers/Auth/LoginController.php`                                 | +`twoFactorChallenge()` and the challenge handoff in `store()`                                                                           |
+| `app/Http/Controllers/NotificationCenterController.php`                         | +`feed()` (JSON, ≤6 items) — `index()` untouched                                                                                         |
+| `resources/views/auth/two-factor.blade.php`                                     | **new** — the second step                                                                                                                |
+| `resources/views/components/layout.blade.php`                                   | the topbar's right side rebuilt as two Alpine menus                                                                                      |
+| `resources/views/components/ui/icon.blade.php`                                  | +`chevron`, `logout`                                                                                                                     |
+| `resources/css/app.css`                                                         | +dropdown, avatar, recovery-code styles                                                                                                  |
+| `routes/web.php`                                                                | +7 `profile.*` routes, +`two-factor.login`, +`notifications.feed`                                                                        |
+| `tests/Feature/ProfileAndTwoFactorTest.php`                                     | **new**, 20 tests                                                                                                                        |
 
 **Profile pictures reuse the member-photo path, deliberately.** `avatar_upload_id` points at
 `uploaded_files` exactly as `members.photo_upload_id` does, so avatars inherit the content-sniffed MIME
@@ -80,17 +402,17 @@ brings a QR renderer. **Verified against all six RFC 6238 test vectors** (SHA-1,
 
 **Verified in a real browser (0 console errors throughout):**
 
-| Flow | Result |
-| --- | --- |
-| Bell | opens the panel, count badge, "View all notifications" → `/notifications` |
-| Profile menu | avatar, email, Upload/Change picture, Change password, Two-step (Off/On), Sign out |
-| Photo upload | "Profile picture updated.", renders from a signed `/files/1` URL |
-| Password | old password rejected, new password signs in |
-| 2FA on | password alone → `/two-factor`, dashboard NOT reachable |
-| Wrong code | refused with "That code is not valid." |
-| Real TOTP code | → `/dashboard` |
-| Recovery codes | 10 codes rendered once after setup |
-| 2FA off | requires the password, then disables |
+| Flow           | Result                                                                             |
+| -------------- | ---------------------------------------------------------------------------------- |
+| Bell           | opens the panel, count badge, "View all notifications" → `/notifications`          |
+| Profile menu   | avatar, email, Upload/Change picture, Change password, Two-step (Off/On), Sign out |
+| Photo upload   | "Profile picture updated.", renders from a signed `/files/1` URL                   |
+| Password       | old password rejected, new password signs in                                       |
+| 2FA on         | password alone → `/two-factor`, dashboard NOT reachable                            |
+| Wrong code     | refused with "That code is not valid."                                             |
+| Real TOTP code | → `/dashboard`                                                                     |
+| Recovery codes | 10 codes rendered once after setup                                                 |
+| 2FA off        | requires the password, then disables                                               |
 
 **Red-proof:** forcing the 2FA gate off and the code check to `true` → **3 failed**
 (`password_alone_does_not_sign_in`, `wrong_code_at_the_second_step`, and the recovery-code test). Restored → green.
@@ -118,29 +440,29 @@ auth views other than the new challenge page, every policy, and every other cont
 URL and the webhook URL — without deleting anything.
 
 **The app already had the gateway; what it did not have was a way for Paystack to talk to it.**
-`PaystackGateway` (initiate/verify) was real and tested. But the only webhook route was the *generic*
+`PaystackGateway` (initiate/verify) was real and tested. But the only webhook route was the _generic_
 `/api/v1/webhooks/payments`, which authenticates with our own `PAYMENT_WEBHOOK_SECRET` header — and Paystack
 never sends that. It signs the raw body with the account **secret key** and puts the HMAC-SHA512 in
 `x-paystack-signature`. So a real Paystack delivery would have been rejected 401 for ever, and the only way to
 "make it work" would have been to loosen the generic endpoint — i.e. let the open internet activate churches.
 
-| File | Change |
-| --- | --- |
-| `app/Http/Controllers/PaystackWebhookController.php` | **new** — verify signature, translate `charge.success`/`charge.failed` into the normalized shape `PaymentWebhookHandler` already understands |
-| `routes/api.php` | +1 route `POST /api/v1/webhooks/paystack` (`api.v1.webhooks.paystack`); the generic route is untouched |
-| `app/Domains/Subscriptions/Gateways/PaystackGateway.php` | +`verifyWebhookSignature()` (constant-time `hash_equals` over the RAW body); +`webhookSecret` ctor arg; `callback_url` now honours config |
-| `config/services.php` | +`paystack.callback_url`, +`paystack.webhook_secret` (both documented, both optional) |
-| `app/Providers/AppServiceProvider.php` | passes the two new config values to the gateway |
-| `.env` (gitignored) | `PAYMENT_GATEWAY=paystack`, the two test keys, `APP_URL=https://churchflow.com.ng` |
-| `.env.example` | the two new variables, documented (no values) |
-| `tests/Feature/PaystackWebhookTest.php` | **new**, 12 tests / 26 assertions |
+| File                                                     | Change                                                                                                                                       |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/Http/Controllers/PaystackWebhookController.php`     | **new** — verify signature, translate `charge.success`/`charge.failed` into the normalized shape `PaymentWebhookHandler` already understands |
+| `routes/api.php`                                         | +1 route `POST /api/v1/webhooks/paystack` (`api.v1.webhooks.paystack`); the generic route is untouched                                       |
+| `app/Domains/Subscriptions/Gateways/PaystackGateway.php` | +`verifyWebhookSignature()` (constant-time `hash_equals` over the RAW body); +`webhookSecret` ctor arg; `callback_url` now honours config    |
+| `config/services.php`                                    | +`paystack.callback_url`, +`paystack.webhook_secret` (both documented, both optional)                                                        |
+| `app/Providers/AppServiceProvider.php`                   | passes the two new config values to the gateway                                                                                              |
+| `.env` (gitignored)                                      | `PAYMENT_GATEWAY=paystack`, the two test keys, `APP_URL=https://churchflow.com.ng`                                                           |
+| `.env.example`                                           | the two new variables, documented (no values)                                                                                                |
+| `tests/Feature/PaystackWebhookTest.php`                  | **new**, 12 tests / 26 assertions                                                                                                            |
 
 **The two URLs to configure in the Paystack dashboard:**
 
-| | URL |
-| --- | --- |
+|                      | URL                                                                                     |
+| -------------------- | --------------------------------------------------------------------------------------- |
 | Callback (dashboard) | `https://churchflow.com.ng/checkout/1/failed` — a literal URL; see the correction below |
-| Webhook (dashboard) | `https://churchflow.com.ng/api/v1/webhooks/paystack` |
+| Webhook (dashboard)  | `https://churchflow.com.ng/api/v1/webhooks/paystack`                                    |
 
 > **A fixed callback URL cannot name a checkout — and Paystack will not accept a placeholder.** It is sent
 > to Paystack per transaction, so `${APP_URL}` with a literal `{checkout}` would be a dead link. The default
@@ -160,12 +482,12 @@ never sends that. It signs the raw body with the account **secret key** and puts
 
 **Verified over real HTTP** (`php -S`, port 8000, against the live `.env`):
 
-| Delivery | Result |
-| --- | --- |
-| unsigned | **401** |
-| correctly signed with the `.env` secret key | **200** `{"received":true}` |
-| wrong signature | **401** |
-| generic endpoint with no shared secret | **503** — still fails closed |
+| Delivery                                    | Result                       |
+| ------------------------------------------- | ---------------------------- |
+| unsigned                                    | **401**                      |
+| correctly signed with the `.env` secret key | **200** `{"received":true}`  |
+| wrong signature                             | **401**                      |
+| generic endpoint with no shared secret      | **503** — still fails closed |
 
 **The key is live:** a read-only `POST /transaction/initialize` with an empty body reached Paystack and came
 back `400 "Email Address is required"` — that message only appears for an authenticated key, so the sandbox key
@@ -177,7 +499,7 @@ signature 401, raw-body test, helper test). Restored → green.
 **Three suite fixes the switch exposed (all caused by this work, none by the app):**
 
 1. `phpunit.xml` now forces `APP_URL=http://localhost:8000`. Laravel's test client resolves relative URIs
-   through `url()`, so the https deployment URL made *every* test request "secure" — which broke
+   through `url()`, so the https deployment URL made _every_ test request "secure" — which broke
    `test_hsts_header_is_only_set_on_an_https_request` for a reason unrelated to HSTS.
 2. `phpunit.xml` now forces `PAYMENT_GATEWAY=null` and blanks the Paystack keys. `phpunit.xml` `<env>`
    overrides `.env`, so a developer testing a real sandbox checkout does not turn the whole suite into a
@@ -197,7 +519,7 @@ signature 401, raw-body test, helper test). Restored → green.
 Nothing was deleted, and the pre-existing uncommitted work (subvention, custom domain, API access, `Church.php`)
 was preserved untouched.
 
-**Not proven, and not claimed:** an actual sandbox *payment*. That needs a real card in the Paystack hosted
+**Not proven, and not claimed:** an actual sandbox _payment_. That needs a real card in the Paystack hosted
 checkout, which only a person can complete. The gateway path, the signature check and both endpoints are
 verified; the end-to-end money movement is not.
 
@@ -215,19 +537,19 @@ bound parish. A **church-wide** announcement stores `NULL` there (it is not file
 redirect to `announcements.show` after posting could not find the row it had just created. A **branch**
 announcement stores the parish id, which is exactly why only that case worked.
 
-| File | Change |
-| --- | --- |
-| `app/Models/Announcement.php` | +56 — `scopeVisibleTo()` (replaces the parish filter, keeps the church guard) and `resolveRouteBindingQuery()` so no route can forget it |
+| File                                              | Change                                                                                                                                                     |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/Models/Announcement.php`                     | +56 — `scopeVisibleTo()` (replaces the parish filter, keeps the church guard) and `resolveRouteBindingQuery()` so no route can forget it                   |
 | `app/Http/Controllers/AnnouncementController.php` | +71/−2 — `visibleTo()` on the index, `Group::visibleTo()` on the picker, the audience rules in `store()`, and the `$audiences` list the form is built from |
-| `resources/views/announcements/index.blade.php` | the audience `<select>` now renders `$audiences` instead of a hard-coded array |
-| `tests/Feature/AnnouncementAudienceTest.php` | **new**, 11 tests |
+| `resources/views/announcements/index.blade.php`   | the audience `<select>` now renders `$audiences` instead of a hard-coded array                                                                             |
+| `tests/Feature/AnnouncementAudienceTest.php`      | **new**, 11 tests                                                                                                                                          |
 
 **The audience rules, now enforced in the controller (not only by hiding options):**
 
-| Actor | Entire church | Own branch | Another branch | Department | Group |
-| --- | --- | --- | --- | --- | --- |
-| Parish pastor | **refused** | yes | **refused** | yes | yes |
-| Church owner (super admin) | yes | yes | yes | yes | yes |
+| Actor                      | Entire church | Own branch | Another branch | Department | Group |
+| -------------------------- | ------------- | ---------- | -------------- | ---------- | ----- |
+| Parish pastor              | **refused**   | yes        | **refused**    | yes        | yes   |
+| Church owner (super admin) | yes           | yes        | yes            | yes        | yes   |
 
 A hidden `<option>` is presentation; only the server check survives a crafted POST, so the rule lives in
 `store()` and the form merely stops offering what would be refused.
@@ -240,7 +562,7 @@ A hidden `<option>` is presentation; only the server check survives a crafted PO
 > `test_a_parish_pastor_cannot_post_to_the_entire_church` plus
 > `test_a_parish_pastor_can_open_a_church_wide_announcement_posted_by_the_owner`.
 >
-> **Posting is not reading.** A parish pastor is refused the church-wide *audience*, but still RECEIVES
+> **Posting is not reading.** A parish pastor is refused the church-wide _audience_, but still RECEIVES
 > church-wide announcements in their list and can open them — that is `scopeVisibleTo()`'s job and it is
 > deliberately unaffected. Refusing to let someone broadcast to the whole church is not the same as hiding the
 > church's own notices from them, and conflating the two would have re-broken the 404 from the other side.
@@ -255,15 +577,15 @@ A hidden `<option>` is presentation; only the server check survives a crafted PO
    audience never loses a typed value), which means a leftover `organizational_unit_id` could arrive alongside a
    `department` audience and the row would claim two targets at once. Only the field matching the chosen
    audience is now written; the others are explicitly nulled.
-2. **`exists:` alone did not prove ownership.** It proves the id is real *somewhere*, so a crafted POST could
+2. **`exists:` alone did not prove ownership.** It proves the id is real _somewhere_, so a crafted POST could
    target another tenant's department or group by id. Both are now re-checked through the tenant-scoped model.
 
 **Red-proof (two, both done):**
 
-| Removed | Result |
-| --- | --- |
-| `resolveRouteBindingQuery()` | **3 failed** — `Expected response status code [200] but received 404` on the church-wide, department and group tests, the three audiences in the report |
-| the `church_wide` guard in `store()` | the pastor's church-wide POST succeeded and `test_a_parish_pastor_cannot_post_to_the_entire_church` failed |
+| Removed                              | Result                                                                                                                                                  |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `resolveRouteBindingQuery()`         | **3 failed** — `Expected response status code [200] but received 404` on the church-wide, department and group tests, the three audiences in the report |
+| the `church_wide` guard in `store()` | the pastor's church-wide POST succeeded and `test_a_parish_pastor_cannot_post_to_the_entire_church` failed                                              |
 
 Both restored → **15/15 green**.
 
@@ -305,10 +627,10 @@ false and hides with `display: none`.
 > through CDP `Runtime.evaluate` in the **main world** returned `object` — the module was fine all along. Use the
 > main world when the question is "did the page's own JS run".
 
-| File | Change |
-| --- | --- |
-| `resources/js/app.js` | `Alpine.start()` moved from line 248 to the **end** of the file, after both `Alpine.data()` registrations, with a comment saying why it must stay last |
-| `resources/views/finance/accounts/show.blade.php` | two further defects found while verifying — see below |
+| File                                              | Change                                                                                                                                                 |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `resources/js/app.js`                             | `Alpine.start()` moved from line 248 to the **end** of the file, after both `Alpine.data()` registrations, with a comment saying why it must stay last |
+| `resources/views/finance/accounts/show.blade.php` | two further defects found while verifying — see below                                                                                                  |
 
 **Two more defects found in the same table, both fixed:**
 
@@ -337,6 +659,12 @@ php artisan test
   Tests:    468 passed (1608 assertions)
   Duration: 113.73s
 ```
+
+**2026-11-15, current tree (§1u): `637 passed (2384 assertions)`, 0 failed.**
+
+**§1t run: `620 passed (2338 assertions)`, 0 failed.**
+
+**§1s run: `618 passed (2329 assertions)`, 0 failed.**
 
 **2026-10-31, current tree (§1l): `480 passed (1643 assertions)`, 0 failed.** The earlier same-day run was
 `3 failed, 476 passed`; both causes are fixed in §1l — one was a stale test payload (not the app), the other a
@@ -1021,6 +1349,10 @@ once restored:
 | `tests/Feature/AccountCreationAndParishScopeTest.php`              | +32 / 5  | §1l — stale payload gains the required `role_id`; `ownerRole()` helper                    |
 | `app/Http/Controllers/PublicEventRegistrationController.php`       | +47 / 2  | §1m — expired show/store render the branded 410 page instead of aborting                  |
 | `tests/Feature/ExpiredEventsTest.php`                              | +58 / 0  | §1m — 2 guards on the page's CONTENT (message, no debug screen, nothing written)          |
+| `app/Domains/Files/Services/FileUploadService.php`                 | +72 / 1  | §1s — PHP's real upload limit + `maxUploadKb()`; one refusal message now names the limit  |
+| `app/Http/Controllers/ProfileController.php`                       | +13 / 1  | §1s — `max:` takes KILOBYTES; two messages naming the real ceiling                        |
+| `resources/views/components/layout.blade.php`                      | +1 / 1   | §1s — the photo hint reads the real limit (one line; other hunks are pre-existing)        |
+| `tests/Feature/ProfileAndTwoFactorTest.php`                        | +178 / 0 | §1s — 5 guards on size, unit, server limit, message and the pastor path                   |
 
 **Total: 4 deleted lines in the whole diff** — all single-line replacements that do the same thing plus
 one extra column. The §1k rows are likewise replacements, not removals: "Cancel event" became "Delete event" for
@@ -1030,20 +1362,22 @@ that keeps the user on the page.)
 
 ### Added — untracked files
 
-| File                                                                                      | Purpose                                                                       |
-| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `database/migrations/2026_10_24_000001_add_dunning_timestamps_to_subscriptions_table.php` | Additive: 2 nullable columns (+ `down()`)                                     |
-| `app/Domains/Subscriptions/Services/StorageLimitService.php`                              | Storage entitlement resolver/enforcer                                         |
-| `routes/setup-profile.php`                                                                | `POST /setup/profile` → `setup.profile`                                       |
-| `tests/Feature/StorageLimitTest.php`                                                      | 6 tests                                                                       |
-| `tests/Feature/SetupChurchNameTest.php`                                                   | 8 tests                                                                       |
-| `tests/Feature/StarterPlanFeaturesTest.php`                                               | **new**, 10 tests — §1f: every promised Starter feature + trial path          |
-| `tests/Feature/StarterTrialJourneyTest.php`                                               | **new**, 11 tests — §1h: the REAL signup → trial → feature journey            |
-| `tests/Feature/TeamPermissionAndDeleteTest.php`                                           | **new**, 11 tests — §1i: pastor permission editor, set/clear, and deletion    |
-| `tests/Feature/ExpiredEventsTest.php`                                                     | **new**, 13 tests — §1k expiry/delete, §1m the readable public closed page    |
-| `resources/views/events/public-closed.blade.php`                                          | **new** — §1m: the guest page shown (with 410) for an event that has happened |
-| `docs/*.md` (6 files)                                                                     | Inventory, audit, roadmap, add-on design, workflow, parish-pastor archive     |
-| `routes/_bak_web.php`                                                                     | **STRAY — see risk R1. Delete manually.**                                     |
+| File                                                                                      | Purpose                                                                                          |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `database/migrations/2026_10_24_000001_add_dunning_timestamps_to_subscriptions_table.php` | Additive: 2 nullable columns (+ `down()`)                                                        |
+| `app/Domains/Subscriptions/Services/StorageLimitService.php`                              | Storage entitlement resolver/enforcer                                                            |
+| `routes/setup-profile.php`                                                                | `POST /setup/profile` → `setup.profile`                                                          |
+| `tests/Feature/StorageLimitTest.php`                                                      | 6 tests                                                                                          |
+| `tests/Feature/SetupChurchNameTest.php`                                                   | 8 tests                                                                                          |
+| `tests/Feature/StarterPlanFeaturesTest.php`                                               | **new**, 10 tests — §1f: every promised Starter feature + trial path                             |
+| `tests/Feature/StarterTrialJourneyTest.php`                                               | **new**, 11 tests — §1h: the REAL signup → trial → feature journey                               |
+| `tests/Feature/TeamPermissionAndDeleteTest.php`                                           | **new**, 11 tests — §1i: pastor permission editor, set/clear, and deletion                       |
+| `tests/Feature/ExpiredEventsTest.php`                                                     | **new**, 13 tests — §1k expiry/delete, §1m the readable public closed page                       |
+| `resources/views/events/public-closed.blade.php`                                          | **new** — §1m: the guest page shown (with 410) for an event that has happened                    |
+| `public/.user.ini`                                                                        | **new** — §1s: `upload_max_filesize=5M`, `post_max_size=8M`; §1t: `upload_tmp_dir`               |
+| `app/Console/Commands/ServeCommand.php`                                                   | **new** — §1t: `TEMP`/`TMP`/`TMPDIR` for the `php -S` child + the ini limits on its command line |
+| `docs/*.md` (6 files)                                                                     | Inventory, audit, roadmap, add-on design, workflow, parish-pastor archive                        |
+| `routes/_bak_web.php`                                                                     | **STRAY — see risk R1. Delete manually.**                                                        |
 
 ---
 
@@ -1076,11 +1410,26 @@ that keeps the user on the page.)
 | **R12** | A parish pastor is shown **only** their own parish's departments in the `/departments` list, so they can no longer find a whole-church department to remove from that page                                     | Intended by the 2026-10-26 request; the department is still reachable by URL and in the SMS/attendance pickers                                        | Revisit only if the product decides otherwise                                                                                                      |
 | **R10** | `Department::columnHasBranchForeignKey()` is asked **once per process** and cached in a static                                                                                                                 | A long-lived worker that sees the schema change mid-process keeps the old answer                                                                      | Restart workers/`php artisan serve` after running the migration                                                                                    |
 | **R15** | ~~`AccountCreationAndParishScopeTest` 2 failing ("The role id field is required.")~~                                                                                                                           | **CLOSED 2026-10-31 (§1l)** — the TEST was stale, the app was right: `role_id` is required, the screen posts it, and `SettingsTest` already proved it | n/a                                                                                                                                                |
+| **R17** | First restore build dropped three `family_member`/`group_member` links because `member_id` was filtered by excluded **user** ids                                                                               | Bisi Emmanuel and Rosemary Fakinwa lost their family/group links                                                                                      | **FOUND AND FIXED 2026-11-14 (§1r)** — filter removed; must be 2 / 1 / 5 in the rebuilt working copy                                               |
+| **R18** | After the restore only `owner@churchflow.test` (`Owner@12345`) has a known password; the other four kept accounts have unknown passwords                                                                       | Cannot sign in as peteranjorin / drmagicakins / fkilback / admin without a reset                                                                      | Use the owner account, or reset a password deliberately — do not guess                                                                             |
+| **R19** | The restore is built as `database.restore-working.sqlite`; promoting it is a **file replacement** of the live database                                                                                         | A failure mid-promotion leaves a half-swapped file                                                                                                    | `database.pre-restore-2026-11-14.sqlite` is the way back; stop serve/queue before promoting                                                        |
+| **R20** | Church #1 ("QA Support Church") and churches #4–#7 have no owner after the exclusions                                                                                                                          | Nobody can administer them through the UI                                                                                                             | Assign an owner in the UI, or decide to archive — **not** done automatically; see §1r                                                              |
+| **R23** | ~~Every profile upload failed with `UPLOAD_ERR_NO_TMP_DIR`, whatever the file size~~                                                                                                                           | **CLOSED 2026-11-15 (§1s)** — a 2M PHP ceiling plus a `max:` rule given MB where files are measured in KB made the real limit 2 KB                    | Fixed and guarded; a 2.8MB photo verified over real HTTP                                                                                           |
+| **R24** | §1t restarted the developer's `php artisan serve` on :8000, which now runs the app's serve command rather than the original invocation                                                                         | A future bare `php -S` start would lose TEMP/TMP and break uploads again                                                                              | Always start with `php artisan serve`; PHP-FPM/Herd installs are unaffected                                                                        |
+| **R22** | `php artisan serve` and PHP-FPM both read upload limits from different places; `public/.user.ini` is only honoured by CGI/FPM                                                                                  | A serve-based install keeps PHP's 2M unless the ini is changed, so the app will cap the promise at 2MB rather than fail                               | The message and hint now show the REAL limit; raise the SAPI's `upload_max_filesize` for 5MB photos                                                |
 | **R16** | ~~`LoanAndBudgetServiceTest` budget variance `0.00` vs `600.00`~~                                                                                                                                              | **CLOSED 2026-10-31 (§1l)** — a REAL bug: a budget period excluded its own final day, so a monthly budget reported none of today's spending           | Fixed in `BudgetService::actualFor()`, guarded by a test proven red then green                                                                     |
 
 ---
 
 ## 5. Exact next action
+
+> **2026-11-15 — restore COMPLETE, live file promoted.** The rebuild → verify → promote sequence in §1r was
+> carried out: `_restore_build.php`, `_restore_verify.php` (no unexpected differences), then
+> `Copy-Item database\database.restore-working.sqlite database\database.sqlite -Force`. `php artisan migrate
+--force` reports `INFO Nothing to migrate.` and `_rowcounts.php` shows the restored data live (users 5,
+> churches 7, members 8, plans 4, roles 7, permissions 22, migrations 60). Sign in as
+> `owner@churchflow.test` / `Owner@12345` (R18). The rollback file is
+> `database.pre-restore-2026-11-14.sqlite` (R19). Nothing is committed.
 
 > **Migrations are done** — `php artisan migrate` returned `INFO Nothing to migrate.` and §1g verifies 57/57
 > applied with the department FK dropped. **Restart `php artisan serve` / queue workers** before browser testing.

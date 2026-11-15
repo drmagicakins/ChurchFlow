@@ -17,8 +17,15 @@
         $visitors = $visitors ?? collect();
         $activeVisitors = $visitors->where('status', '!=', 'cancelled');
         $visitorsWithEmail = $activeVisitors->filter(fn ($v) => filled($v->email))->count();
-        $visitorsWithPhone = $activeVisitors->filter(fn ($v) => filled($v->phone))->count();
         $canSms = auth()->user()->hasPermission('sms.manage');
+
+        // §16: the SMS audience is the MEMBER roster plus the public form's
+        // visitors, resolved by EventSmsAudience — the same list the sending job
+        // uses. Counting visitors alone showed "Nobody on this list has a phone
+        // number yet" while ten members were registered below it.
+        $smsRecipients = $smsRecipients ?? [];
+        $smsSkipped = $smsSkipped ?? [];
+        $visitorsWithPhone = count($smsRecipients);
 
         // Set by EventController::show(): an event that has already taken place
         // keeps its record but takes nobody else. The controller refuses the
@@ -232,7 +239,13 @@
             @endif
         </div>
 
-        @if ($canManage && $activeVisitors->isNotEmpty())
+        {{--
+            Shown when there is ANYONE to remind: a visitor who filled the public
+            form, or a church member on this event's roster. Gating on visitors
+            alone hid the whole panel — SMS included — for every event whose
+            registrants were members, which is most of them.
+        --}}
+        @if ($canManage && ($activeVisitors->isNotEmpty() || $registrations->isNotEmpty() || count($smsRecipients) > 0))
             <div class="cf-card__body" style="border-bottom:1px solid var(--line, #e5e7eb)">
                 <div class="cf-grid cf-grid--2">
                     <div>
@@ -257,9 +270,21 @@
                             </p>
                         @elseif ($visitorsWithPhone === 0)
                             <p class="cf-tiny cf-muted" style="margin:0">
-                                Nobody on this list has a phone number yet.
+                                Nobody registered for this event has a phone number yet. Members text their
+                                saved number; visitors give one on the public form.
                             </p>
+                            @if (count($smsSkipped) > 0)
+                                <ul class="cf-tiny cf-muted" style="margin:.4rem 0 0;padding-left:1.1rem">
+                                    @foreach ($smsSkipped as $skip)
+                                        <li>{{ $skip['name'] }} — {{ $skip['problem'] }}</li>
+                                    @endforeach
+                                </ul>
+                            @endif
                         @else
+                            <p class="cf-tiny cf-muted" style="margin:0 0 .5rem">
+                                Reaches <strong>{{ $visitorsWithPhone }}</strong> number(s) — church members on the
+                                roster and visitors who left a phone on the public form.
+                            </p>
                             <form method="POST" action="{{ route('events.remind.sms', $event) }}" class="cf-form">
                                 @csrf
                                 <div class="cf-field" style="margin:0 0 .5rem">
@@ -278,6 +303,20 @@
                                     Units are reserved from this church's SMS wallet as the messages send.
                                 </p>
                             </form>
+
+                            @if (count($smsSkipped) > 0)
+                                {{-- Named, with the reason: a silent skip reads as lost data. --}}
+                                <details style="margin-top:.5rem">
+                                    <summary class="cf-tiny cf-muted" style="cursor:pointer">
+                                        {{ count($smsSkipped) }} registered number(s) cannot be texted
+                                    </summary>
+                                    <ul class="cf-tiny cf-muted" style="margin:.4rem 0 0;padding-left:1.1rem">
+                                        @foreach ($smsSkipped as $skip)
+                                            <li>{{ $skip['name'] }} — {{ $skip['problem'] }}</li>
+                                        @endforeach
+                                    </ul>
+                                </details>
+                            @endif
                         @endif
                     </div>
                 </div>

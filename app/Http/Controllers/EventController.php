@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Domains\Events\Jobs\SendEventReminderEmailsJob;
 use App\Domains\Events\Jobs\SendEventReminderSmsJob;
+use App\Domains\Events\Services\EventSmsAudience;
 use App\Models\Event;
 use App\Models\EventRegistrationSubmission;
 use App\Models\Member;
@@ -108,7 +109,26 @@ class EventController extends Controller
                 ->get(['id', 'full_name', 'email'])
             : collect();
 
-        return view('events.show', compact('event', 'registrations', 'availableMembers', 'canManage', 'visitors', 'hasExpired'));
+        // §16: whom the bulk SMS can actually reach.
+        //
+        // This is the SAME list the sending job works from (EventSmsAudience), so
+        // the "Send SMS to N" button and the number of messages sent cannot
+        // disagree. It covers the member roster as well as the public form's
+        // visitors — before this, a church that registered its congregation from
+        // inside the app saw "Nobody on this list has a phone number yet" next to
+        // ten registered people, because only visitor rows were counted.
+        $smsAudience = app(EventSmsAudience::class);
+        $smsRecipients = auth()->user()->hasPermission('sms.manage')
+            ? $smsAudience->sendable($event)
+            : [];
+        $smsSkipped = auth()->user()->hasPermission('sms.manage')
+            ? $smsAudience->skipped($event)
+            : [];
+
+        return view('events.show', compact(
+            'event', 'registrations', 'availableMembers', 'canManage', 'visitors', 'hasExpired',
+            'smsRecipients', 'smsSkipped',
+        ));
     }
 
     /**
@@ -207,14 +227,22 @@ class EventController extends Controller
         abort_unless($request->user()->hasPermission('sms.manage'), 403,
             'Sending SMS needs the SMS permission.');
 
-        $recipients = $event->visitorRegistrations()
-            ->where('status', '!=', 'cancelled')
-            ->whereNotNull('phone')
-            ->where('phone', '!=', '')
-            ->count();
+        // The audience the job will use: the member roster AND the public form's
+        // visitors, minus anyone whose number cannot be sent to.
+        $audience = app(EventSmsAudience::class);
+        $recipients = $audience->sendable($event);
+        $skipped = $audience->skipped($event);
 
-        if ($recipients === 0) {
-            return back()->withErrors(['reminder' => 'Nobody who filled in the event form has a phone number yet.']);
+        if ($recipients === []) {
+            // Say exactly which list is empty and why nobody could be texted,
+            // instead of the old "nobody filled in the form" message that was
+            // wrong whenever the registrations were church members.
+            $message = $skipped === []
+                ? 'Nobody registered for this event has a phone number yet. Add numbers to the people on the list, or share the public registration form.'
+                : 'Nobody registered for this event has a sendable phone number. '.count($skipped)
+                    .' number(s) could not be used — open the SMS panel to see why.';
+
+            return back()->withErrors(['reminder' => $message]);
         }
 
         $data = $request->validate([
@@ -223,7 +251,13 @@ class EventController extends Controller
 
         SendEventReminderSmsJob::dispatch($event->id, $data['message']);
 
-        return back()->with('status', "SMS reminder queued for {$recipients} visitor(s). Units are reserved from the church SMS wallet as they send.");
+        $status = 'SMS reminder queued for '.count($recipients).' recipient(s). Units are reserved from the church SMS wallet as they send.';
+
+        if ($skipped !== []) {
+            $status .= ' '.count($skipped).' number(s) were skipped — see the event page for the reason.';
+        }
+
+        return back()->with('status', $status);
     }
 
     /**
