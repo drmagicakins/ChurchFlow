@@ -362,7 +362,7 @@
                                             {{ $avatarUrl ? 'Change picture' : 'Upload picture' }}
                                         </label>
                                     </form>
-                                    <p class="cfd-menu__hint">PNG, JPG, WebP or GIF up to 5MB.</p>
+                                    <p class="cfd-menu__hint">PNG, JPG, WebP or GIF up to {{ \App\Domains\Files\Services\FileUploadService::maxUploadMb() }}MB.</p>
                                     @if($avatarUrl)
                                         <form method="POST" action="{{ route('profile.photo.destroy') }}">
                                             @csrf
