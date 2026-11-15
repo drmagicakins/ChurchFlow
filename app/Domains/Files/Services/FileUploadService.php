@@ -38,7 +38,82 @@ class FileUploadService
         'image/jpeg', 'image/png', 'image/webp', 'image/gif',
     ];
 
-    private const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB — generous for a profile/cover photo, not a document vault
+    public const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB — generous for a profile/cover photo, not a document vault
+
+    /**
+     * Shown when PHP has no writable temp directory to receive an upload.
+     *
+     * This is a SERVER fault, not something the person choosing the file can
+     * fix, so it must not be dressed up as "your photo is bad". The message
+     * names the remedy for whoever runs the server.
+     */
+    public const NO_TEMP_DIR_MESSAGE = 'The server could not store the uploaded file because PHP has no writable '
+        .'temporary directory (UPLOAD_ERR_NO_TMP_DIR). Set upload_tmp_dir to a writable folder in php.ini, then '
+        .'restart the web server.';
+
+    /**
+     * The largest upload PHP ITSELF will accept, in bytes.
+     *
+     * A file bigger than `upload_max_filesize` never reaches this application:
+     * PHP discards it, hands Laravel a zero-byte upload flagged
+     * UPLOAD_ERR_INI_SIZE, and the `image` rule then fails the request with the
+     * generic "The photo failed to upload." That says nothing about the real
+     * cause (the server's limit), so the validation rules compare against this
+     * value instead and the message names the limit that actually applied.
+     *
+     * `upload_max_filesize` is reported in "shorthand" notation (2M, 512K), so
+     * it is converted here; 0 / -1 / unparseable means no limit.
+     */
+    public static function phpUploadLimitBytes(): ?int
+    {
+        $raw = trim((string) ini_get('upload_max_filesize'));
+
+        if ($raw === '' || $raw === '0' || (int) $raw === -1) {
+            return null;
+        }
+
+        $units = ['k' => 1024, 'm' => 1024 ** 2, 'g' => 1024 ** 3];
+        $suffix = strtolower(substr($raw, -1));
+
+        if (isset($units[$suffix])) {
+            return (int) ((float) substr($raw, 0, -1) * $units[$suffix]);
+        }
+
+        return (int) $raw;
+    }
+
+    /**
+     * The largest file this application will actually accept: the smaller of its
+     * own 5MB ceiling and PHP's `upload_max_filesize`.
+     *
+     * Without this, a server configured at PHP's default 2MB silently rejects
+     * every photo between 2MB and the 5MB the screen promises.
+     */
+    public static function maxUploadBytes(): int
+    {
+        $phpLimit = self::phpUploadLimitBytes();
+
+        return $phpLimit === null ? self::MAX_SIZE_BYTES : min(self::MAX_SIZE_BYTES, $phpLimit);
+    }
+
+    /** The limit above, in whole MB — for validation messages and the hint text. */
+    public static function maxUploadMb(): int
+    {
+        return max(1, (int) floor(self::maxUploadBytes() / (1024 * 1024)));
+    }
+
+    /**
+     * The limit above in KILOBYTES, which is the unit Laravel's `max:` rule uses
+     * for an uploaded FILE.
+     *
+     * `max:5` on a file means FIVE KILOBYTES, not five megabytes — passing
+     * maxUploadMb() straight into `max:` rejects every photo above 2 KB with
+     * "must not be greater than 2 kilobytes". The rule needs the number in KB.
+     */
+    public static function maxUploadKb(): int
+    {
+        return max(1, (int) floor(self::maxUploadBytes() / 1024));
+    }
     private readonly StorageLimitService $storageLimit;
 
     public function __construct(?StorageLimitService $storageLimit = null)
@@ -57,8 +132,20 @@ class FileUploadService
         ?Model $attachable = null,
         string $visibility = 'private',
     ): UploadedFileModel {
+        // `isValid()` collapses EVERY PHP upload error into one boolean, and the
+        // generic "corrupted or incomplete" message then blames the photo for a
+        // fault on the server. UPLOAD_ERR_NO_TMP_DIR in particular means PHP had
+        // nowhere to put the file (a server with no writable temp directory),
+        // which no amount of re-choosing the image can fix — so the real cause
+        // is named and logged instead.
+        abort_if($file->getError() === UPLOAD_ERR_NO_TMP_DIR, 500, self::NO_TEMP_DIR_MESSAGE);
+
         abort_unless($file->isValid(), 422, 'The uploaded file is corrupted or incomplete.');
-        abort_if($file->getSize() > self::MAX_SIZE_BYTES, 422, 'File is too large (max 5MB).');
+        abort_if(
+            $file->getSize() > self::maxUploadBytes(),
+            422,
+            'File is too large (max '.self::maxUploadMb().'MB).'
+        );
 
         $sniffedMime = $file->getMimeType(); // content-sniffed, not client-supplied
         abort_unless(

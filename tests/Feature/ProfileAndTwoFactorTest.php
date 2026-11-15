@@ -136,6 +136,251 @@ class ProfileAndTwoFactorTest extends TestCase
         $this->assertSame('PO', $user->initials()); // "Pastor Okafor" -> PO
     }
 
+    /**
+     * REGRESSION: the `max:` rule is measured in KILOBYTES for a file, and the
+     * profile form advertised 5MB. Two separate defects made a perfectly good
+     * multi-megabyte photo fail with "The photo failed to upload.":
+     *
+     *  1. it was passed maxUploadMb() (= 5), i.e. a FIVE KILOBYTE ceiling; and
+     *  2. PHP's own upload_max_filesize (2M by default) discarded the file
+     *     before Laravel ever saw it.
+     *
+     * A 1KB image passes a 5KB limit, so the original single-picture test was
+     * green throughout both bugs. This one uses a file big enough to catch them.
+     */
+    public function test_a_realistic_multi_megabyte_photo_is_accepted(): void
+    {
+        Storage::fake('private');
+
+        $user = $this->user();
+
+        // A REAL 1.5MB file: UploadedFile::fake()->image()->size() writes only a
+        // few dozen bytes and pads the reported size, so the multipart upload
+        // would arrive tiny and prove nothing about the size ceiling.
+        $path = tempnam(sys_get_temp_dir(), 'bigjpg');
+        file_put_contents($path, $this->jpegOfSize(1500 * 1024));
+
+        $this->actingAs($user)->post(route('profile.photo.update'), [
+            'photo' => new UploadedFile($path, 'holiday.jpg', 'image/jpeg', null, true),
+        ])->assertSessionHasNoErrors();
+
+        $user->refresh();
+
+        $this->assertNotNull($user->avatar_upload_id, 'A 1.5MB photo must upload, not be refused as "too large".');
+
+        $stored = \App\Models\UploadedFile::withoutGlobalScopes()->find($user->avatar_upload_id);
+        $this->assertGreaterThan(1024 * 1024, $stored->size_bytes, 'The stored file must really be the multi-megabyte one.');
+
+        @unlink($path);
+    }
+
+    /**
+     * A genuinely valid JPEG of exactly $bytes bytes, cheaply.
+     *
+     * A small 8x8 image is encoded, then a COM (comment) segment of the needed
+     * length is inserted straight after SOI and BEFORE the first frame header —
+     * the order that keeps it a JPEG getimagesize() and fileinfo still accept.
+     * Padding this way costs no bitmap memory, unlike a huge canvas.
+     */
+    private function jpegOfSize(int $bytes): string
+    {
+        $img = imagecreatetruecolor(8, 8);
+        imagefilledrectangle($img, 0, 0, 8, 8, imagecolorallocate($img, 200, 40, 40));
+
+        ob_start();
+        imagejpeg($img, null, 90);
+        $jpeg = ob_get_clean();
+        imagedestroy($img);
+
+        $pad = max(0, $bytes - strlen($jpeg) - 4);
+
+        // A COM payload above 65533 bytes needs more than one segment.
+        $comments = '';
+        while ($pad > 0) {
+            $chunk = min($pad, 65533);
+            $comments .= chr(0xFF).chr(0xFE).pack('n', 2 + $chunk).str_repeat('A', $chunk);
+            $pad -= $chunk;
+        }
+
+        return substr($jpeg, 0, 2).$comments.substr($jpeg, 2);
+    }
+
+    /**
+     * The ceiling the screen and the rule agree on is in KILOBYTES, and it is
+     * at least 1 MB — the bug made it 5 KB while the hint said "5MB".
+     */
+    public function test_the_advertised_upload_limit_is_in_kilobytes_and_at_least_one_megabyte(): void
+    {
+        $kb = \App\Domains\Files\Services\FileUploadService::maxUploadKb();
+
+        $this->assertGreaterThanOrEqual(1024, $kb, 'A limit below 1MB is the 5-kilobyte bug returning.');
+        $this->assertSame(
+            \App\Domains\Files\Services\FileUploadService::maxUploadBytes(),
+            $kb * 1024,
+            'maxUploadKb() and maxUploadBytes() must describe the same ceiling.'
+        );
+    }
+
+    /**
+     * The ceiling must never exceed what PHP ITSELF will accept. A server left
+     * at PHP's default upload_max_filesize (2M) discards anything larger before
+     * the request reaches Laravel, so promising 5MB there guarantees a failure
+     * that no validation message could explain.
+     */
+    public function test_the_advertised_limit_never_exceeds_the_servers_own_upload_limit(): void
+    {
+        $phpLimit = \App\Domains\Files\Services\FileUploadService::phpUploadLimitBytes();
+
+        if ($phpLimit === null) {
+            $this->markTestSkipped('This PHP build reports no upload_max_filesize ceiling.');
+        }
+
+        $this->assertLessThanOrEqual(
+            $phpLimit,
+            \App\Domains\Files\Services\FileUploadService::maxUploadBytes(),
+            'The app must not advertise an upload size PHP will silently discard.'
+        );
+    }
+
+    /**
+     * REGRESSION: a server with no usable upload temp directory must be reported
+     * as a SERVER fault, not as a bad photo.
+     *
+     * The reported symptom was "That photo could not be uploaded…" for EVERY
+     * image, including a 300 KB one, because PHP had no writable temp dir
+     * (UPLOAD_ERR_NO_TMP_DIR). `isValid()` alone cannot tell that apart from a
+     * corrupt file, and blaming the photo sends the person round in circles.
+     */
+    public function test_a_server_with_no_upload_temp_directory_is_reported_as_a_server_fault(): void
+    {
+        Storage::fake('private');
+
+        $user = $this->user();
+
+        $path = tempnam(sys_get_temp_dir(), 'notmp');
+        file_put_contents($path, $this->jpegOfSize(2048));
+
+        // A file claiming UPLOAD_ERR_NO_TMP_DIR is exactly what PHP hands Laravel
+        // when its temp directory is unusable.
+        $file = new UploadedFile($path, 'me.jpg', 'image/jpeg', UPLOAD_ERR_NO_TMP_DIR, true);
+
+        $this->assertSame(UPLOAD_ERR_NO_TMP_DIR, $file->getError());
+
+        try {
+            app(\App\Domains\Files\Services\FileUploadService::class)
+                ->storeImage($file, $user->church, $user, $user);
+
+            $this->fail('An upload with no temp directory must be refused, not stored.');
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            $this->assertSame(500, $e->getStatusCode());
+            $this->assertStringContainsString('temporary directory', $e->getMessage());
+            $this->assertStringContainsString('upload_tmp_dir', $e->getMessage());
+            $this->assertStringNotContainsString('corrupted', $e->getMessage());
+        }
+
+        @unlink($path);
+    }
+
+    /**
+     * The serve command must give the PHP server a writable temp directory.
+     *
+     * `php artisan serve` strips TEMP/TMP from the child environment, and on
+     * Windows sys_get_temp_dir() then resolves to C:\\Windows, which is not
+     * writable — every upload failed. App\\Console\\Commands\\ServeCommand exists
+     * to prevent that, and this proves its chosen directory is real and writable.
+     */
+    public function test_the_serve_command_provides_a_writable_upload_temp_directory(): void
+    {
+        $dir = storage_path('app/upload-tmp');
+
+        if (! is_dir($dir)) {
+            mkdir($dir, 0775, true);
+        }
+
+        $this->assertDirectoryExists($dir);
+        $this->assertTrue(is_writable($dir), 'The upload temp directory must be writable or PHP cannot receive a file.');
+
+        // The server PHP would otherwise fall back to on Windows.
+        $this->assertNotSame('C:\\Windows', $dir);
+
+        $this->assertTrue(
+            is_subclass_of(\App\Console\Commands\ServeCommand::class, \Illuminate\Foundation\Console\ServeCommand::class),
+            'The app serve command must still be a real Laravel serve command.'
+        );
+    }
+
+    /**
+     * A photo above the ceiling is refused with a message that names the REAL
+     * limit — not Laravel's generic "The photo failed to upload.", which reads
+     * as a corrupt file and gives the person nothing to act on.
+     */
+    public function test_an_oversized_photo_is_refused_with_the_actual_limit_named(): void
+    {
+        Storage::fake('private');
+
+        $user = $this->user();
+
+        // A real file just over the ceiling. UploadedFile::fake()->image() with a
+        // huge canvas allocates a true-colour bitmap (4000x4000 is ~64MB), which
+        // is enough to exhaust the suite's memory limit — so the bytes are built
+        // directly instead.
+        $tooBig = \App\Domains\Files\Services\FileUploadService::maxUploadKb() + 64;
+        $path = tempnam(sys_get_temp_dir(), 'hugejpg');
+        file_put_contents($path, $this->jpegOfSize($tooBig * 1024));
+
+        $response = $this->actingAs($user)->post(route('profile.photo.update'), [
+            'photo' => new UploadedFile($path, 'huge.jpg', 'image/jpeg', null, true),
+        ]);
+
+        @unlink($path);
+
+        $response->assertSessionHasErrors('photo');
+
+        $message = session('errors')->first('photo');
+
+        $this->assertStringNotContainsString('failed to upload', $message, 'The generic message hides the cause.');
+        $this->assertStringContainsString(\App\Domains\Files\Services\FileUploadService::maxUploadMb().'MB', $message);
+
+        $this->assertNull($user->fresh()->avatar_upload_id);
+    }
+
+    /**
+     * A parish pastor is not the owner and holds only their own permissions —
+     * the profile picture is self-service, so the SAME path must work for them.
+     */
+    public function test_a_parish_pastor_can_upload_a_profile_picture_too(): void
+    {
+        Storage::fake('private');
+
+        $owner = $this->user();
+
+        $type = \App\Models\UnitType::create([
+            'church_id' => $owner->church_id,
+            'name' => 'Branch',
+            'level' => 1,
+        ]);
+
+        $unit = \App\Models\OrganizationalUnit::create([
+            'church_id' => $owner->church_id,
+            'unit_type_id' => $type->id,
+            'name' => 'Grace Parish',
+        ]);
+
+        $pastor = User::factory()->create([
+            'church_id' => $owner->church_id,
+            'organizational_unit_id' => $unit->id,
+            'email' => 'parish-pastor@example.test',
+        ]);
+
+        $this->assertTrue($pastor->isParishScoped(), 'The fixture must really be a parish-scoped pastor.');
+
+        $this->actingAs($pastor)->post(route('profile.photo.update'), [
+            'photo' => UploadedFile::fake()->image('me.jpg', 400, 400),
+        ])->assertSessionHas('status', 'Profile picture updated.');
+
+        $this->assertNotNull($pastor->fresh()->avatar_upload_id);
+    }
+
     // --- password -----------------------------------------------------------
 
     public function test_a_password_change_requires_the_current_password(): void

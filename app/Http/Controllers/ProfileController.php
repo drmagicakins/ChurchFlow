@@ -33,8 +33,20 @@ class ProfileController extends Controller
     /** Upload or replace the profile picture (reuses the member-photo storage path). */
     public function updatePhoto(Request $request): RedirectResponse
     {
+        // The ceiling is the smaller of the app's 5MB and PHP's own
+        // upload_max_filesize. A file above PHP's limit never arrives (it is
+        // discarded and flagged UPLOAD_ERR_INI_SIZE), and the stock `image`
+        // failure would read "The photo failed to upload." — which names no
+        // cause and suggests a corrupt file rather than an oversized one.
+        // NOTE: `max:` is measured in KILOBYTES for files, so it takes
+        // maxUploadKb(), never maxUploadMb() — the latter made the limit 2 KB.
         $request->validate([
-            'photo' => ['required', 'file', 'image', 'max:5120'],
+            'photo' => ['required', 'file', 'image', 'max:'.FileUploadService::maxUploadKb()],
+        ], [
+            'photo.uploaded' => 'That photo could not be uploaded. It may be larger than the '
+                .FileUploadService::maxUploadMb().'MB this server accepts, or the upload was interrupted.',
+            'photo.max' => 'That photo is larger than the '.FileUploadService::maxUploadMb().'MB limit. '
+                .'Please choose a smaller image.',
         ]);
 
         $user = $request->user();
