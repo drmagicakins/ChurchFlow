@@ -86,6 +86,89 @@ return [
             | PaystackWebhookController.
             */
             'webhook_secret' => env('PAYSTACK_WEBHOOK_SECRET'),
+
+            /*
+            | The CA bundle used to verify Paystack's TLS certificate. Blank
+            | means "choose one automatically": PHP's curl.cainfo / openssl.cafile
+            | when set, otherwise the bundle Composer ships
+            | (vendor/composer/ca-bundle/res/cacert.pem). See
+            | PaystackGateway::tlsOptions() for why this is needed — a PHP build
+            | with no CA bundle fails every request with "cURL error 60" and the
+            | checkout page answers 500. Set it only to pin a specific file.
+            */
+            'ca_bundle' => env('PAYSTACK_CA_BUNDLE'),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | SMS provider (Phase 7) — Termii
+    |--------------------------------------------------------------------------
+    |
+    | The app talks to SMS providers only through SmsProviderInterface; which
+    | one is used is decided in AppServiceProvider and nowhere else.
+    |
+    | `gateway` mirrors services.payments.gateway: `null` (the network-free
+    | NullSmsProvider, the local/test default) or `termii`. Termii is selected
+    | only when the gateway is named explicitly AND a key exists — a key on its
+    | own must never switch a live SMS path on, and a named gateway with no key
+    | throws rather than pretending a text was sent.
+    |
+    | base_url is configurable because Termii routes accounts to different
+    | hosts (v3 vs v4). This deployment answers on https://v4.api.termii.com/
+    | for sender-id and balance (probed, not assumed — see
+    | SESSION-HANDOFF.md §1x), so that is the default.
+    |
+    | sender_id has NO default on purpose. Termii rejects a send whose `from`
+    | is not an APPROVED sender id, and inventing a default ("ChurchFlow")
+    | would turn a configuration gap into a failed text the church paid a unit
+    | for. Unset means the provider refuses, in words naming the variable.
+    |
+    | channel: `dnd` routes around Nigerian do-not-disturb blocks and requires
+    | an approved sender id; `generic` does not. `dnd` is the right default for
+    | a church reaching its own congregation, and it matches Termii's own
+    | examples.
+    */
+    'sms' => [
+        'gateway' => env('SMS_GATEWAY', 'null'),
+
+        'termii' => [
+            'base_url' => env('TERMII_BASE_URL', 'https://v4.api.termii.com'),
+            'api_key' => env('TERMII_API_KEY'),
+
+            /*
+            | PLATFORM FALLBACK sender id — usually the platform's own approved
+            | sender, used only when the sending church has no name of its own.
+            |
+            | The sender id is NOT an installation-wide constant: per the
+            | church's requirement (2026-11-17) a text goes out under the NAME OF
+            | THE CHURCH / PARISH PASTOR that is sending it. That name is resolved
+            | per send (see SenderIdResolver) and passed into
+            | TermiiProvider::send() as `$from`; this value is what it falls back
+            | to when the church has no usable name.
+            */
+            'sender_id' => env('TERMII_SENDER_ID'),
+
+            /*
+            | Whether a message may be sent under the CHURCH's own name instead of
+            | the account's approved sender id. FALSE by default: Termii refuses a
+            | `from` that is not an approved header on the account, so a church
+            | name that has not been registered would fail every send. Turn it on
+            | only when each church holds an approved header of its own.
+            */
+            'from_church_name' => (bool) env('SMS_SENDER_FROM_CHURCH_NAME', false),
+            'channel' => env('TERMII_CHANNEL', 'dnd'),
+            'type' => env('TERMII_MESSAGE_TYPE', 'plain'),
+
+            /*
+            | Same CA-bundle problem PaystackGateway documents: this machine's
+            | PHP has no curl.cainfo, so libcurl cannot verify the provider's
+            | certificate and every request dies with "cURL error 60" — which
+            | would turn every campaign into "provider unreachable". Blank means
+            | "choose one automatically" (curl.cainfo → openssl.cafile → the
+            | bundle Composer ships). Verification is never disabled.
+            */
+            'ca_bundle' => env('TERMII_CA_BUNDLE'),
         ],
     ],
 

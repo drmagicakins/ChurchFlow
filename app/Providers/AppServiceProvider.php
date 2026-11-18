@@ -5,6 +5,8 @@ namespace App\Providers;
 use App\Domains\Communication\Listeners\NotifySubmitterOfSubventionDecision;
 use App\Domains\Communication\Providers\NullSmsProvider;
 use App\Domains\Communication\Providers\SmsProviderInterface;
+use App\Domains\Communication\Providers\TermiiProvider;
+use App\Domains\Communication\Services\SmsSenderName;
 use App\Domains\Onboarding\Listeners\TrackOnboardingStarted;
 use App\Domains\Subscriptions\Events\ChurchActivated;
 use App\Domains\Subscriptions\Gateways\NullPaymentGateway;
@@ -56,6 +58,8 @@ use App\Policies\TransactionPolicy;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Queue\Events\JobExceptionOccurred;
 use Illuminate\Queue\Events\JobProcessing;
+use Illuminate\Queue\Events\Looping;
+use Illuminate\Queue\Events\WorkerStarting;
 use Illuminate\Support\Facades\Event as EventFacade;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -68,7 +72,35 @@ class AppServiceProvider extends ServiceProvider
         // docblock) — swap this binding for TermiiProvider/TwilioProvider,
         // configured from a platform-admin setting (§28), never a
         // hard-coded choice here.
-        $this->app->bind(SmsProviderInterface::class, NullSmsProvider::class);
+        //
+        // Termii is used only when SMS_GATEWAY=termii (config/services.php) —
+        // an explicit choice — AND a key exists. A key on its own does not
+        // switch a live SMS path on, and a named gateway with no key THROWS at
+        // first use rather than silently "succeeding": a church must never see
+        // "sent" on a text that never left the building.
+        $this->app->bind(SmsProviderInterface::class, function () {
+            $configured = strtolower((string) config('services.sms.gateway', 'null'));
+
+            return match ($configured) {
+                'termii' => new TermiiProvider(
+                    apiKey: config('services.sms.termii.api_key'),
+                    senderId: config('services.sms.termii.sender_id'),
+                    baseUrl: (string) config('services.sms.termii.base_url', 'https://v4.api.termii.com'),
+                    channel: (string) config('services.sms.termii.channel', 'dnd'),
+                    type: (string) config('services.sms.termii.type', 'plain'),
+                    caBundle: config('services.sms.termii.ca_bundle'),
+                ),
+                default => new NullSmsProvider,
+            };
+        });
+
+        // The CHURCH-NAME sender rule (SmsSenderName) is bound here so its single
+        // switch — SMS_SENDER_FROM_CHURCH_NAME — is read in one place. It is off
+        // by default because Termii refuses a `from` that is not an approved
+        // sender id on the account; see the class docblock.
+        $this->app->bind(SmsSenderName::class, fn () => new SmsSenderName(
+            useChurchName: (bool) config('services.sms.termii.from_church_name', false),
+        ));
 
         // Same idea for payments (§5): nothing else in the app names a
         // provider, so which one is used is decided HERE and nowhere else.
@@ -161,7 +193,17 @@ class AppServiceProvider extends ServiceProvider
         // hangs has already proven the worker was alive, which is what this
         // heartbeat means. Writing it on JobProcessed would lose the signal
         // exactly on the failures worth knowing about.
+        //
+        // `Looping` and `WorkerStarting` are registered as well, and that is
+        // the fix for the reported "No queue worker heartbeat recorded":
+        // Looping fires once per worker cycle whether or not a job was found,
+        // so a worker polling an EMPTY queue — a fresh deployment, a quiet
+        // night — now proves it is alive. Without them the only writer was
+        // job pickup, so /health accused a running worker of being down until
+        // somebody happened to send the first SMS.
         EventFacade::listen(JobProcessing::class, RecordQueueWorkerHeartbeat::class);
         EventFacade::listen(JobExceptionOccurred::class, RecordQueueWorkerHeartbeat::class);
+        EventFacade::listen(WorkerStarting::class, RecordQueueWorkerHeartbeat::class);
+        EventFacade::listen(Looping::class, RecordQueueWorkerHeartbeat::class);
     }
 }

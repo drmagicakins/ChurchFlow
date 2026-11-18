@@ -138,7 +138,7 @@ class EventSmsAudienceTest extends TestCase
         {
             public array $sent = [];
 
-            public function send(string $toPhone, string $message): SmsSendResult
+            public function send(string $toPhone, string $message, ?string $from = null): SmsSendResult
             {
                 $this->sent[] = $toPhone;
 

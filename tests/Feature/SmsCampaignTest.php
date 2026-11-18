@@ -115,7 +115,7 @@ class SmsCampaignTest extends TestCase
         $campaign = $this->campaignService()->confirmAndQueue($campaign, $user);
 
         $alwaysSucceeds = new class implements SmsProviderInterface {
-            public function send(string $toPhone, string $message): SmsSendResult
+            public function send(string $toPhone, string $message, ?string $from = null): SmsSendResult
             {
                 return new SmsSendResult(success: true, providerMessageId: 'msg-1');
             }
@@ -147,7 +147,7 @@ class SmsCampaignTest extends TestCase
         $failsForBadNumber = new class($bad->phone) implements SmsProviderInterface {
             public function __construct(private readonly string $badPhone) {}
 
-            public function send(string $toPhone, string $message): SmsSendResult
+            public function send(string $toPhone, string $message, ?string $from = null): SmsSendResult
             {
                 if ($toPhone === $this->badPhone) {
                     return new SmsSendResult(success: false, failureReason: 'Invalid number');

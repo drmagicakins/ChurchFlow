@@ -60,5 +60,25 @@
         <env name="PAYSTACK_PUBLIC_KEY" value=""/>
         <env name="PAYSTACK_CALLBACK_URL" value=""/>
         <env name="PAYSTACK_WEBHOOK_SECRET" value=""/>
+
+        <!--
+            SMS is forced OFF for the suite too, for exactly the same reason
+            payments are (2026-11-17).
+
+            The developer's .env now has SMS_GATEWAY=termii, and phpunit.xml
+            <env> overrides .env. Without these lines, every test that SENDS a
+            campaign ran the real TermiiProvider: it threw for the unset
+            TERMII_SENDER_ID and two existing tests went red —
+            CommunicationHttpVerificationTest and SmokeEveryActionTest. Every
+            other SMS test only stayed green because Http::fake() was in force
+            for its class, which is a coincidence, not a guarantee, and a stray
+            unfaked call would hit the network AND cost real credits.
+
+            TermiiProviderTest sets config() itself, so it still exercises the
+            real provider.
+        -->
+        <env name="SMS_GATEWAY" value="null"/>
+        <env name="TERMII_API_KEY" value=""/>
+        <env name="TERMII_SENDER_ID" value=""/>
     </php>
 </phpunit>

@@ -4,6 +4,7 @@ namespace App\Domains\Events\Jobs;
 
 use App\Domains\Communication\Providers\SmsProviderInterface;
 use App\Domains\Communication\Services\SmsSegmentCalculator;
+use App\Domains\Communication\Services\SmsSenderName;
 use App\Domains\Communication\Services\SmsWalletService;
 use App\Domains\Events\Services\EventSmsAudience;
 use App\Models\Event;
@@ -51,6 +52,7 @@ class SendEventReminderSmsJob implements ShouldQueue
         SmsWalletService $wallets,
         SmsSegmentCalculator $segments,
         EventSmsAudience $audience,
+        ?SmsSenderName $senders = null,
     ): void {
         // No tenant is bound in a worker process; the controller already
         // proved this event belongs to the signed-in church.
@@ -85,8 +87,14 @@ class SendEventReminderSmsJob implements ShouldQueue
             return;
         }
 
+        // Sent under the EVENT's church (or its parish when the event is
+        // filed against one): a reminder arriving from an unrecognised
+        // header is far more likely to be read as spam. Derived once, before
+        // the loop — the event cannot change mid-batch.
+        $from = ($senders ?? new SmsSenderName)->for($event->church, $event->organizationalUnit);
+
         foreach ($recipients as $recipient) {
-            $result = $provider->send($recipient['phone'], $this->message);
+            $result = $provider->send($recipient['phone'], $this->message, $from);
 
             if ($result->success) {
                 $this->markReminded($recipient['key']);

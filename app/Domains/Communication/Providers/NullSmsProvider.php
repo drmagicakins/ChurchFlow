@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
  */
 class NullSmsProvider implements SmsProviderInterface
 {
-    public function send(string $toPhone, string $message): SmsSendResult
+    public function send(string $toPhone, string $message, ?string $from = null): SmsSendResult
     {
         return new SmsSendResult(success: true, providerMessageId: (string) Str::uuid());
     }

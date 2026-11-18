@@ -3,6 +3,7 @@
 namespace App\Domains\Communication\Services;
 
 use App\Domains\Communication\Providers\SmsProviderInterface;
+use App\Domains\Communication\Services\SmsSenderName;
 use App\Models\SmsCampaign;
 
 class SmsSendingService
@@ -10,6 +11,7 @@ class SmsSendingService
     public function __construct(
         private readonly SmsProviderInterface $provider,
         private readonly SmsWalletService $wallets,
+        private readonly ?SmsSenderName $senders = null,
     ) {}
 
     /**
@@ -28,11 +30,22 @@ class SmsSendingService
         // that paid for it — not the main church (§17-19).
         $wallet = $campaign->wallet();
 
+        // WHOSE NAME the text shows (2026-11-17): the church's, or the parish's
+        // when the campaign belongs to one. Derived once, so every recipient in
+        // the batch is sent under the same name. Null → the provider's own
+        // configured sender.
+        //
+        // The church comes from the CAMPAIGN, not the wallet: SmsWallet carries
+        // no church relation (it is tenant-scoped), and $campaign->church is the
+        // same church wallet() was resolved from. The parish is the wallet's own
+        // organizationalUnit, which is the level the campaign is billed at.
+        $from = ($this->senders ?? new SmsSenderName)->for($campaign->church, $wallet->organizationalUnit);
+
         $sentCount = 0;
         $failedCount = 0;
 
         foreach ($campaign->recipients()->where('status', 'pending')->get() as $recipient) {
-            $result = $this->provider->send($recipient->phone, $campaign->message);
+            $result = $this->provider->send($recipient->phone, $campaign->message, $from);
 
             if ($result->success) {
                 $recipient->update(['status' => 'sent', 'provider_message_id' => $result->providerMessageId]);

@@ -10,7 +10,7 @@ class TwilioProvider implements SmsProviderInterface
         private readonly ?string $fromNumber = null,
     ) {}
 
-    public function send(string $toPhone, string $message): SmsSendResult
+    public function send(string $toPhone, string $message, ?string $from = null): SmsSendResult
     {
         throw new \RuntimeException('TwilioProvider is not configured for network access in this environment.');
     }

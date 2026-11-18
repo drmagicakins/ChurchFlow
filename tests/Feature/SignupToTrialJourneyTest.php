@@ -88,6 +88,13 @@ class SignupToTrialJourneyTest extends TestCase
         $this->assertSame('Growth', $subscription->plan->name);
         $this->assertSame(0, Invoice::withoutGlobalScopes()->count(), 'Signing up must not charge anything.');
 
+        // A church account must confirm its address before it can use the app
+        // (EnsureEmailIsVerified). That the fresh owner is sent to the notice page
+        // is covered by EmailVerificationTest; this journey is about the trial, so
+        // the owner confirms here and then continues by real HTTP.
+        $user->forceFill(['email_verified_at' => now()])->save();
+        $user = $user->fresh();
+
         // 6. The dashboard visibly shows the trial to the owner.
         $this->actingAs($user)->get(route('dashboard'))
             ->assertOk()

@@ -134,6 +134,15 @@ class RegistrationPermissionsTest extends TestCase
     {
         $owner = $this->registerAndPay('Test Owner', 'owner@example.com');
 
+        // A church account must CONFIRM its address first (EnsureEmailIsVerified),
+        // and this registerAndPay() helper activates through the service, so no
+        // confirmation link was ever opened. Confirm it here — otherwise every
+        // assertion below reads a 302 to /email/verify and proves nothing about
+        // permissions. That is the same redirect a real owner sees, not a bug.
+        $owner->forceFill(['email_verified_at' => now()])->save();
+        $owner = $owner->fresh();
+        app()->instance('tenant.church_id', $owner->church_id);
+
         // These are the pages that 403'd before the clone was implemented.
         $this->actingAs($owner)->get(route('members.index'))->assertOk();
         $this->actingAs($owner)->get(route('families.index'))->assertOk();
