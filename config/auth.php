@@ -90,6 +90,28 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Email Verification
+    |--------------------------------------------------------------------------
+    |
+    | How long the signed confirmation link stays valid, in minutes.
+    |
+    | 24 hours rather than Laravel's 60-minute default, for the same reason the
+    | password reset window above is longer: a confirmation link is opened from
+    | an inbox, often much later. It still bounds how long a forwarded link can
+    | be used. `VerifyChurchEmail`/`VerifyEmailMail` read this value, so the page
+    | and the email cannot promise different expiries.
+    |
+    | Laravel's own MustVerifyEmail plumbing is used for the link itself (see
+    | App\Models\User), so this is the standard verification flow — not a
+    | parallel one.
+    */
+
+    'verification' => [
+        'expire' => env('AUTH_VERIFICATION_EXPIRE', 1440),
+    ],
+
     'passwords' => [
         'users' => [
             'provider' => 'users',

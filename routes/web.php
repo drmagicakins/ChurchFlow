@@ -81,6 +81,40 @@ Route::middleware('auth')->group(function () {
     // the controller runs, which meant a mid-signup (unpaid) user could not
     // sign out at all — the session was never invalidated.
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
+
+    // --- Email verification (the standard Laravel flow) ---------------------
+    //
+    // These live in the AUTHENTICATED group, not the guest one: the link is
+    // tied to the account it was sent to, and signing in first is what proves
+    // the person opening it is that account. That is also why the verification
+    // hash in the URL is safe — it is not a secret, the SESSION is.
+    //
+    // `email.verify.link` is signed by Laravel's MustVerifyEmail plumbing
+    // (`verificationUrl()`), and the `signed` middleware re-checks it before the
+    // controller runs. The resend endpoint is throttled: it sends mail, and an
+    // unthrottled one is a way to flood somebody's inbox.
+    Route::get('/email/verify', [\App\Http\Controllers\Auth\EmailVerificationController::class, 'notice'])
+        ->name('verification.notice');
+
+    Route::get('/email/verify/{id}/{hash}', [\App\Http\Controllers\Auth\EmailVerificationController::class, 'verify'])
+        ->middleware(['signed', 'throttle:6,1'])
+        ->name('verification.verify');
+
+    // The same confirmation as a POST, for the button on the notice page and for
+    // mail clients that prefetch GET links. Signed and throttled identically.
+    Route::post('/email/verify/{id}/{hash}', [\App\Http\Controllers\Auth\EmailVerificationController::class, 'verify'])
+        ->middleware(['signed', 'throttle:6,1'])
+        ->name('verification.verify.post');
+
+    Route::post('/email/verification-notification', [\App\Http\Controllers\Auth\EmailVerificationController::class, 'resend'])
+        ->middleware('throttle:3,1')
+        ->name('verification.send');
+
+    // "Not now" — offered only to accounts created before verification existed
+    // (the controller and EnsureEmailIsVerified enforce the cut-off). Never
+    // reachable for a new account.
+    Route::post('/email/verification/defer', [\App\Http\Controllers\Auth\EmailVerificationController::class, 'defer'])
+        ->name('verification.defer');
 });
 
 // --- Phase 3: public event registration (§13) ---
@@ -103,7 +137,7 @@ Route::post('/e/{slug}', [\App\Http\Controllers\PublicEventRegistrationControlle
 // required to reach the application proper. The billing routes live INSIDE this
 // group and are exempted by name in the middleware itself, so a lapsed church
 // can always reach the page that lets it pay and get back in.
-Route::middleware(['auth', \App\Http\Middleware\IdentifyTenant::class, \App\Http\Middleware\EnsureSubscriptionAllowsAccess::class])->group(function () {
+Route::middleware(['auth', \App\Http\Middleware\IdentifyTenant::class, \App\Http\Middleware\EnsureSubscriptionAllowsAccess::class, \App\Http\Middleware\EnsureEmailIsVerified::class])->group(function () {
     // The dashboard view renders figures supplied by DashboardController (member
     // counts, pending approvals, account balances, recent subventions). The route
     // used to call view('dashboard') directly, which skips the controller and
@@ -284,6 +318,11 @@ Route::middleware(['auth', \App\Http\Middleware\IdentifyTenant::class, \App\Http
     // action rather than trusting the route alone.
     Route::get('/settings', [\App\Http\Controllers\SettingsController::class, 'index'])->name('settings.index');
     Route::post('/settings/profile', [\App\Http\Controllers\SettingsController::class, 'updateProfile'])->name('settings.profile.update');
+
+    // The church logo: the one upload that has to be visible OUTSIDE the app
+    // (in every email), so it lives on the public disk — see ChurchLogoStorage.
+    Route::post('/settings/profile/logo', [\App\Http\Controllers\SettingsController::class, 'updateLogo'])->name('settings.profile.logo');
+    Route::delete('/settings/profile/logo', [\App\Http\Controllers\SettingsController::class, 'destroyLogo'])->name('settings.profile.logo.destroy');
     Route::post('/settings/team', [\App\Http\Controllers\SettingsController::class, 'storeTeamMember'])->name('settings.team.store');
     Route::post('/settings/team/{member}/role', [\App\Http\Controllers\SettingsController::class, 'updateTeamMemberRole'])->name('settings.team.role');
     Route::post('/settings/team/{member}/parish', [\App\Http\Controllers\SettingsController::class, 'updateTeamMemberParish'])->name('settings.team.parish');

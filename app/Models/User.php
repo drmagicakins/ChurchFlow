@@ -9,7 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-class User extends Authenticatable
+class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVerifyEmail
 {
     // CanResetPassword supplies sendPasswordResetNotification() and the
     // token plumbing Laravel's broker expects. The trait is safe here because
@@ -23,6 +23,29 @@ class User extends Authenticatable
     // (church_id is what we're resolving). Every other query path (listing
     // a church's staff, etc.) filters by church_id explicitly in that
     // service/controller instead of relying on a global scope.
+
+    /**
+     * EMAIL VERIFICATION — the standard Laravel contract.
+     *
+     * Implementing MustVerifyEmail is what makes `verified` middleware,
+     * `hasVerifiedEmail()`, `markEmailAsVerified()` and
+     * `sendEmailVerificationNotification()` available — the plumbing, not a
+     * parallel reinvention of it. The route set that answers it lives in
+     * routes/web.php and EmailVerificationController.
+     *
+     * WHO THIS APPLIES TO is decided in VerifyEmailBeforeApp (middleware), not
+     * here: the church owner and parish pastors are gated, while a person who
+     * has not bought a plan yet is not, because they have no tenant-facing area
+     * to reach in the first place.
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        // Sent SYNCHRONOUSLY, deliberately — the same decision
+        // PasswordResetTokenService records: a verification mail must not
+        // depend on a queue worker being alive. A queued confirmation that never
+        // runs looks exactly like a broken feature to the person waiting for it.
+        $this->notify(new \App\Notifications\VerifyChurchEmail());
+    } 
 
     protected $fillable = [
         'church_id', 'organizational_unit_id', 'name', 'email', 'password',
