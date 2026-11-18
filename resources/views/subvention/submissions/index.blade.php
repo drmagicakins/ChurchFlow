@@ -122,6 +122,7 @@
                             <th>Branch</th>
                             <th>Period</th>
                             <th>Status</th>
+                            <th style="text-align:right">Shortfall</th>
                             <th style="text-align:right">Remittance</th>
                             <th style="text-align:right">Actions</th>
                         </tr>
@@ -145,6 +146,16 @@
                                     @endphp
                                     <span
                                         class="cf-badge {{ $tone }}">{{ str_replace('_', ' ', ucfirst($s->status)) }}</span>
+                                </td>
+                                <td class="cf-mono" style="text-align:right;white-space:nowrap">
+                                    @if($s->latestCalculation)
+                                        {{-- Read in the current direction: rows stored before the
+                                             shortfall correction are flipped, exactly as on the
+                                             submission page. --}}
+                                        {{ $symbol }}{{ number_format($s->latestCalculation->shortfallInCurrentDirection(), 2) }}
+                                    @else
+                                        —
+                                    @endif
                                 </td>
                                 <td class="cf-mono" style="text-align:right;white-space:nowrap">
                                     {{ $symbol }}{{ number_format((float) ($s->latestCalculation?->remittance_amount ?? 0), 2) }}

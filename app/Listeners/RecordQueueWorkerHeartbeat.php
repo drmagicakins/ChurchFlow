@@ -4,24 +4,39 @@ namespace App\Listeners;
 
 use Illuminate\Queue\Events\JobExceptionOccurred;
 use Illuminate\Queue\Events\JobProcessing;
+use Illuminate\Queue\Events\Looping;
+use Illuminate\Queue\Events\WorkerStarting;
 use Illuminate\Support\Facades\Cache;
 
 /**
  * Refreshes the queue-worker heartbeat that the `queue_worker` health check
  * reads.
  *
- * Registered against the JobProcessing EVENT (see AppServiceProvider). Note it
- * is a listener, not a job middleware: the obvious `Queue::globalMiddleware()`
- * call does not exist in this framework version, and a listener is the better
- * fit anyway — this observes a fact about the worker ("it picked up work")
- * rather than changing how a job runs.
+ * THREE SIGNALS, AND WHY THE THIRD IS THE ONE THAT WAS MISSING
+ * ------------------------------------------------------------
+ * The heartbeat was originally written only on `JobProcessing` — the moment a
+ * worker PICKS UP a job. That is a good signal for "the worker is doing work",
+ * but it cannot answer the question the health check actually asks ("is a
+ * worker running?"), because a worker that is up and polling an EMPTY queue
+ * never processes anything and therefore never wrote a heartbeat. On a fresh
+ * deployment, or a quiet night, /health reported
  *
- * Fires on PICKUP, before the job body executes. A job that then throws or
- * hangs has already proven the worker was alive, which is exactly what this
- * heartbeat claims. Writing it on JobProcessed would lose the signal on the
- * failures most worth knowing about.
+ *     No queue worker heartbeat recorded. Queued jobs (SMS, emails,
+ *     notifications) are not being processed.
  *
- * THE HONEST LIMITATION: this proves a worker is ALIVE, not that it is keeping
+ * while the worker was running perfectly — and the first real job, arriving
+ * later, proves nothing until it arrives. The check was telling operators a
+ * worker was down because nothing had been sent yet.
+ *
+ * `Looping` fires once per worker cycle — every `--sleep` seconds, whether or
+ * not a job was found. That is the honest "the worker is alive and polling"
+ * signal, and it is why it is registered alongside the pickup events:
+ *
+ *   - WorkerStarting / Looping  -> the worker process is alive
+ *   - JobProcessing             -> a worker took a job (the original signal)
+ *   - JobExceptionOccurred      -> a worker saw a failure and is still running
+ *
+ * THE HONEST LIMITATION. This proves a worker is ALIVE, not that it is keeping
  * up. A worker chewing through a large backlog keeps writing heartbeats and
  * looks perfectly healthy while jobs sit queued for an hour. Detecting a
  * backlog is a different measurement, and conflating the two would make
@@ -34,7 +49,7 @@ use Illuminate\Support\Facades\Cache;
  */
 class RecordQueueWorkerHeartbeat
 {
-    public function handle(JobProcessing|JobExceptionOccurred $event): void
+    public function handle(JobProcessing|JobExceptionOccurred|Looping|WorkerStarting $event): void
     {
         try {
             Cache::put('health:queue_worker_heartbeat', now()->toIso8601String(), now()->addMinutes(30));

@@ -74,6 +74,18 @@ class SubventionSubmission extends Model
         return $this->belongsTo(User::class, 'submitted_by');
     }
 
+    /**
+     * The church this submission belongs to.
+     *
+     * Used by the decision EMAIL (logo, signature, Reply-To), which is sent
+     * from a queue with no tenant bound — the FK is stated explicitly for that
+     * reason.
+     */
+    public function church()
+    {
+        return $this->belongsTo(Church::class);
+    }
+
     public function reviewer()
     {
         return $this->belongsTo(User::class, 'reviewed_by');

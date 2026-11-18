@@ -26,6 +26,18 @@ class Announcement extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /**
+     * The church that owns this announcement.
+     *
+     * Only the EMAIL needs it (logo, signature, Reply-To). A queued mail has no
+     * tenant bound, so it is read through withoutGlobalScopes() there — hence
+     * the explicit FK here rather than relying on a scope.
+     */
+    public function church()
+    {
+        return $this->belongsTo(Church::class);
+    }
+
     /** The branch this announcement targets, when audience_type = branch. */
     public function organizationalUnit()
     {

@@ -26,13 +26,299 @@ KILOBYTES — turned a 2 KB ceiling into "The photo failed to upload." for any r
 **Updated 2026-11-15 (later)** with §1t: §1s's fix exposed the real cause — **`UPLOAD_ERR_NO_TMP_DIR`**.
 `artisan serve` strips `TEMP`/`TMP` from the child process, so on Windows PHP used `C:\Windows` (unwritable)
 as its upload temp dir and **every** upload failed, whatever its size
+**Updated 2026-11-15 (later still)** with §1u: event **email and SMS reached only public-form visitors**, never
+the church's own registered members (§1u), the **Cancel event confirmation** now states what is at stake, and
+**email was broken because port 587 is blocked** — working over 465
+**Updated 2026-11-17** with §1v: email verification finished (the gate is real, the link is real, 16 guards), the
+three suite failures it exposed repaired **in the tests that asserted the old world** (§1.5 lists them), and the
+two dev events soft-deleted during the Cancel-button check **restored** (R27 now closed). Nothing was deleted from
+the app; the only files removed were two throwaway probes this pass created.
+**Updated 2026-11-17 (later)** with §1w: the environment settings are now **reproducible from the repository** —
+`.env.example` documents the real configuration (Gmail over 465/smtps, `paystack` sandbox, the 24-hour
+verification window, the APP_URL/DB_DATABASE/APP_KEY rule) while **no secret, absolute path or real mailbox** was
+committed and `.env` itself remains gitignored and untracked.
+**Updated 2026-11-17 (later still)** with §1x: **Termii is integrated** — `TermiiProvider` is a real HTTP client for
+Termii's `/api/sms/send`, the gateway is selected the same opt-in way as payments, the suite is forced offline for
+it, and the API key that had been pasted into the **committed** `.env.example` was removed from that file and put
+back into `.env` only. `TERMII_SENDER_ID` is still empty and **is the one thing blocking a real send**.
 **Branch:** `main` — tracking `origin/main` — **0 ahead, 0 behind**
-**HEAD:** `d6a1f47` "SMS service distinguished from parish and church owner"
+**HEAD:** `9417852` "Reach every registered person for event reminders, and make Cancel explain itself"
 **Working tree:** dirty (all changes below are **uncommitted**). Nothing has been committed or pushed.
 
 ---
 
 ## 1. Verified test results (actual output)
+
+### 1x. Termii SMS integrated — and the one thing still missing (2026-11-17)
+
+**Asked for:** integrate Termii (`https://v4.api.termii.com/`), say what is left, change nothing that exists.
+
+**The key was in the published file.** `TERMII_API_KEY` had been pasted into **`.env.example`**, which is tracked
+and pushed. It was removed from that file (back to a blank placeholder with a warning) and the real value now lives
+in **`.env` only** — still gitignored, still untracked (`git check-ignore .env` → `.env`). `.env` was appended to,
+never rewritten (backup: `.env.backup-2026-11-17-prefermii`), so `SMS_GATEWAY`/`TERMII_*` sit outside what Laravel
+has already loaded. **This key has been pasted into this conversation too — rotate it.**
+
+**Probed before coding, not assumed.** `_termii_probe.php` (GETs only, no SMS) answered:
+
+| Check                                                                               | Result                                               |
+| ----------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `GET https://v4.api.termii.com/api/sender-id?api_key=…`                             | **200** — three sender ids, all `status: active`     |
+| `GET /api/balance`, `/api/get-balance`, `/api/sms/balance`, `/api/v2/balance` on v4 | **404** — the balance endpoint is not on the v4 host |
+
+The 200 on sender-id is what proves **both** the base URL and the key: an invalid key returns an auth payload, not a
+sender list.
+
+**What was built:**
+
+| File                                                     | Change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/Domains/Communication/Providers/TermiiProvider.php` | **was a stub that threw.** Now: `POST {base}/api/sms/send` with `api_key`/`to`/`from`/`sms`/`type`/`channel`; success needs **HTTP 2xx AND `code === 'ok'`** (Termii also answers 200 while refusing); maps to `SmsSendResult` with `message_id`; a dropped connection, a rejection and a 200-with-a-bad-code all become **failures with a reason**, never "sent"; `PhoneNumber` decides what is sendable so a spreadsheet-damaged number is refused before Termii sees it; a missing key or sender id **throws before a unit is spent** |
+| `config/services.php`                                    | new `services.sms` block (`gateway`, `termii.base_url` default `https://v4.api.termii.com`, `api_key`, `sender_id`, `channel` default `dnd`, `type`, `ca_bundle`). The payments block is untouched                                                                                                                                                                                                                                                                                                                                       |
+| `app/Providers/AppServiceProvider.php`                   | the SMS binding now matches payments: `SMS_GATEWAY=termii` → real provider, **anything else → `NullSmsProvider`**, so local and CI behaviour is unchanged                                                                                                                                                                                                                                                                                                                                                                                |
+| `phpunit.xml`                                            | **needed, not optional** — see below                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `tests/Feature/TermiiProviderTest.php`                   | **new**, 13 tests / 34 assertions                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `.env.example`                                           | key removed, `SMS_GATEWAY`/`TERMII_*` documented (base URL, why `sender_id` has no default, `dnd` vs `generic`, CA bundle)                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `.env` (untracked)                                       | `TERMII_API_KEY` restored, `SMS_GATEWAY=termii`, `TERMII_BASE_URL`, `TERMII_CHANNEL=dnd` appended                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+
+**TLS, because this machine will otherwise fail every send.** `TermiiProvider::tlsOptions()` mirrors
+`PaystackGateway`: PHP here has no `curl.cainfo`, so without a CA bundle the first text would fail with `cURL error
+60` and present as "provider unreachable". `verify` is pointed at a real bundle and is never `false`.
+
+**Two existing tests went red, and both were caused by this change, not by the app.**
+`CommunicationHttpVerificationTest` and `SmokeEveryActionTest` SENDS a campaign, and they read `.env`, which now says
+`SMS_GATEWAY=termii` — so the real provider ran, found `TERMII_SENDER_ID` empty and threw. Every other SMS test
+stayed green only because `Http::fake()` happened to be in force for its class. Fixed in **`phpunit.xml`** (force
+`SMS_GATEWAY=null` and blank the Termii values for the suite, exactly as payments are already forced off) **rather
+than** by changing those two tests. `TermiiProviderTest` sets `config()` itself, so the real provider is still
+exercised.
+
+**Test results:** `TermiiProviderTest` **13 passed**; the two affected files + it: **20 passed (60 assertions)**;
+**full suite `677 passed (2472 assertions), 0 failed`** (664 → 677: the 13 new guards, no existing test changed).
+
+**Red-proof:** replacing the `code !== self::OK` check with a constant that can never match made the success test
+**fail**; restored → green. Two test-harness bugs were also found and fixed on the way: `expectException` skips a
+`finally` block (so `Http::assertNothingSent()` never ran), and `$overrides['x'] ?? 'default'` silently replaces an
+explicit `null` (so the "no sender id" test could never supply one).
+
+**NOT changed:** `SmsSendingService`, `SendSmsCampaignJob`, `SendEventReminderSmsJob`, `EventSmsAudience`,
+`PhoneNumber`, `SmsWalletService`, the wallet/refund logic, every route, view and policy. No migration. Nothing
+removed from the app.
+
+### 1y. The sender id is the CHURCH's name — and the key was in the wrong file (2026-11-17)
+
+**Asked for:** `TERMII_SENDER_ID` is "the name of the church of the church owner or the name of the parish pastor
+sending the SMS"; correct the API key and remove it from any wrong `.env`; delete nothing.
+
+**A — where the key actually is.** Every `.env*` file was scanned:
+
+| File                           | Contains the key?                                                                                         |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `.env`                         | **yes** — the only place. `phpdotenv` and `config('services.sms.termii.api_key')` both read it (62 chars) |
+| `.env.example` (**committed**) | **removed** — was pasted there; now a blank placeholder with a warning                                    |
+| `.env.backup-2026-11-15-mail`  | no                                                                                                        |
+
+An earlier probe of mine reported "key present: NO" for `.env`; that was my OWN regex, not the file — a quote
+stripping detail. Re-probed three ways (regex, `Dotenv::createArrayBacked`, `config()`), and all three agree the key
+reaches the app. **Second false alarm on a hand-written leak/parse check; do not trust one without a second method.**
+
+**B — a sender id cannot be a person's name, so the church's name is used.** Termii's `from` must be an approved
+ALPHANUMERIC HEADER (≤11 chars), not free text, so "the parish pastor's own name" would be refused at the gateway.
+The implemented rule is the closest thing the provider accepts, and it is what the requirement asks for in spirit:
+
+| Message                                        | `from` sent                                                     |
+| ---------------------------------------------- | --------------------------------------------------------------- |
+| church-wide campaign / event                   | **the church's name**                                           |
+| parish-scoped campaign / event                 | **"Parish · Church"**, shortened to the limit → `Lekki · Grace` |
+| church with no usable name                     | `TERMII_SENDER_ID` (platform fallback)                          |
+| the church's requirement (a pastoral override) | whatever name the caller passes                                 |
+
+The rule lives in **`SmsSenderName`** (new) so both callers agree: `SmsSendingService` (campaigns) and
+`SendEventReminderSmsJob` (events) resolve it once per batch and pass it in. Length is counted on **letters and
+digits only** (spaces and "·" do not count), a cut walks back to the last whole word, and control characters from a
+paste become spaces — all three were caught by the tests, not by inspection (`Lekki · Grace Chapel` produced
+`Lekki · Grace C` until the boundary logic was fixed).
+
+| File                                                                              | Change                                                                                                                           |
+| --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `SmsProviderInterface`                                                            | `send(..., ?string $from = null)` — optional, so nothing else had to change behaviour                                            |
+| `TermiiProvider`                                                                  | uses the caller's name, falls back to the configured sender                                                                      |
+| `NullSmsProvider`, `TwilioProvider`                                               | signature only (+ the anonymous test doubles that implement it)                                                                  |
+| `SmsSenderName`                                                                   | **new** — church/parish name resolution and sanitising                                                                           |
+| `SmsSendingService`, `SendEventReminderSmsJob`                                    | pass the name; wallet/refund logic untouched                                                                                     |
+| `config/services.php`, `.env.example`                                             | `TERMII_SENDER_ID` documented as the FALLBACK, not the sender the church sees                                                    |
+| `tests/Feature/TermiiProviderTest.php` (16) + **new** `SmsSenderNameTest.php` (8) | the name is used, the fallback works, a blank name never reaches the wire, parish naming, word-boundary cuts, control characters |
+
+**Test results: `688 passed (2488 assertions), 0 failed`.**
+
+> **Three mistakes this pass, all caught and fixed.** (1) I split the two test classes into separate files with
+> `Set-Content -Encoding utf8`, which wrote a **BOM** and then a second class that silently never ran — PHPUnit binds
+> one class per file. (2) Changing an interface signature broke three anonymous implementations in existing tests, and
+> a full run revealed them only as a bare hang and a `Fatal error`. (3) Filtering test output with
+> `Select-String "Tests:"` **swallowed the summary on every failure**, so a red suite looked like no output at all;
+> always read the tail of the file instead. **Do not split or rewrite test files with PowerShell here.**
+
+### 1z. "ChurchFlow" applied for — so the church's own name is now OPT-IN (2026-11-17)
+
+**What was learned from the account, not assumed:** `GET /api/sender-id` lists **every** sender id the key owns —
+`Gifogs`, `MARTCODELTD`, `ABHSALUMNI`, `ABUJA`, … — all `status: active`, **11 characters maximum**, letters and
+digits only. **`ChurchFlow` is not in that list yet**, which is exactly why it cannot be used: Termii accepts a `from`
+that is an approved header on the account and nothing else.
+
+**So the derived church-name rule from §1y is now off by default**, because with it every real send would have been
+refused — the church's units reserved, the refund raised, and the text lost. The switch is
+`SMS_SENDER_FROM_CHURCH_NAME` (`config('services.sms.termii.from_church_name')`, bound into `SmsSenderName` in
+`AppServiceProvider`):
+
+| Setting                                        | `from` sent                                                                                                          |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `false` — **the current value**                | `TERMII_SENDER_ID`, the account's approved header (empty today → the provider refuses, in words naming the variable) |
+| `true` — after per-church headers are approved | the church's name, or `Parish · Church` (`Lekki · Grace`)                                                            |
+| an explicit `$from` passed by a caller         | always honoured, whatever the switch says                                                                            |
+
+**What has to happen, in order, and it is not code:**
+
+1. Wait for Termii to approve **`ChurchFlow`**, then set `TERMII_SENDER_ID=ChurchFlow` in `.env`.
+2. Only then can a text leave the platform. Until that line is filled, `SmsGateway=termii` is wired but every send
+   stops at the provider with a message naming `TERMII_SENDER_ID`.
+3. Per-church headers (`SMS_SENDER_FROM_CHURCH_NAME=true`) need **each** church/parish name registered as a sender id
+   on the account. Termii's limit is 11 alphanumeric characters, so `Lekki · Grace` is only usable if that exact
+   string is approved.
+
+**Files:** `SmsSenderName` (constructor + switch, `for()` returns null unless enabled), `config/services.php`
+(`from_church_name`), `AppServiceProvider` (binds the resolver with the switch), `.env.example` + `.env`
+(`SMS_SENDER_FROM_CHURCH_NAME=false`), `SmsSenderNameTest` (8 → **10**: default sends no church name, an explicit
+name is still honoured, and the approved-for-church-headers path).
+
+**Test results: `690 passed (2491 assertions), 0 failed`.**
+
+### 1w. The environment settings, made reproducible — without committing a secret (2026-11-17)
+
+**Asked for:** "make .env settings committed", then (after the risk was put in writing) **option 1** — commit the
+_settings_, not the secrets — with "do not delete or remove anything from the app".
+
+**The finding first.** `.env` is **untracked and ignored on purpose** (`git check-ignore -v .env` →
+`.gitignore:3:.env`), and CI proves that is intentional: `.github/workflows/ci.yml` runs `cp .env.example .env`
+and then **appends** `DB_CONNECTION=mysql` etc. Committing `.env` would not have changed one behaviour of the app;
+it would have published three live secrets in a public repo — the 16-character **Gmail app password**, the
+**Paystack sandbox secret key**, and the **APP_KEY** (which decrypts sessions and `users.two_factor_secret`).
+The file was not touched, not staged, not force-added.
+
+**What was done instead — `.env.example` (tracked) now documents the real configuration:**
+
+| Section                         | What it now records                                                                                                                                                                                                      |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Mail                            | the project runs Gmail over **465 / `smtps`**, and WHY (587 was blocked: error 10060) — as a commented, copy-into-your-.env shape. The active value stays `MAIL_MAILER=log` so a test run or fresh clone never dials out |
+| Billing                         | the project's real gateway is **`paystack` (sandbox)**; the file keeps `null` because CI copies it and the suite needs the network-free gateway (`phpunit.xml` forces `null` anyway). Keys stay blank placeholders       |
+| Webhook                         | the dashboard URL (`/api/v1/webhooks/paystack`) is documented as an external setting, not an env value                                                                                                                   |
+| Verification                    | **`AUTH_VERIFICATION_EXPIRE=1440`** — the new key `config/auth.php` reads (it was missing from this file entirely)                                                                                                       |
+| APP_URL / DB_DATABASE / APP_KEY | documented as belonging to the **installation**, not the repository: `phpunit.xml` pins `APP_URL`, CI is Linux so a Windows path cannot exist there, and a clone generates its own `APP_KEY`                             |
+
+Also fixed while there: the stale line "fill in the four values below - all five are needed" (it lists nine), and
+the file now ends with a newline (`No newline at end of file` gone). `MAIL_FROM_ADDRESS` keeps its existing
+placeholder value; a first attempt to blank it was reverted — it would have been an unrequested behaviour change.
+
+**Verified, not assumed** — `php _env_example_check.php` (read-only, line by line):
+
+```
+lines: 192
+syntax: every non-comment line is KEY=value
+present: AUTH_VERIFICATION_EXPIRE=1440 / PAYMENT_GATEWAY=null / PAYSTACK_SECRET_KEY= / PAYSTACK_PUBLIC_KEY=
+         MAIL_MAILER=log / DB_DATABASE=database/database.sqlite
+clean: no key, APP_KEY, absolute path or real mailbox
+```
+
+`.env` re-checked after the change: still ignored (`git check-ignore --no-index -- .env` → `.env`), still
+**not tracked** (`git ls-files --error-unmatch .env` → `did not match any file(s) known to git`), and its
+`APP_KEY`, `MAIL_SCHEME`, `MAIL_PORT`, `PAYSTACK_SECRET_KEY` are all still set. **Nothing was removed from it.**
+
+> **A false alarm worth recording.** The first leak check used a whole-file lookbehind and reported
+> `LEAK: real mailbox` against `you@gmail.com`, while a minimal test of the same pattern behaved correctly. Eight
+> probes later, the conclusion is that the whole-file form is not dependable on this build (PCRE 10.44 / PHP
+> 8.4.14). The check now scans **line by line** and allow-lists only the documented placeholder — so the "clean"
+> above is a result that can be trusted, not the earlier one. **Do not write a whole-file lookbehind leak check here.**
+
+**Files this pass:** `.env.example` (tracked, +70/−2). New and untracked: `_env_example_check.php` (read-only)
+and `_env_mailbox_probe.php` (read-only probe from the false alarm). `SESSION-HANDOFF.md`: this section, plus the
+stale `HEAD` line corrected (`d6a1f47` → **`9417852`**, which §1v had already shown was current).
+
+**NOT done, deliberately:** no commit and no push (not requested; nothing in this repo has ever been pushed from
+these sessions), `.gitignore` unchanged, `.env` unchanged, and no application code, route, view, migration or test
+touched. The suite was not re-run: `.env.example` is not loaded by `php artisan test` (it loads `.env`), so there
+is nothing for it to change — the last measured result stands at **664 passed (2448 assertions), 0 failed**.
+
+**Still open:** the two emails/keys above remain **live credentials on this machine**. They are safe only as long
+as `.env` stays out of git. If any of them has been pasted elsewhere (chat, a commit, a screenshot), rotate it.
+
+### 1v. Email verification — finished, and the three failures it exposed (2026-11-17)
+
+**Asked for:** re-run the failed `git fetch` (done: `main` and `origin/main` both at `9417852`, 0/0), then
+"A+B": restore dev events #1/#4, and run + finish the email-verification work that was left uncommitted.
+
+**A — the two soft-deleted events are live again (R27 closed).** `_events_overview.php` (read-only) showed the
+table holds 5 rows, 2 trashed: **#1 "Baptism of the holyspirit"** (`deleted_at 2026-10-15 23:32:34`) and
+**#4 "Supernatural Sunday"** (`2026-11-15 21:19:52`) — the ids the handoff said were gone appeared absent only
+because `Event` carries `BelongsToTenant`, so a scope-less lookup sees nothing. `_events_restore.php` lifts the
+scope, prints the rows, and calls `restore()` on exactly those two. After: **#1 live, #4 live, 5 of 5 rows live**.
+Registrations held at 0 before and after. Nothing was deleted; `deleted_at` on two rows was the only column
+touched, and it can be put back with `Event::find(n)->delete()` if ever wanted.
+
+**B — the email verification that was mid-flight is complete and green.** The feature was uncommitted and
+undocumented in this file. It is the **standard Laravel `MustVerifyEmail` flow**, not a parallel one:
+`User implements MustVerifyEmail` and overrides `sendEmailVerificationNotification()` to send
+`App\Notifications\VerifyChurchEmail` (extends Laravel's `VerifyEmail`, so the SIGNED link, the id+`sha1(email)`
+binding and the expiry are Laravel's own); `EmailVerificationController` answers `notice`, `verify` (GET and POST),
+`resend` and `defer`; `EnsureEmailIsVerified` sits on the authenticated/tenant group and decides **who** is gated.
+
+| Who                                                      | Gated?                            | Why                                                                    |
+| -------------------------------------------------------- | --------------------------------- | ---------------------------------------------------------------------- |
+| Church owner / parish pastor / any church-scoped account | **yes**                           | they send the church's mail and post to the congregation               |
+| Signup with no church yet (pay-first)                    | no                                | nothing to protect, and blocking breaks the ordered signup             |
+| Platform administrator / inactive account                | no                                | operator-provisioned; cannot sign in anyway                            |
+| **Account created before 2026-11-17**                    | no, once it chooses **"Not now"** | a live church must not lose its dashboard to a rule that arrived later |
+
+The legacy escape hatch is bounded on purpose: `defer()` refuses (403) any account created on/after
+`EnsureEmailIsVerified::verificationShippedAt()` **and** the middleware only honours a deferral for an account
+created before that instant — so a new account can never talk its way past the gate, which is what
+`test_a_new_account_cannot_skip_verification` proves.
+
+**First run — `EmailVerificationTest`: 1 failed, 15 passed (39 assertions).** The failure was a **test bug, not
+an app bug**: `test_a_link_belonging_to_another_account_is_refused` needs TWO owners in one church, and the
+`owner()` helper made a fresh `Church Owner` role on every call — the database correctly refuses a duplicate
+role name per church (`UNIQUE(church_id, name)`, added by the department-uniqueness migration). Fixed by
+`firstOrCreate` on that role inside the helper. **Now 16/16 green.**
+
+**Full suite — first run: `3 failed, 661 passed (2416 assertions)`.** Only one was the verification file; the
+other two were **older tests asserting the pre-verification world**, and each 302 was the gate doing exactly what
+it is for. Both files were changed only by ADDING the confirmation step, with a comment saying why; no assertion
+was relaxed or removed.
+
+| Test                                                                                  | Before                    | After | Root cause                                                                                                                                                                                  |
+| ------------------------------------------------------------------------------------- | ------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EmailVerificationTest > a link belonging to another account is refused`              | UniqueConstraintViolation | pass  | two owners → duplicate `Church Owner` role in one church                                                                                                                                    |
+| `RegistrationPermissionsTest > an activated owner can actually open the people pages` | 302 ≠ 200                 | pass  | `registerAndPay()` activates through the service, so no link is ever clicked → redirected to `/email/verify`. The test now confirms the owner, rebinds the tenant, then asserts permissions |
+| `SignupToTrialJourneyTest > the whole signup to subscription journey`                 | 302 ≠ 200                 | pass  | same: step 6 reads the dashboard as an unconfirmed owner. It now confirms at that point; that a fresh owner is sent to the notice page is asserted in `EmailVerificationTest`, not lost     |
+
+**Proven, not guessed:** a throwaway probe (`ZzProbeRedirectTest`, created and deleted this pass) printed the
+actual redirect — `status=302 location=http://localhost:8000/email/verify verified=NULL church_id=1 active=true`
+— which is why the cause was the gate and not permissions, subscription or tenancy.
+
+**Full suite after: `664 passed (2448 assertions), 0 failed`, 131.28s.** (661 + the one repaired verification
+test ≈ 664 with the probe removed.)
+
+**Files this pass:** `tests/Feature/EmailVerificationTest.php` (new, **untracked** — the helper fix inside it),
+`tests/Feature/RegistrationPermissionsTest.php` (+9, one added block), `tests/Feature/SignupToTrialJourneyTest.php`
+(+7, one added block), plus the two throwaway helpers `_events_overview.php` / `_events_restore.php` (both new and
+untracked; the latter is the only writer and touches only `events.deleted_at` for ids 1 and 4).
+
+**NOT changed:** `EnsureEmailIsVerified`, `EmailVerificationController`, `routes/web.php`, `config/auth.php`,
+`User`, `VerifyChurchEmail`, `VerifyEmailMail`, the mail views, `RegisterController`, `ActivateChurchFromCheckout`,
+the layout's reminder — the feature was already correct. No migration was written or run. No permission, route,
+policy, view or column was removed, and nothing was deleted from the application.
+
+**Still open, and deliberately:** R25 (three spreadsheet-damaged phone numbers) and R20 (owner-less churches) are
+data decisions that need the church / the operator, not code. R18 still applies: only `owner@churchflow.test`
+(`Owner@12345`) has a known password.
 
 ### 1r. Restoring the pre-migrate backup's data into the live schema (2026-11-14)
 
@@ -185,10 +471,80 @@ refusals.
 
 **Red-proof:** excluding the member roster (the original behaviour) → **12 failed**. Restored → 17/17 green.
 
-**Full suite: `637 passed (2384 assertions)`, 0 failed.**
+**Full suite: `648 passed (2407 assertions)`, 0 failed, 152.04s.**
 
 **Not changed:** the reminder email path, the public registration form, `EventPolicy`, any permission, and the
 visitor SMS behaviour. No data was rewritten.
+
+### 1u. Event reminders: members were never emailed or texted; Cancel now explains itself (2026-11-15)
+
+**Reported:** "Cannot send sms for event, I think it was removed." Then: the Cancel-event button must ask,
+stating what is at stake; check SMTP; and make sure email AND SMS reach every registered person.
+
+**Nothing had been removed. The audience was one table wide.** An event's list is built from TWO tables:
+
+| Who                         | Table                            | Name / email / phone live on |
+| --------------------------- | -------------------------------- | ---------------------------- |
+| Visitors (public form)      | `event_registration_submissions` | the row itself               |
+| Members (registered in-app) | `event_registrations`            | the linked `members` row     |
+
+Both reminder jobs read **`event_registration_submissions` only**. On the real data, events #2/#5 have
+**10 member registrations and 0 visitor submissions**, so:
+
+- the SMS panel never rendered (`$activeVisitors->isNotEmpty()` was false), and the controller answered
+  _"Nobody who filled in the event form has a phone number yet"_ — the message the report described as a
+  removed feature;
+- the email reminder reached guests only, never the congregation.
+
+| File                                                                                     | Change                                                                                                                                                              |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/Domains/Events/Services/EventReminderAudience.php`                                  | **new** — ONE resolver for both channels: visitors + members, de-duplicated by number and by email, with per-channel reasons for anyone unreachable                 |
+| `app/Domains/Events/Services/EventSmsAudience.php`                                       | rewritten as the SMS view of that same resolver (was its own duplicate query)                                                                                       |
+| `app/Domains/Events/Services/EventCancellationImpact.php`                                | **new** — what cancelling costs (running now / today / tomorrow / in N days; created < 48h ago; roster size and fullness; live public link; reminders already sent) |
+| `app/Domains/Events/Jobs/SendEventReminderSmsJob.php`                                    | sends to `EventSmsAudience`; stamps `sms_reminded_at` on the row the person came FROM                                                                               |
+| `app/Domains/Events/Jobs/SendEventReminderEmailsJob.php`                                 | sends to the shared audience; stamps the right table                                                                                                                |
+| `app/Mail/EventReminderMail.php`                                                         | second arg accepts a visitor row **or a name**, so a member can be emailed; original callers unchanged                                                              |
+| `resources/views/emails/event-reminder.blade.php`                                        | greeting is null-safe; the party-size line is visitor-only                                                                                                          |
+| `app/Http/Controllers/EventController.php`                                               | `show()` passes `cancelImpact`, `smsRecipients`, `smsSkipped`, `emailRecipients`; `emailReminder()`/`smsReminder()` count the real audience and say who was skipped |
+| `resources/views/events/show.blade.php`                                                  | panels count members + visitors; skipped people are named with the reason; Cancel/Delete use `data-confirm`                                                         |
+| `resources/views/events/index.blade.php`                                                 | row Delete uses `data-confirm` too                                                                                                                                  |
+| `resources/views/partials/confirm.blade.php`                                             | optional `reasons` list (additive: a plain `message` renders exactly as before)                                                                                     |
+| `database/migrations/2026_11_15_000001_add_sms_reminded_at_to_event_registrations.php`   | **new** — additive nullable column                                                                                                                                  |
+| `database/migrations/2026_11_15_000002_add_email_reminded_at_to_event_registrations.php` | **new** — additive nullable column                                                                                                                                  |
+| `tests/Feature/EventSmsAudienceTest.php`                                                 | **new**, 17 tests                                                                                                                                                   |
+| `tests/Feature/EventCancelAndReminderAudienceTest.php`                                   | **new**, 11 tests                                                                                                                                                   |
+
+**The Cancel button was not asking at all.** It used `onsubmit="return confirm(...)"`, and the app ships a
+nonce-based CSP that forbids inline handlers — the same defect recorded in §1q. A single click cancelled the
+event. It now uses the app's own dialog (`partials/confirm`), fed by `EventCancellationImpact`. Verified on the
+real events: #3 (today, 10 registered, public link) and #5 (**created 1 hour ago, in 21 days** — the exact case
+in the brief) both carry the reasons.
+
+**SMTP: broken in this environment, and it was the port.** The app was configured for `smtp.gmail.com:587`.
+`Test-NetConnection` showed **587 blocked, 465 open**. A real send over 587 timed out (error 10060); the same
+credentials over **465 (implicit TLS) connected, authenticated and delivered**. `.env` now uses
+`MAIL_PORT=465` / `MAIL_SCHEME=smtps` (backup: `.env.backup-2026-11-15-mail`), and `php _mail_test.php` reports
+**connected + authenticated : OK** and **sent : OK**. Note: confirmed as a deliverability test to the
+configured sender address only.
+
+**Verified on the real data** (read-only renders): event #3 -> SMS button "Send SMS to 3", email "3 people";
+event #2/#5 -> "Send SMS to 5", with the three spreadsheet-damaged numbers skipped and named. A real upload-free
+probe also showed de-duplication working (Rosemary appears on both lists, texted once).
+
+**Red-proof:** restoring the members-only exclusion -> **12 failed** (`actual size 0 matches expected size 1`),
+the original bug exactly. Restored -> 17/17 green.
+
+**Full suite: `648 passed (2407 assertions)`, 0 failed, 152.04s.**
+
+**Not done, and deliberately so:** the three member phone numbers saved as `2.3481E+12` / `2.34906E+12` lost
+their digits when a spreadsheet imported them. They are now REPORTED per person, never sent to and never
+guessed at. Correcting them needs the real numbers entered by the church — see R25.
+
+> **Two events are soft-deleted in the dev database** (#1, #4) from earlier Cancel-button verification. Their
+> rows and registrations are intact; nothing was removed. They can be restored at any time.
+
+**Not changed:** `EventPolicy`, the `register`/`cancelRegistration`/`sharePublicForm` guards, `SmsWalletService`,
+`StorageLimitService`, the routes, and every other view. No existing feature, route or column was removed.
 
 ### 1t. The real upload fault: `UPLOAD_ERR_NO_TMP_DIR` (2026-11-15, later)
 
@@ -660,7 +1016,7 @@ php artisan test
   Duration: 113.73s
 ```
 
-**2026-11-15, current tree (§1u): `637 passed (2384 assertions)`, 0 failed.**
+**2026-11-15, current tree (§1u): `648 passed (2407 assertions)`, 0 failed, 152.04s.**
 
 **§1t run: `620 passed (2338 assertions)`, 0 failed.**
 
@@ -1414,6 +1770,9 @@ that keeps the user on the page.)
 | **R18** | After the restore only `owner@churchflow.test` (`Owner@12345`) has a known password; the other four kept accounts have unknown passwords                                                                       | Cannot sign in as peteranjorin / drmagicakins / fkilback / admin without a reset                                                                      | Use the owner account, or reset a password deliberately — do not guess                                                                             |
 | **R19** | The restore is built as `database.restore-working.sqlite`; promoting it is a **file replacement** of the live database                                                                                         | A failure mid-promotion leaves a half-swapped file                                                                                                    | `database.pre-restore-2026-11-14.sqlite` is the way back; stop serve/queue before promoting                                                        |
 | **R20** | Church #1 ("QA Support Church") and churches #4–#7 have no owner after the exclusions                                                                                                                          | Nobody can administer them through the UI                                                                                                             | Assign an owner in the UI, or decide to archive — **not** done automatically; see §1r                                                              |
+| **R25** | Three member phone numbers were saved by a spreadsheet as `2.3481E+12` / `2.34906E+12`; the digits are lost                                                                                                    | Those people are skipped for SMS, and the page says why                                                                                               | Re-enter the real numbers on each member record — **not** guessable                                                                                |
+| **R26** | SMTP works only on port **465** here; port 587 is blocked by the network                                                                                                                                       | A host that blocks 465 as well will fail to send email                                                                                                | `.env` uses 465/smtps; keep `.env.backup-2026-11-15-mail` to revert; a transactional provider over 443/API is the durable answer                   |
+| **R27** | ~~Events #1 and #4 are soft-deleted in the dev database (Cancel-button verification)~~                                                                                                                         | **CLOSED 2026-11-17 (§1v)** — both restored (`deleted_at = NULL`); the table reads 5 of 5 live                                                        | Undo, if ever wanted, is `Event::withoutGlobalScopes()->find(n)->delete()`; registrations were 0 and are untouched                                 |
 | **R23** | ~~Every profile upload failed with `UPLOAD_ERR_NO_TMP_DIR`, whatever the file size~~                                                                                                                           | **CLOSED 2026-11-15 (§1s)** — a 2M PHP ceiling plus a `max:` rule given MB where files are measured in KB made the real limit 2 KB                    | Fixed and guarded; a 2.8MB photo verified over real HTTP                                                                                           |
 | **R24** | §1t restarted the developer's `php artisan serve` on :8000, which now runs the app's serve command rather than the original invocation                                                                         | A future bare `php -S` start would lose TEMP/TMP and break uploads again                                                                              | Always start with `php artisan serve`; PHP-FPM/Herd installs are unaffected                                                                        |
 | **R22** | `php artisan serve` and PHP-FPM both read upload limits from different places; `public/.user.ini` is only honoured by CGI/FPM                                                                                  | A serve-based install keeps PHP's 2M unless the ini is changed, so the app will cap the promise at 2MB rather than fail                               | The message and hint now show the REAL limit; raise the SAPI's `upload_max_filesize` for 5MB photos                                                |

@@ -28,6 +28,19 @@ class NotifySubmitterOfSubventionDecision implements ShouldQueue
             return;
         }
 
+        // A subvention belongs to a PARISH (`organizational_unit_id`), and a
+        // parish can be removed after the submission was decided. Reading
+        // `->name` straight off that relation then crashed the queued listener
+        // with "Attempt to read property \"name\" on null" — the job failed and
+        // was retried for ever, and the submitter was never told the decision.
+        // Same guard as the submitter above: without both pieces of context
+        // there is nothing meaningful to say, so the notification is skipped
+        // rather than failed. Nothing is lost — the in-app record of the
+        // decision lives on the submission itself.
+        if (! $submission->organizationalUnit || ! $submission->period) {
+            return;
+        }
+
         $branchName = $submission->organizationalUnit->name;
         $periodName = $submission->period->name;
 

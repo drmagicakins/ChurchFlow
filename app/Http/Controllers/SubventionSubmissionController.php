@@ -83,7 +83,10 @@ class SubventionSubmissionController extends Controller
         $this->authorize('view', $submission);
 
         return view('subvention.submissions.show', [
-            'submission' => $submission->load(['ruleSet.rules', 'calculations', 'approval']),
+            // latestCalculation is eager-loaded because the page reads its
+            // shortfall direction and loan payment: without it every visit
+            // would run those queries a second time after the load.
+            'submission' => $submission->load(['ruleSet.rules', 'calculations', 'latestCalculation.loanPayment', 'approval']),
         ]);
     }
 

@@ -2,6 +2,8 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\BrandedAsChurch;
+use App\Models\Church;
 use App\Models\Event;
 use App\Models\EventRegistrationSubmission;
 use Illuminate\Bus\Queueable;
@@ -19,10 +21,14 @@ use Illuminate\Queue\SerializesModels;
  * not be emailed at all, even though they are the people the reminder is really
  * for. The second argument is therefore either that row (unchanged, for any
  * caller already passing one) or the person's NAME.
+ *
+ * BRANDED AND ANSWERABLE. It renders in the church's email frame and carries a
+ * Reply-To naming the church owner and the parish pastor. If the event belongs
+ * to a parish, that parish's pastor answers for it.
  */
 class EventReminderMail extends Mailable
 {
-    use Queueable, SerializesModels;
+    use BrandedAsChurch, Queueable, SerializesModels;
 
     /** The greeting name, resolved from whichever kind of recipient was given. */
     public readonly string $recipientName;
@@ -43,16 +49,26 @@ class EventReminderMail extends Mailable
             : ($registration !== '' ? $registration : 'there');
     }
 
+    protected function brandedChurch(): ?Church
+    {
+        return $this->event->church;
+    }
+
+    protected function brandedParishId(): ?int
+    {
+        return $this->event->organizational_unit_id ? (int) $this->event->organizational_unit_id : null;
+    }
+
     public function build(): self
     {
         $when = $this->event->starts_at?->format('l, j F Y \a\t g:i A');
 
         return $this->subject("Reminder: {$this->event->title}")
-            ->view('emails.event-reminder', [
+            ->view('emails.event-reminder', $this->churchBranding([
                 'event' => $this->event,
                 'registration' => $this->registration,
                 'recipientName' => $this->recipientName,
                 'when' => $when,
-            ]);
+            ]));
     }
 }

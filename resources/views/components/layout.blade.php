@@ -70,16 +70,53 @@
         ['billing.show', 'billing.manage', 'Billing & plan', 'wallet'],
         ['settings.index', 'settings.manage', 'Settings', 'sliders'],
         ['support.index', null, 'Support', 'chat'],
+
+        // §14: Denomination-plan features. Shown to the church owner, and only
+        // when the owner's plan actually includes them — the controllers check
+        // both again, so this hides the link rather than being the security
+        // boundary. A Starter/Growth owner sees nothing here instead of a link
+        // that leads to an upsell they did not ask for.
+        ['__group' => 'Developer'],
+        ['api-access.index', null, 'API access', 'key'],
+        ['custom-domain.index', null, 'Custom domain', 'globe'],
     ];
+
+    // The two Developer entries above are gated on the owner's PLAN, not a
+    // permission — there is no "api_access" permission, and inventing one
+    // would let a role grant something the subscription does not. Resolved
+    // once here rather than per item.
+    //
+    // Deliberately read straight from the relationship rather than through
+    // PlanFeatureService: this runs inside the layout's @php block, whose scope
+    // is shared with the page body, and a local named $features/subscription
+    // here would silently shadow the same-named variable a page itself sets.
+    // The subscription is eager-loaded once so the check is a single query,
+    // not one per menu item.
+    $ownerOnlyFeatures = [
+        'api-access.index' => 'api_access',
+        'custom-domain.index' => 'custom_domain',
+    ];
+    $churchPlan = $church ? $church->subscription?->plan : null;
 
     // A menu row is kept only when its route actually exists in this build and the
     // signed-in user holds the permission it names. Route::has() means a phase that
     // has not shipped yet simply omits its link instead of throwing.
-    $canSee = function (array $item) use ($user): bool {
+    // $church and $churchPlan MUST be captured explicitly: a closure does not
+    // inherit the enclosing scope, so without them the plan check below sees
+    // null and the Developer links fall through to "no permission needed" —
+    // shown to every church regardless of plan.
+    $canSee = function (array $item) use ($user, $church, $churchPlan, $ownerOnlyFeatures): bool {
         [$route, $permission] = [$item[0], $item[1]];
 
         if ($route !== null && ! Route::has($route)) {
             return false;
+        }
+
+        if (isset($ownerOnlyFeatures[$route])) {
+            return (bool) ($user?->isRegistrar()
+                && $user?->church_id !== null
+                && $user?->church_id === $church?->id
+                && $churchPlan?->hasFeature($ownerOnlyFeatures[$route]));
         }
 
         return $permission === null || (bool) $user?->hasPermission($permission);
@@ -106,6 +143,19 @@
         ->where('user_id', $user->id)
         ->whereNull('read_at')
         ->count() : 0;
+
+    // The bell's dropdown shows the newest few items on first paint, so opening
+    // it never flashes an empty panel while the JSON feed is in flight. Same
+    // query shape as NotificationCenterController::feed(), limited to 5.
+    $recentNotifications = $user ? \App\Models\AppNotification::query()
+        ->where('user_id', $user->id)
+        ->latest('id')
+        ->limit(5)
+        ->get() : collect();
+
+    // The profile picture, if one was uploaded. Read through withoutGlobalScopes
+    // inside avatarUrl() because uploaded_files is tenant-scoped.
+    $avatarUrl = $user?->avatarUrl();
 
     // Phase 13: the mobile drawer needs a short, flat list of the same links
     // for quick-jump, and the count of visible items tells the hamburger
@@ -454,6 +504,28 @@
             <main class="cf-content">
                 @if(session('status'))
                     <div class="cf-alert cf-alert--ok">{{ session('status') }}</div>
+                @endif
+
+                {{-- A legacy account that chose "not now" is not redirected, but it
+                     is not forgotten either: this reminder stays until the address
+                     is confirmed, which is what keeps the offer from disappearing
+                     the moment the gate stops asking. New accounts never see it —
+                     they cannot reach this page unconfirmed. --}}
+                @if($user && $user->church_id !== null && ! $user->hasVerifiedEmail())
+                    <div class="cf-alert" role="status" style="margin-bottom:1rem">
+                        <div>
+                            <strong>Confirm your email address.</strong>
+                            Your church's mail — announcements, reminders and billing notices — should go to an
+                            address you have proved you can read.
+                            <form method="POST" action="{{ route('verification.send') }}" style="display:inline">
+                                @csrf
+                                <button type="submit" class="cf-small"
+                                    style="background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;color:inherit;font:inherit">
+                                    Send me a confirmation link
+                                </button>
+                            </form>
+                        </div>
+                    </div>
                 @endif
 
                 {{-- Recovery codes are shown ONCE, immediately after two-step is

@@ -56,6 +56,25 @@ class RegisterController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
+        // Send the standard confirmation message straight away. The account can
+        // still browse plans and buy — it has no church yet, so it is not gated
+        // (see EnsureEmailIsVerified) — but by the time its church is active the
+        // address has usually been confirmed, and if it has not, the gate stops
+        // it at the dashboard with a clear "confirm your email" page rather
+        // than a mystery failure.
+        //
+        // A mail failure must NOT undo a registration that is otherwise valid:
+        // the person can resend from the notice page, and an owner with a
+        // broken mail server should not be unable to sign up at all.
+        try {
+            $user->sendEmailVerificationNotification();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Could not send the email verification message at registration.', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         return redirect()->route('plans.index');
     }
 }

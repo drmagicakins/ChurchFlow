@@ -66,6 +66,16 @@ class LoginController extends Controller
             'last_login_ip' => $request->ip(),
         ])->saveQuietly(); // saveQuietly: this isn't an auditable business change
 
+        // A church account that has not confirmed its address goes straight to
+        // the "confirm your email" page. Redirecting to the dashboard would work
+        // too — the gate would bounce it there — but that is two redirects and a
+        // flash of the app for somebody who needs to open their inbox. Accounts
+        // that are exempt (no church yet, platform admin) are unaffected, which
+        // is the same rule the middleware applies, asked once, in one place.
+        if (! \App\Http\Middleware\EnsureEmailIsVerified::mayUseTheApp($user)) {
+            return redirect()->route('verification.notice');
+        }
+
         return redirect()->intended(route('dashboard'));
     }
 

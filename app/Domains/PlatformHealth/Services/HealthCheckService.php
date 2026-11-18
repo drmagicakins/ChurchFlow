@@ -171,6 +171,33 @@ class HealthCheckService
                     // closed (503), which is correct but means NOBODY can
                     // complete a checkout. Worth surfacing before a customer
                     // discovers it.
+                    //
+                    // WHICH secret, though, depends on the gateway in use. This
+                    // check used to look only at `services.payments.webhook_secret`
+                    // — the shared secret of the GENERIC endpoint — so a
+                    // deployment correctly configured for Paystack (which signs
+                    // with its SECRET KEY in `x-paystack-signature`, never with our
+                    // shared header) was told "every payment webhook will be
+                    // rejected" while its webhook endpoint was in fact verifying
+                    // every delivery. A health check that lies about a working
+                    // configuration is worse than no check.
+                    $gateway = strtolower((string) config('services.payments.gateway', 'null'));
+
+                    if ($gateway === 'paystack') {
+                        $secretKey = config('services.payments.paystack.secret_key');
+
+                        if (blank($secretKey)) {
+                            throw new \RuntimeException('Paystack is selected but PAYSTACK_SECRET_KEY is empty, so no checkout can start and no webhook can be verified.');
+                        }
+
+                        // Paystack exposes no separate webhook key: the dashboard
+                        // signs with the account secret key, which
+                        // PaystackGateway::verifyWebhookSignature() falls back to
+                        // when PAYSTACK_WEBHOOK_SECRET is blank. Both shapes are
+                        // therefore a working configuration.
+                        return;
+                    }
+
                     if (! config('services.payments.webhook_secret')) {
                         throw new \RuntimeException('No payment webhook secret is configured. Every payment webhook will be rejected, so checkouts cannot complete.');
                     }

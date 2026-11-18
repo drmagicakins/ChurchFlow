@@ -555,11 +555,30 @@
         {{-- ========================== PROFILE =========================== --}}
         <div class="cf-grid cf-grid--2">
             <x-form.card title="Church profile"
-                description="How your church is identified across the platform. The currency here is the default for money you record."
+                description="How your church is identified across the platform and in every email you send. The currency here is the default for money you record."
                 :action="route('settings.profile.update')" submit="Save profile" submit-icon="building">
                 <x-form.input name="name" label="Church name" required :value="$church?->name" />
                 <x-form.input name="denomination" label="Denomination" :value="$church?->denomination" placeholder="e.g. RCCG"
                     hint="Optional. Shown on reports and invoices." />
+
+                {{-- The address a member writes to. It is printed in the
+                     signature of every email, so an empty box means the
+                     signature simply omits that line. --}}
+                <x-form.input name="email" label="Church email" type="email" :value="$church?->email"
+                    placeholder="hello@yourchurch.org"
+                    hint="Shown in your emails and used as the reply address when no owner or pastor can be found." />
+
+                {{-- Optional: churches that run a shared inbox (office@…) want
+                     replies there instead of one person's mailbox. --}}
+                <x-form.input name="reply_to_email" label="Send replies to" type="email" :value="$church?->reply_to_email"
+                    placeholder="office@yourchurch.org"
+                    hint="Optional. When set, replies to your emails go here first. Otherwise they go to the church owner and your parish pastor." />
+
+                <x-form.input name="phone" label="Phone" :value="$church?->phone" placeholder="+234…" />
+                <x-form.input name="website" label="Website" :value="$church?->website" placeholder="yourchurch.org" />
+                <x-form.input name="address" label="Address" :value="$church?->address" :wide="true"
+                    placeholder="12 Church Street, Lagos"
+                    hint="Street, city — shown in the signature of every email." />
 
                 <x-form.select name="timezone" label="Timezone" required :value="$church?->timezone ?? 'Africa/Lagos'" :options="[
                     'Africa/Lagos' => 'Africa/Lagos (WAT)',
@@ -572,6 +591,58 @@
                 <x-form.select name="currency" label="Currency" required :value="$church?->currency ?? 'NGN'" :options="['NGN' => 'Naira (₦)', 'USD' => 'US Dollar ($)', 'GBP' => 'Pound (£)', 'EUR' => 'Euro (€)']" />
             </x-form.card>
 
+            {{-- ===================== CHURCH LOGO ===================== --}}
+            {{-- Its own form because it is a FILE upload (a different enctype) and
+                 because it has its own remove action. The preview is the file
+                 that actually appears in email, not a cached copy. --}}
+            @php
+                $logoUrl = $church?->logoUrl();
+                $churchInitials = $initials($church?->name ?? '');
+            @endphp
+            <x-form.card title="Church logo"
+                description="Shown at the top of every email your church sends — announcements, event reminders and subvention decisions."
+                :action="route('settings.profile.logo')" enctype="multipart/form-data" submit="Upload logo" submit-icon="sparkle">
+                <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
+                    @if ($logoUrl)
+                        <img src="{{ $logoUrl }}" alt="{{ $church?->name }} logo" width="72" height="72"
+                            style="width:72px;height:72px;object-fit:contain;border:1px solid var(--line,#e2e8f0);border-radius:10px;background:#fff;padding:6px">
+                    @else
+                        <div aria-hidden="true"
+                            style="width:72px;height:72px;border-radius:10px;background:var(--cf-brand,#4f46e5);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.3rem">
+                            {{ $churchInitials ?: '✝' }}
+                        </div>
+                    @endif
+
+                    <div style="flex:1;min-width:12rem">
+                        <x-form.input name="logo" label="Logo image" type="file"
+                            accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                            :hint="'PNG, JPEG, WebP, GIF or SVG, up to ' . \App\Domains\Files\Services\FileUploadService::maxUploadMb() . 'MB. A square or wide logo works best.'" />
+                    </div>
+                </div>
+
+                @if ($logoUrl)
+                    <p class="cf-small cf-muted" style="margin:0">
+                        Uploading a new logo replaces this one.
+                    </p>
+                @else
+                    <p class="cf-small cf-muted" style="margin:0">
+                        Without a logo your church's initials are shown instead — emails still carry your name and colours.
+                    </p>
+                @endif
+            </x-form.card>
+
+            @if ($logoUrl)
+                {{-- Outside the upload form on purpose: a <form> inside a <form> is
+                     invalid HTML and browsers silently drop the inner one. --}}
+                <form method="POST" action="{{ route('settings.profile.logo.destroy') }}"
+                    data-confirm="Remove your church logo? Emails will show your church's initials instead until you upload a new one."
+                    data-confirm-ok="Remove logo" style="margin-top:-.6rem">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="cf-btn cf-btn--secondary cf-btn--sm">Remove logo</button>
+                </form>
+            @endif
+
             <x-form.card title="Terminology"
                 description="What you call the parts of your church's structure. These labels appear throughout the app — leave a field blank to use the default."
                 :action="route('settings.profile.update')" submit="Save terminology" submit-icon="sliders">
@@ -583,6 +654,11 @@
                 <input type="hidden" name="denomination" value="{{ $church?->denomination }}">
                 <input type="hidden" name="timezone" value="{{ $church?->timezone ?? 'Africa/Lagos' }}">
                 <input type="hidden" name="currency" value="{{ $church?->currency ?? 'NGN' }}">
+                <input type="hidden" name="email" value="{{ $church?->email }}">
+                <input type="hidden" name="reply_to_email" value="{{ $church?->reply_to_email }}">
+                <input type="hidden" name="phone" value="{{ $church?->phone }}">
+                <input type="hidden" name="website" value="{{ $church?->website }}">
+                <input type="hidden" name="address" value="{{ $church?->address }}">
 
                 @foreach ($terminologyKeys as $key => $default)
                     <x-form.input :name="'terminology[' . $key . ']'" :label="$default . ' — your label'" :value="$terminology[$key] ?? ''" :placeholder="$default"

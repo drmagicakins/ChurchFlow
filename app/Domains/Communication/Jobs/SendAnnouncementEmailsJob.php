@@ -29,13 +29,18 @@ class SendAnnouncementEmailsJob implements ShouldQueue
     {
         $announcement = Announcement::withoutGlobalScopes()->findOrFail($this->announcementId);
 
+        // The church is loaded ONCE for the whole batch: every message needs it
+        // for its logo, signature and Reply-To, and reading it per recipient
+        // would be one extra query per member.
+        $church = \App\Models\Church::query()->find($announcement->church_id);
+
         Member::withoutGlobalScopes()
             ->where('church_id', $announcement->church_id)
             ->whereNotNull('email')
-            ->chunkById(200, function ($members) use ($announcement) {
+            ->chunkById(200, function ($members) use ($announcement, $church) {
                 foreach ($members as $member) {
                     if ($announcement->isVisibleToMember($member)) {
-                        Mail::to($member->email)->queue(new AnnouncementMail($announcement));
+                        Mail::to($member->email)->queue(new AnnouncementMail($announcement, $church));
                     }
                 }
             });

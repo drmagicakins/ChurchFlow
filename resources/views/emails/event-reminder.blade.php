@@ -1,37 +1,58 @@
-<!doctype html>
-<html>
+{{--
+    Event reminder, in the church's own email frame.
 
-<body>
-    <h2>{{ $event->title }}</h2>
+    The facts (when, where, party size) are a PANEL rather than a bulleted list:
+    at a glance a reminder has to answer "when and where?", and a two-column
+    panel does that on a phone better than prose. Everything the template used
+    to receive is still received and still shown — the party-size line remains
+    visitor-only, because a church member has no `$registration` row.
 
-    {{--
-        $recipientName is set for BOTH kinds of recipient; $registration is only
-        present for a visitor from the public form (a church member has no such
-        row, and the party-size line below is a visitor-only fact).
-    --}}
-    <p>Hello {{ $recipientName ?? $registration->name ?? 'there' }},</p>
+    $recipientName is set for BOTH kinds of recipient; $registration is only
+    present for a visitor from the public form.
+--}}
+@extends('emails.layouts.church', [
+    'subject' => 'Reminder: ' . $event->title,
+    'preheader' => ($when ?: 'Coming up') . ($event->venue ? ' · ' . $event->venue : ''),
+    'church' => $church ?? $event->church,
+])
 
-    <p>This is a reminder that you are registered for <strong>{{ $event->title }}</strong>.</p>
+@section('hero')
+    <div
+        style="display:inline-block;padding:4px 10px;border-radius:999px;background:#eef2ff;color:#4f46e5;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:12px;">
+        Event reminder
+    </div>
+    <h1 class="cf-email-title" style="margin:0;font-size:25px;line-height:1.3;color:#0f172a;font-weight:700;">
+        {{ $event->title }}
+    </h1>
+@endsection
 
-    <ul>
-        @if ($when)
-            <li><strong>When:</strong> {{ $when }}</li>
-        @endif
-        @if ($event->venue)
-            <li><strong>Where:</strong> {{ $event->venue }}</li>
-        @endif
-        @if ($registration && $registration->guests > 0)
-            <li><strong>Your party:</strong> {{ $registration->headcount() }} people (including you)</li>
-        @endif
-    </ul>
+@section('content')
+    <p style="margin:0 0 6px;font-size:15px;line-height:1.7;color:#0f172a;">
+        Hello {{ $recipientName ?? ($registration->name ?? 'there') }},
+    </p>
+
+    <p style="margin:0;font-size:15px;line-height:1.7;color:#0f172a;">
+        This is a reminder that you are registered for <strong>{{ $event->title }}</strong>.
+    </p>
+
+    @include('emails.components.panel', [
+        'rows' => array_filter([
+            'When' => $when,
+            'Where' => $event->venue,
+            'Your party' =>
+                $registration && $registration->guests > 0
+                    ? $registration->headcount() . ' people (including you)'
+                    : null,
+        ]),
+    ])
 
     @if ($event->description)
-        <p>{{ $event->description }}</p>
+        <p style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#0f172a;">
+            {{ $event->description }}
+        </p>
     @endif
 
-    <p>We look forward to seeing you.</p>
-
-    <p>{{ $event->church?->name ?? 'Your church' }}</p>
-</body>
-
-</html>
+    <p style="margin:0;font-size:15px;line-height:1.7;color:#0f172a;">
+        We look forward to seeing you.
+    </p>
+@endsection

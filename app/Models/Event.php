@@ -33,6 +33,18 @@ class Event extends Model
         return $this->belongsTo(OrganizationalUnit::class);
     }
 
+    /**
+     * The church this event belongs to.
+     *
+     * The reminder EMAIL needs it for the logo, signature and Reply-To, and is
+     * sent from a queue with no tenant bound — so the FK is stated explicitly
+     * rather than left to a scope.
+     */
+    public function church()
+    {
+        return $this->belongsTo(Church::class);
+    }
+
     public function organizer()
     {
         return $this->belongsTo(User::class, 'organizer_id');

@@ -51,28 +51,51 @@ class PaystackGateway implements PaymentGatewayInterface
         // NEW one rather than colliding with the previous attempt's.
         $reference = $checkout->provider_reference ?: 'CF-'.Str::upper(Str::random(12));
 
-        $response = Http::withToken($this->key())
-            ->acceptJson()
-            ->asJson()
-            ->timeout(20)
-            ->post(self::BASE_URL.'/transaction/initialize', [
-                'email' => $this->emailFor($checkout),
-                'amount' => $this->toMinorUnits((string) $checkout->amount),
-                'currency' => strtoupper((string) $checkout->currency),
-                'reference' => $reference,
-                // Where Paystack sends the browser after payment. An explicit
-                // PAYSTACK_CALLBACK_URL wins, otherwise the signed-in verify
-                // route for THIS checkout (the historical default). The return
-                // only triggers server-side verification — never trust alone.
-                'callback_url' => $this->callbackUrl
-                    ?: config('services.payments.paystack.callback_url')
-                    ?: route('checkout.verify', $checkout),
-                'metadata' => [
-                    'checkout_id' => $checkout->id,
-                    'purpose' => $checkout->purpose,
-                    'plan_id' => $checkout->plan_id,
-                ],
+        try {
+            $response = Http::withToken($this->key())
+                ->acceptJson()
+                ->asJson()
+                ->timeout(20)
+                ->withOptions($this->tlsOptions())
+                ->post(self::BASE_URL.'/transaction/initialize', [
+                    'email' => $this->emailFor($checkout),
+                    'amount' => $this->toMinorUnits((string) $checkout->amount),
+                    'currency' => strtoupper((string) $checkout->currency),
+                    'reference' => $reference,
+                    // Where Paystack sends the browser after payment. An explicit
+                    // PAYSTACK_CALLBACK_URL wins, otherwise the signed-in verify
+                    // route for THIS checkout (the historical default). The return
+                    // only triggers server-side verification — never trust alone.
+                    'callback_url' => $this->callbackUrl
+                        ?: config('services.payments.paystack.callback_url')
+                        ?: route('checkout.verify', $checkout),
+                    'metadata' => [
+                        'checkout_id' => $checkout->id,
+                        'purpose' => $checkout->purpose,
+                        'plan_id' => $checkout->plan_id,
+                    ],
+                ]);
+        } catch (ConnectionException $e) {
+            // The gateway could not be reached (DNS, TLS, firewall, timeout).
+            //
+            // This used to escape as an uncaught exception and reach a paying
+            // church owner as the generic "This is not something you did" 500
+            // page. Nothing was charged and no checkout was recorded, so the
+            // honest answer is a clear message — not a server fault page — and
+            // the caller decides how to show it. The reason is logged with the
+            // underlying error so whoever runs the deployment can see whether it
+            // is DNS, the certificate store, or a blocked port.
+            \Illuminate\Support\Facades\Log::error('Paystack could not be reached while starting a checkout.', [
+                'checkout_id' => $checkout->id,
+                'connection_error' => $e->getMessage(),
             ]);
+
+            throw new \RuntimeException(
+                'We could not reach Paystack to start this payment. Nothing was charged — please try again in a moment.',
+                0,
+                $e,
+            );
+        }
 
         $body = $response->json();
 
@@ -109,6 +132,7 @@ class PaystackGateway implements PaymentGatewayInterface
             $response = Http::withToken($this->key())
                 ->acceptJson()
                 ->timeout(20)
+                ->withOptions($this->tlsOptions())
                 ->get(self::BASE_URL.'/transaction/verify/'.rawurlencode($providerReference));
         } catch (ConnectionException $e) {
             // Network trouble is NOT a payment. Report it as unsuccessful so the
@@ -192,6 +216,56 @@ class PaystackGateway implements PaymentGatewayInterface
     private function key(): string
     {
         return (string) $this->secretKey;
+    }
+
+    /**
+     * TLS trust options for every Paystack request.
+     *
+     * WHY THIS EXISTS. On this machine PHP had no `curl.cainfo` (and no system
+     * CA store), so libcurl could not verify Paystack's certificate chain and
+     * every request died with
+     *
+     *     cURL error 60: SSL certificate problem: unable to get local issuer certificate
+     *
+     * A ConnectionException thrown from initiate() is not caught, so the
+     * checkout endpoint answered **500** — the "This is not something you did"
+     * page a church owner saw when trying to pay. The certificate itself is
+     * fine (the OS, curl.exe and PHP-with-a-cafile all reach api.paystack.co);
+     * only the trust store was missing.
+     *
+     * `verify` is pointed at a REAL bundle, in this order:
+     *   1. `paystack.ca_bundle` when configured — an explicit operator choice;
+     *   2. PHP's own `curl.cainfo` / `openssl.cafile`, when set;
+     *   3. the bundle Composer/mozroots ships (vendor/composer/ca-bundle), which
+     *      is present in every install and is kept current by `composer update`.
+     *
+     * Verification is never disabled. Turning TLS checking off to make a payment
+     * button work would trade a visible 500 for an invisible man-in-the-middle
+     * on the one request that carries a church's money, so there is deliberately
+     * no `verify => false` path here.
+     *
+     * @return array<string, mixed>
+     */
+    private function tlsOptions(): array
+    {
+        $configured = config('services.payments.paystack.ca_bundle');
+
+        $candidates = array_filter([
+            is_string($configured) ? $configured : null,
+            (string) ini_get('curl.cainfo'),
+            (string) ini_get('openssl.cafile'),
+            base_path('vendor/composer/ca-bundle/res/cacert.pem'),
+        ]);
+
+        foreach ($candidates as $bundle) {
+            if (is_file($bundle) && is_readable($bundle)) {
+                return ['verify' => $bundle, 'connect_timeout' => 15];
+            }
+        }
+
+        // No readable bundle at all: `true` keeps libcurl's default trust lookup
+        // (the OS store) rather than silently skipping the check.
+        return ['verify' => true, 'connect_timeout' => 15];
     }
 
     private function assertConfigured(): void

@@ -147,6 +147,25 @@ class ActivateChurchFromCheckout
             // test as soon as a second account exists.
             $user->forceFill(['is_registrar' => true])->save();
 
+            // The church owner must CONFIRM the address their church's mail goes
+            // to. Sent once, here, the moment the church exists — synchronously
+            // and best-effort: a mail failure must not undo an activation the
+            // customer has already paid for, and the owner can resend from the
+            // "confirm your email" page (See EnsureEmailIsVerified).
+            //
+            // Nothing is changed for an owner who has already confirmed.
+            if (! $user->hasVerifiedEmail()) {
+                try {
+                    $user->sendEmailVerificationNotification();
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('Could not send the church owner\'s email verification message.', [
+                        'user_id' => $user->id,
+                        'church_id' => $church->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
             $checkout->update(['church_id' => $church->id, 'status' => 'completed']);
 
             ChurchActivated::dispatch($church->fresh());

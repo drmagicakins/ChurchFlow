@@ -130,6 +130,16 @@
                         <span class="cf-tiny cf-muted">Computed {{ $calc->calculated_at?->diffForHumans() }}</span>
                     </div>
                     <div class="cf-card__body">
+                        {{-- Only rows stored before the shortfall correction are marked
+                             with the legacy direction — see SubventionCalculation. Their
+                             stored figure is left untouched; the page shows it flipped. --}}
+                        @if($calc->shortfall_direction === \App\Models\SubventionCalculation::SHORTFALL_DEDUCTIONS_MINUS_RETENTION)
+                            <p class="cf-tiny cf-muted" style="margin:0 0 .8rem">
+                                <strong>Stored as deductions − retention.</strong>
+                                This calculation predates the correction; the shortfall above is shown in the
+                                current direction. The stored value is unchanged.
+                            </p>
+                        @endif
                         <table class="cf-table" style="width:100%">
                             <thead>
                                 <tr>
@@ -262,6 +272,21 @@
                             <p class="cf-small" style="margin:.3rem 0 0">
                                 Status: <span class="cf-badge {{ $approval->status === 'approved' ? 'cf-badge--ok' : ($approval->status === 'rejected' ? 'cf-badge--danger' : 'cf-badge--warn') }}">{{ ucfirst($approval->status) }}</span>
                             </p>
+
+                            {{-- Approval is the only point at which the calculation's loan
+                                 deduction becomes a real LoanPayment — see
+                                 SubventionWorkflowService::approve(). Show that ledger entry
+                                 when one was created. --}}
+                            @if($calc && $calc->loanPayment)
+                                <p class="cf-small" style="margin:.6rem 0 0">
+                                    Loan payment recorded:
+                                    <strong>{{ $money($calc->loanPayment->amount) }}</strong>
+                                    @if($calc->loanPayment->paid_on) · {{ $calc->loanPayment->paid_on->format('d M Y') }} @endif
+                                </p>
+                                <p class="cf-tiny cf-muted" style="margin:.3rem 0 0">
+                                    The deduction above has been posted against the branch's loan.
+                                </p>
+                            @endif
                         </div>
                     @endif
 

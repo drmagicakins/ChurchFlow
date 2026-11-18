@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Domains\Subventions\Services\SubventionWorkflowService;
 use App\Models\Church;
+use App\Models\Loan;
 use App\Models\OrganizationalUnit;
 use App\Models\Permission;
 use App\Models\Role;
@@ -237,5 +238,94 @@ class SubventionPagesTest extends TestCase
             \App\Models\SubventionCalculation::SHORTFALL_RETENTION_MINUS_DEDUCTIONS,
             $submission->fresh()->latestCalculation->shortfall_direction
         );
+    }
+
+    /** The page must say when a row was stored the other way round. */
+    public function test_the_calculation_card_marks_a_row_stored_in_the_legacy_direction(): void
+    {
+        $church = Church::factory()->create();
+        app()->instance('tenant.church_id', $church->id);
+        $user = $this->userWith($church, ['subvention.submit']);
+        $submission = $this->submission($church);
+
+        app(SubventionWorkflowService::class)->submit($submission, $user);
+
+        // A brand-new row carries the corrected direction, so no note.
+        $this->actingAs($user)
+            ->get(route('subvention.submissions.show', $submission->fresh()))
+            ->assertOk()
+            ->assertDontSee('Stored as deductions', false);
+
+        $submission->fresh()->latestCalculation->forceFill([
+            'shortfall_direction' => \App\Models\SubventionCalculation::SHORTFALL_DEDUCTIONS_MINUS_RETENTION,
+        ])->save();
+
+        $this->actingAs($user)
+            ->get(route('subvention.submissions.show', $submission->fresh()))
+            ->assertOk()
+            ->assertSee('Stored as deductions');
+    }
+
+    /** The list shows the shortfall, read in the current direction. */
+    public function test_the_submissions_list_shows_the_shortfall_in_the_current_direction(): void
+    {
+        $church = Church::factory()->create();
+        app()->instance('tenant.church_id', $church->id);
+        $user = $this->userWith($church, ['subvention.submit']);
+        $submission = $this->submission($church);
+
+        // retention 25,000 + 5,000 = 30,000; deductions 5,000 + 18,000 = 23,000
+        app(SubventionWorkflowService::class)->submit($submission, $user);
+
+        $this->actingAs($user)
+            ->get(route('subvention.submissions.index'))
+            ->assertOk()
+            ->assertSee('Shortfall')
+            ->assertSee('₦7,000.00');
+
+        // The same row stored in the legacy direction is still read positively.
+        $submission->fresh()->latestCalculation->forceFill([
+            'shortfall' => '-7000.00',
+            'shortfall_direction' => \App\Models\SubventionCalculation::SHORTFALL_DEDUCTIONS_MINUS_RETENTION,
+        ])->save();
+
+        $this->actingAs($user)
+            ->get(route('subvention.submissions.index'))
+            ->assertOk()
+            ->assertSee('₦7,000.00')
+            ->assertDontSee('-7,000.00');
+    }
+
+    /** Approval is what turns the loan deduction into a real LoanPayment. */
+    public function test_the_submission_page_shows_the_loan_payment_created_at_approval(): void
+    {
+        $church = Church::factory()->create();
+        app()->instance('tenant.church_id', $church->id);
+        $submitter = $this->userWith($church, ['subvention.submit']);
+        $reviewer = $this->userWith($church, ['subvention.approve', 'subvention.submit']);
+        $reviewer->forceFill(['is_registrar' => true])->save();
+
+        $submission = $this->submission($church, ['general_tithe' => '10000', 'salary' => '1000']);
+
+        Loan::create([
+            'church_id' => $church->id,
+            'organizational_unit_id' => $submission->organizational_unit_id,
+            'principal_amount' => '5000.00',
+            'monthly_deduction' => '200.00',
+            'status' => 'active',
+        ]);
+
+        $workflow = app(SubventionWorkflowService::class);
+        $workflow->submit($submission, $submitter);
+        $workflow->approve($submission->fresh(), $reviewer);
+
+        $this->assertNotNull($submission->fresh()->latestCalculation->loan_payment_id);
+
+        app()->instance('tenant.church_id', $church->id);
+        $this->actingAs($reviewer)
+            ->get(route('subvention.submissions.show', $submission->fresh()))
+            ->assertOk()
+            ->assertSee('Loan payment recorded')
+            ->assertSee('₦200.00');
     }
 }

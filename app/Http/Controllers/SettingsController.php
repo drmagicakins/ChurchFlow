@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Domains\Files\Services\ChurchLogoStorage;
+use App\Domains\Files\Services\FileUploadService;
 use App\Models\Church;
 use App\Models\OrganizationalUnit;
 use App\Models\Permission;
@@ -272,6 +274,14 @@ class SettingsController extends Controller
             'currency' => ['required', 'string', 'size:3'],
             'terminology' => ['nullable', 'array'],
             'terminology.*' => ['nullable', 'string', 'max:60'],
+            // The profile's contact details, shown in the signature of every
+            // email the church sends. All optional: a church that only wants a
+            // name and a logo is a complete profile.
+            'email' => ['nullable', 'email', 'max:255'],
+            'reply_to_email' => ['nullable', 'email', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:40'],
+            'website' => ['nullable', 'string', 'max:255'],
+            'address' => ['nullable', 'string', 'max:500'],
         ]);
 
         $church = $request->user()->church;
@@ -290,10 +300,94 @@ class SettingsController extends Controller
             'denomination' => $data['denomination'] ?? null,
             'timezone' => $data['timezone'],
             'currency' => strtoupper($data['currency']),
+            // A blank field CLEARS the value, which is what a person emptying
+            // the box means. Only the contact fields are treated this way; the
+            // logo has its own upload/remove actions below.
+            'email' => $data['email'] ?? null,
+            'reply_to_email' => $data['reply_to_email'] ?? null,
+            'phone' => $data['phone'] ?? null,
+            'website' => $data['website'] ?? null,
+            'address' => $data['address'] ?? null,
             'settings' => $settings,
         ]);
 
         return back()->with('status', 'Church profile updated.');
+    }
+
+    /**
+     * Upload or replace the church logo.
+     *
+     * This is the one image that appears OUTSIDE the app — in every email the
+     * church sends — so it is stored on the public disk under an unguessable
+     * name (see ChurchLogoStorage for why a signed URL cannot work in an
+     * inbox). Permissions, MIME sniffing, size limit and the plan's storage
+     * quota are all enforced there, exactly as for every other upload.
+     */
+    public function updateLogo(Request $request, ChurchLogoStorage $logos): RedirectResponse
+    {
+        // The owner, or an administrator the owner gave settings.manage to.
+        $this->authorizeSettings($request);
+
+        // Same ceiling the screen promises: the smaller of the app's limit and
+        // PHP's own. `max:` is KILOBYTES for a file — never maxUploadMb().
+        $request->validate([
+            'logo' => ['required', 'file', 'image', 'max:'.FileUploadService::maxUploadKb()],
+        ], [
+            'logo.uploaded' => 'That logo could not be uploaded. It may be larger than the '
+                .FileUploadService::maxUploadMb().'MB this server accepts, or the upload was interrupted.',
+            'logo.max' => 'That logo is larger than the '.FileUploadService::maxUploadMb().'MB limit. '
+                .'Please choose a smaller image.',
+        ]);
+
+        $user = $request->user();
+        $church = $user->church;
+
+        abort_if($church === null, 409, 'Your account is not attached to a church yet.');
+
+        $previous = $church->logo_upload_id;
+        $uploaded = $logos->store($request->file('logo'), $church, $user);
+
+        $church->update(['logo_upload_id' => $uploaded->id]);
+
+        // The old file is removed only AFTER the new id is saved, so a failure
+        // cannot leave the church with no logo. Leaving it would also keep
+        // counting against the plan's storage for ever.
+        if ($previous) {
+            $old = \App\Models\UploadedFile::withoutGlobalScopes()->find($previous);
+
+            if ($old && $old->id !== $uploaded->id) {
+                $logos->delete($old);
+            }
+        }
+
+        $church->unsetRelation('logo');
+
+        return back()->with('status', 'Church logo updated — it will appear on every email your church sends.');
+    }
+
+    /** Remove the logo; emails fall back to the church's monogram. */
+    public function destroyLogo(Request $request, ChurchLogoStorage $logos): RedirectResponse
+    {
+        $this->authorizeSettings($request);
+
+        $church = $request->user()->church;
+
+        if (! $church?->logo_upload_id) {
+            return back()->with('status', 'Your church has no logo to remove.');
+        }
+
+        $previous = $church->logo_upload_id;
+
+        $church->update(['logo_upload_id' => null]);
+        $church->unsetRelation('logo');
+
+        $old = \App\Models\UploadedFile::withoutGlobalScopes()->find($previous);
+
+        if ($old) {
+            $logos->delete($old);
+        }
+
+        return back()->with('status', 'Church logo removed.');
     }
 
     /**
