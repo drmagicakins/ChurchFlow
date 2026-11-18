@@ -49,6 +49,56 @@ back into `.env` only. `TERMII_SENDER_ID` is still empty and **is the one thing 
 
 ## 1. Verified test results (actual output)
 
+### 1aa. The outstanding work is COMMITTED (2026-11-17)
+
+**Asked for:** "complete the task created" — commit the accumulated work — while deleting nothing.
+
+**Recovery path first, exactly as §9 B1 records it.** Before staging anything:
+
+```
+.git/churchflow-backups/pre-commit-<stamp>.patch   339 KB  (every tracked change)
+.git/churchflow-backups/untracked-<stamp>.txt      134 entries
+```
+
+Both live inside `.git/`, so they are outside version control and can never themselves be committed.
+
+**Suite run immediately BEFORE committing: `690 passed (2491 assertions)`.**
+
+**Five commits, `9417852..HEAD`, and not one deletion:**
+
+| #   | Commit                                                       | Scope                                                                 |
+| --- | ------------------------------------------------------------ | --------------------------------------------------------------------- |
+| 1   | SMS: a real Termii provider, and the church-name sender rule | provider, interface, resolver, binding, config, phpunit, 4 test files |
+| 2   | Email verification: a real gate, a branded message…          | the whole MustVerifyEmail flow and its 16 guards                      |
+| 3   | Custom domains                                               | controller, model, migration, views                                   |
+| 4   | API access                                                   | controller, views                                                     |
+| 5   | Settings, church profile, subventions and the session record | the remaining app changes, `.env.example`, this file                  |
+
+**Verified after committing:** `git diff --name-status 9417852..HEAD` contains **no `D` line** — nothing was
+deleted. Suite re-run from the committed state: **`690 passed (2491 assertions), 0 failed, 181.94s`** (a slower
+run than the 131s in §1y; no test changed, only machine load). `main` is **ahead 5**, **not pushed**.
+
+**What was deliberately NOT committed, and is still on disk:**
+
+- **`.env`** — untouched, still gitignored and untracked (`git check-ignore .env` → `.env`;
+  `git ls-files --error-unmatch .env` → _did not match any file(s)_), with `APP_KEY`, `MAIL_PORT=465`,
+  `PAYSTACK_SECRET_KEY`, `TERMII_API_KEY`, `TERMII_BASE_URL`, `SMS_GATEWAY` all still set.
+- **`.env.backup-2026-11-15-mail`, `.env.backup-2026-11-17-prefermii`** — backups containing live credentials.
+- **`.user.ini`** (root) — not part of the app's tracked config; `public/.user.ini` IS tracked and was left alone.
+- **Every `_*` scratch file** (~70: probes, logs, screenshots, commit-message drafts). They are not app code and
+  most are one-off diagnostics. They were excluded rather than deleted, because deleting them was never asked for.
+- **`public/_cf_env_probe.php`** — a leftover debug probe **inside the web root**, where any visitor could request
+  it. Not committed on purpose. **It should be removed or moved before this is deployed** — that is a decision for
+  the operator, not something to do silently.
+
+**Two PowerShell traps met this pass, both worth recording:**
+
+1. `git add -- . ':!pattern'` — **PowerShell eats the `!`**, so the exclusion silently did not apply and the first
+   staging attempt included the `_suite_*.txt` logs. Use `git add --pathspec-from-file`, or list paths explicitly,
+   or `:(exclude)` quoted as a single argument. The staging was reset and redone; nothing was committed wrongly.
+2. `git commit -m "line1`nline2"`from PowerShell produced a **mangled message**. Commit messages are now written to
+a file and passed with`-F`.
+
 ### 1x. Termii SMS integrated — and the one thing still missing (2026-11-17)
 
 **Asked for:** integrate Termii (`https://v4.api.termii.com/`), say what is left, change nothing that exists.
