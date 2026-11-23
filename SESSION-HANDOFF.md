@@ -49,6 +49,52 @@ back into `.env` only. `TERMII_SENDER_ID` is still empty and **is the one thing 
 
 ## 1. Verified test results (actual output)
 
+### 1ab. Subvention search by parish / month / year — and why email + payment showed the error page (2026-11-23)
+
+**Asked for:** (a) the two routes below showing the "This is not something you did" page — `POST
+/email/verification-notification` and `POST /sms/wallet/purchase`; (b) the church owner must be able to search
+subventions by **parish, month and year**; (c) a parish pastor must be able to search their **own parish's only,
+by month and year**; (d) fix the error globally; (e) delete nothing, modify nothing already built.
+
+**FIRST RESULT: no application code is on either error path.** Both routes were made to fail on purpose and
+the real cause printed, not guessed:
+
+| Route                | What the probe showed                                                                            | Verdict                                                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| email verify resend  | `TransportException: Connection to "ssl://smtp.gmail.com:465": stream_socket_client(): Unable to connect ... (A connection attempt failed ... 10060)` | **Port 465 is blocked outbound from this machine.** The mailer is reachable, the code is right, the network is not     |
+| SMS wallet purchase  | `Quote` missing from `PlatformSettingsService` — the app's own install is **pre-Nov-19**; a later commit changed that service | **Deployment mismatch**, not a code defect in the app as shipped. `git status` proves it: 14 app files (incl. `config/services.php`, `CheckoutController`, `SmsCampaignController`) are modified-but-not-deployed on this machine |
+
+Proven positively too, not just by absence of errors: **PHP's OpenSSL and libcurl both verify `api.paystack.co`**
+with `C:\Users\DELL\.config\herd\config\php\cacert.pem` (the bundle `PaystackGateway::tlsOptions()` already
+picks up), a real `verify()` against an impossible reference returns a *reported failure*, not an exception, and
+the live-payment path therefore reaches Paystack and reports its answer. That is the "globally" part: nothing in
+the codebase throws to that error page on either path any more — the handlers return honest messages.
+
+**Real work this pass — the subvention search (two files, additive):**
+
+| File | Change |
+| ---- | ------ |
+| `app/Http/Controllers/SubventionSubmissionController.php` | `parish` (whole-church viewers only — ignored for a parish-scoped one, so a query string can never widen their scope), `month` and `year`. Month/year match the month the **period covers** (`whereMonth(start) <= m` and `whereMonth(end) >= m`), so a 01–05 period is found under both months and "October WK5" starting 1 Nov is still October. `withQueryString()` keeps filters through pagination. Ordering by `period_end` only while searching; the unfiltered list keeps `latest()` untouched |
+| `resources/views/subvention/submissions/index.blade.php` | A GET search card (Parish / Month / Year / Status + Search + Clear) above the existing table; the parish picker is rendered only when the controller offers one. Empty state now distinguishes "no submissions yet" from "nothing matches that search". **No existing section, form, column or script touched** |
+
+**Proven, in a real browser** (headless Chromium, owner signed in through the app's own two-step page):
+searching **Wisdom Parish + October** returns exactly `#9` and `#10`, both Wisdom Parish, both October
+(`_cf_subvention_search.png`); no "unexpected error", `Clear` appears, and the chosen values persist in the URL.
+A read-only matrix over the real data (`_cf_subvention_case.php`, one fresh process per viewer) shows a
+parish pastor of unit 2 seeing **only unit 2** even when asking `parish=1`, a pastor of Main seeing only Main,
+the owner seeing both and being able to narrow by either, and a user of another church getting **nothing**.
+
+**Full suite: `690 passed (2491 assertions), 0 failed, 186.9s`** — same count as §1y/§1z, no existing test
+changed (output kept in full; filtered test output hides failures on this machine, see §1y).
+
+**Probes created this pass were deleted at the end** (all named `_cf_*` / `_tls_*` / `_smtp_*` / `_route_repro*`,
+plus `_suite_after_search.txt`, `_err_tail.txt` and the three screenshots they produced). Nothing else was removed.
+Files modified today: the **two** above. The other 14 modified app files carry their 2026-11-19 timestamps —
+pre-existing work, untouched. No commit, no push, `.env` not touched.
+
+**Left for the operator, not for code:** open outbound **465** (or point `MAIL_MAILER` at something reachable)
+for verification mail, and deploy the app files that are currently modified-but-not-live on this machine.
+
 ### 1aa. The outstanding work is COMMITTED (2026-11-17)
 
 **Asked for:** "complete the task created" — commit the accumulated work — while deleting nothing.

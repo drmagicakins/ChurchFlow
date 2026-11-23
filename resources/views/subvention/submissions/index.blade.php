@@ -102,12 +102,76 @@
         </div>
     @endif
 
+    {{-- Search: by parish (owner/registrar only), month and year. A parish pastor
+         gets the same month/year fields, and their results can only ever be their
+         own parish's — the scope is applied in the controller, not by this form. --}}
+    <form method="GET" action="{{ route('subvention.submissions.index') }}" class="cf-card"
+        style="margin-bottom:1.2rem">
+        <div class="cf-card__body" style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-end">
+            @if (($parishFilter ?? collect())->isNotEmpty())
+                <div class="cf-field" style="flex:2;min-width:12rem">
+                    <label class="cf-label" for="filter-parish">Parish</label>
+                    <select name="parish" id="filter-parish" class="cf-input">
+                        <option value="">All parishes</option>
+                        @foreach ($parishFilter as $parish)
+                            <option value="{{ $parish->id }}"
+                                @selected((string) request('parish') === (string) $parish->id)>{{ $parish->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
+
+            <div class="cf-field" style="flex:1;min-width:9rem">
+                <label class="cf-label" for="filter-month">Month</label>
+                <select name="month" id="filter-month" class="cf-input">
+                    <option value="">Any month</option>
+                    @foreach (range(1, 12) as $m)
+                        <option value="{{ $m }}" @selected((string) request('month') === (string) $m)>
+                            {{ \Illuminate\Support\Carbon::create(null, $m, 1)->format('F') }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="cf-field" style="flex:1;min-width:7rem">
+                <label class="cf-label" for="filter-year">Year</label>
+                <select name="year" id="filter-year" class="cf-input">
+                    <option value="">Any year</option>
+                    @foreach (range((int) now()->year - 5, (int) now()->year + 1) as $y)
+                        <option value="{{ $y }}" @selected((string) request('year') === (string) $y)>{{ $y }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="cf-field" style="flex:1;min-width:9rem">
+                <label class="cf-label" for="filter-status">Status</label>
+                <select name="status" id="filter-status" class="cf-input">
+                    <option value="">Any status</option>
+                    @foreach (['draft', 'submitted', 'under_review', 'returned', 'approved', 'rejected'] as $status)
+                        <option value="{{ $status }}" @selected(request('status') === $status)>
+                            {{ str_replace('_', ' ', ucfirst($status)) }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div style="display:flex;gap:.5rem">
+                <button type="submit" class="cf-btn cf-btn--primary">Search</button>
+                @if (request()->hasAny(['parish', 'month', 'year', 'status']))
+                    <a href="{{ route('subvention.submissions.index') }}" class="cf-btn cf-btn--secondary">Clear</a>
+                @endif
+            </div>
+        </div>
+    </form>
+
     <div class="cf-card cf-card--flush">
         @if ($submissions->isEmpty())
             <div class="cf-empty">
-                <p class="cf-empty__title">No submissions yet</p>
+                <p class="cf-empty__title">
+                    {{ request()->hasAny(['parish', 'month', 'year', 'status']) ? 'No submissions match that search' : 'No submissions yet' }}
+                </p>
                 <p class="cf-small cf-muted">
-                    @if ($canSubmit)
+                    @if (request()->hasAny(['parish', 'month', 'year', 'status']))
+                        Try a different parish, month or year — <a href="{{ route('subvention.submissions.index') }}">clear the search</a>.
+                    @elseif ($canSubmit)
                         Use <strong>New submission</strong> above to record a branch's figures for a period.
                     @else
                         Submissions created by your team will appear here.

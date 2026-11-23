@@ -30,20 +30,72 @@ class SubventionSubmissionController extends Controller
         //    same as today.
         $seesWholeChurch = $user->seesWholeChurchSubventions();
 
+        // SEARCH. The filter names are the brief's own words — parish, month,
+        // year — and each one is applied ONLY when the person may use it:
+        //
+        //  - `parish` (a unit id) is honoured for a whole-church viewer and is
+        //    ignored for a parish-scoped one, whose own-parish rule below is
+        //    applied unconditionally and can never be widened by a query string;
+        //  - `month`/`year` read the PERIOD the figures belong to, and match the
+        //    month the period COVERS rather than only its first day: a period
+        //    running 2026-10-18..2026-10-24 is an October period, a quarter
+        //    running 2026-07-01..2026-09-30 is found under July, August AND
+        //    September, and a period for "October WK 5" that starts on 2026-11-01
+        //    is still listed under October. A draft is found by the month it is
+        //    FOR, which is what a person means by "October" — not by when they
+        //    happened to save it.
+        $filterParish = $seesWholeChurch ? $request->integer('parish') : null;
+        $filterMonth = $request->integer('month');
+        $filterYear = $request->integer('year');
+
         $query = SubventionSubmission::query()
             ->when(! $seesWholeChurch && $user->organizational_unit_id !== null, function ($q) use ($user) {
                 $q->where('organizational_unit_id', $user->organizational_unit_id);
             })
+            ->when($filterParish, fn ($q) => $q->where('organizational_unit_id', $filterParish))
+            ->when($filterMonth >= 1 && $filterMonth <= 12, fn ($q) => $q->whereHas(
+                'period', fn ($p) => $p->whereMonth('period_start', '<=', $filterMonth)
+                    ->whereMonth('period_end', '>=', $filterMonth)
+                    ->when($filterYear >= 1900 && $filterYear <= 2200, fn ($p) => $p
+                        ->where('period_start', '<=', sprintf('%04d-%02d-31', $filterYear, $filterMonth))
+                        ->where('period_end', '>=', sprintf('%04d-%02d-01', $filterYear, $filterMonth)))
+            ))
+            ->when($filterMonth < 1 && $filterYear >= 1900 && $filterYear <= 2200, fn ($q) => $q->whereHas(
+                'period', fn ($p) => $p->where(fn ($w) => $w
+                    ->whereYear('period_start', $filterYear)
+                    ->orWhereYear('period_end', $filterYear))
+            ))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
-            ->with(['organizationalUnit', 'period', 'latestCalculation'])
-            ->latest();
+            ->with(['organizationalUnit', 'period', 'latestCalculation']);
 
-        $submissions = $query->paginate(25);
+        // A SEARCH result is listed by the month it is FOR — newest period first —
+        // because a person filtering to "October" is reading a month, not an
+        // entry order. The unfiltered list keeps its original newest-first
+        // ordering, unchanged.
+        $isSearching = request()->hasAny(['parish', 'month', 'year', 'status']);
+
+        if ($isSearching) {
+            $query->orderByDesc(
+                \App\Models\SubventionPeriod::query()
+                    ->select('period_end')
+                    ->whereColumn('subvention_periods.id', 'subvention_submissions.subvention_period_id')
+                    ->limit(1)
+            )->latest('id');
+        } else {
+            $query->latest();
+        }
+
+        $submissions = $query->paginate(25)->withQueryString();
 
         return view('subvention.submissions.index', [
             'submissions' => $submissions,
             'isRegistrar' => $user->can('review', new SubventionSubmission),
             'isParishScoped' => ! $seesWholeChurch && $user->organizational_unit_id !== null,
+            // The parish picker is only offered to someone who may look beyond
+            // their own parish; everyone else searches by month and year.
+            'parishFilter' => $seesWholeChurch
+                ? \App\Models\OrganizationalUnit::query()->orderBy('name')->get(['id', 'name'])
+                : collect(),
         ]);
     }
 
