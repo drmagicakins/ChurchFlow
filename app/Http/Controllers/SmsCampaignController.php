@@ -79,6 +79,21 @@ class SmsCampaignController extends Controller
             ? (int) $request->user()->organizational_unit_id
             : \App\Models\SmsWallet::CHURCH_WIDE;
 
+        // The campaign's OWNING parish, which is a different thing from the
+        // wallet it is billed to and must be recorded explicitly.
+        //
+        // TenantScope narrows every model carrying `organizational_unit_id` to
+        // the signed-in parish. `store()` never set this column, so a pastor's
+        // campaign was saved with NULL while their requests are scoped to their
+        // parish — the row was written and then immediately invisible, and the
+        // redirect to sms.campaigns.show hit the tenant scope and answered
+        // "404 Not Found" straight after "Confirm & send". The church-wide
+        // value (NULL) is left alone for owner/admin users, so nothing about
+        // their existing behaviour changes.
+        if ($request->user()->isParishScoped()) {
+            $data['organizational_unit_id'] = (int) $request->user()->organizational_unit_id;
+        }
+
         // A parish pastor can only target their own parish — the scope would
         // hide the rest of the church anyway, and targeting "a branch" they do
         // not belong to would produce an empty audience rather than an error.

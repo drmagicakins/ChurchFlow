@@ -64,4 +64,26 @@ class HealthIncident extends Model
             default => 1,
         };
     }
+
+    /**
+     * Human label for the check that failed, e.g. `queue_worker` -> "Queue worker".
+     *
+     * Same wording the public status page uses, so an in-app notice and /health
+     * never describe the same problem two different ways.
+     */
+    public function checkLabel(): string
+    {
+        return str_replace('_', ' ', ucfirst((string) $this->check_name));
+    }
+
+    /**
+     * Which alert style this severity maps to.
+     *
+     * `error` and `critical` are both red: the distinction matters to whoever
+     * is fixing it, not to the person reading a banner.
+     */
+    public function alertVariant(): string
+    {
+        return $this->severity === 'warning' ? 'warn' : 'error';
+    }
 }

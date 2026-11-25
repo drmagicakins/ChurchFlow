@@ -161,6 +161,97 @@ class TermiiProviderTest extends TestCase
         $this->assertStringContainsString('Insufficient balance', $result->failureReason);
     }
 
+    // --- a send that DID happen is never reported as failed (2026-11-25) -----
+
+    public function test_the_documented_code_ok_answer_is_a_success(): void
+    {
+        Http::fake(['*' => Http::response($this->okBody())]);
+
+        $this->assertTrue($this->provider()->send('08031234567', 'hi')->success);
+    }
+
+    public function test_an_answer_with_a_message_id_and_no_code_is_a_success(): void
+    {
+        // Termii's newer answers carry the success fields and no `code` at all.
+        // Reading that as a rejection marked delivered texts "failed" and
+        // refunded units the provider HAD charged.
+        Http::fake(['*' => Http::response([
+            'balance' => 1047,
+            'message_id' => '3017544054459083819856413',
+            'message' => 'Successfully Sent',
+        ])]);
+
+        $result = $this->provider()->send('08031234567', 'hi');
+
+        $this->assertTrue($result->success);
+        $this->assertSame('3017544054459083819856413', $result->providerMessageId);
+    }
+
+    public function test_a_newer_answer_keeps_the_message_id_str_handle(): void
+    {
+        Http::fake(['*' => Http::response([
+            'message_id_str' => '3017544054459083819856413',
+            'message' => 'Successfully Sent',
+        ])]);
+
+        $result = $this->provider()->send('08031234567', 'hi');
+
+        $this->assertTrue($result->success);
+        $this->assertSame('3017544054459083819856413', $result->providerMessageId);
+    }
+
+    public function test_a_refusal_that_echoes_a_message_id_is_still_a_failure(): void
+    {
+        // The message id never overrules an explicit non-ok code.
+        Http::fake(['*' => Http::response([
+            'code' => 'insufficient_balance',
+            'message_id' => 'x',
+            'message' => 'Insufficient balance',
+        ])]);
+
+        $result = $this->provider()->send('08031234567', 'hi');
+
+        $this->assertFalse($result->success);
+    }
+
+    public function test_a_200_with_no_success_marker_at_all_is_still_a_failure(): void
+    {
+        Http::fake(['*' => Http::response(['message' => 'something happened'])]);
+
+        $this->assertFalse($this->provider()->send('08031234567', 'hi')->success);
+    }
+
+    // --- a caller-supplied sender covers a missing TERMII_SENDER_ID ----------
+
+    public function test_an_explicit_sender_is_used_even_when_no_fallback_is_configured(): void
+    {
+        // This is what makes the stream work for EVERY church: `ChurchFlow` is
+        // an account-wide approved header, so a resolved name is a valid send
+        // even if the fallback variable were ever blanked.
+        Http::fake(['*' => Http::response($this->okBody())]);
+
+        $result = $this->provider(['senderId' => null])->send('08031234567', 'hi', 'ChurchFlow');
+
+        $this->assertTrue($result->success);
+        Http::assertSent(fn (Request $r) => $r->data()['from'] === 'ChurchFlow');
+    }
+
+    public function test_a_blank_sender_and_a_blank_fallback_still_throw_before_sending(): void
+    {
+        Http::fake();
+
+        try {
+            $this->provider(['senderId' => null])->send('08031234567', 'hi', "   ");
+            $this->fail('A send with no usable sender at all must not proceed.');
+        } catch (\PHPUnit\Framework\AssertionFailedError $e) {
+            throw $e;
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('TERMII_SENDER_ID', $e->getMessage());
+        }
+
+        Http::assertNothingSent();
+    }
+
     public function test_a_dropped_connection_is_a_failure_not_an_exception(): void
     {
         Http::fake(function () {

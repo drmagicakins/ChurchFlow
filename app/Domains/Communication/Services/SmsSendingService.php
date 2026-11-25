@@ -3,6 +3,7 @@
 namespace App\Domains\Communication\Services;
 
 use App\Domains\Communication\Providers\SmsProviderInterface;
+use App\Domains\Communication\Providers\SmsSendResult;
 use App\Domains\Communication\Services\SmsSenderName;
 use App\Models\SmsCampaign;
 
@@ -44,8 +45,28 @@ class SmsSendingService
         $sentCount = 0;
         $failedCount = 0;
 
+        // A broken SMS configuration must not destroy the WHOLE batch.
+        //
+        // The provider refuses, by design, a send it cannot make honest sense of
+        // (no key, or no approved sender on this message) — and that refusal used
+        // to escape the loop, so every recipient after the first stayed
+        // 'pending' for ever, their reserved units were never returned, and the
+        // campaign was stuck in 'sending'. Now the first such answer is recorded
+        // against the recipient it belongs to and the rest of the batch is failed
+        // the same way, with the reason on each row — so every unit is refunded
+        // and the church sees WHY, instead of a half-sent campaign.
+        $batchStopped = null;
+
         foreach ($campaign->recipients()->where('status', 'pending')->get() as $recipient) {
-            $result = $this->provider->send($recipient->phone, $campaign->message, $from);
+            try {
+                $result = $batchStopped === null
+                    ? $this->provider->send($recipient->phone, $campaign->message, $from)
+                    : new SmsSendResult(success: false, failureReason: $batchStopped);
+            } catch (\Throwable $e) {
+                report($e);
+                $batchStopped = $e->getMessage();
+                $result = new SmsSendResult(success: false, failureReason: $batchStopped);
+            }
 
             if ($result->success) {
                 $recipient->update(['status' => 'sent', 'provider_message_id' => $result->providerMessageId]);

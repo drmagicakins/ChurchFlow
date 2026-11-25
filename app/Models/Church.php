@@ -101,9 +101,34 @@ class Church extends Model
 
         // Built the same way anything else on the public disk is, so a CDN or a
         // custom FILESYSTEM url applies without this method knowing about it.
-        return \Illuminate\Support\Facades\Storage::disk('public')->url(
-            \App\Domains\Files\Services\ChurchLogoStorage::PUBLIC_DIR.'/'.$file->disk_path
-        );
+        $diskPath = \App\Domains\Files\Services\ChurchLogoStorage::PUBLIC_DIR.'/'.$file->disk_path;
+        $defaultUrl = \Illuminate\Support\Facades\Storage::disk('public')->url($diskPath);
+
+        // An explicit override replaces only the ORIGIN (scheme://host[:port])
+        // of that same URL, keeping the `/storage` prefix and path intact.
+        //
+        // The prefix is not optional: `public/storage` is the symlink the web
+        // server actually serves, so dropping it 404s. And the origin is the
+        // part that must change when the machine sending email is not the one
+        // that received the upload (see config/services.php `church_logo_url`).
+        $override = rtrim((string) config('services.church_logo_url'), '/');
+
+        if ($override !== '' && filter_var($override, FILTER_VALIDATE_URL)) {
+            $scheme = strtolower((string) parse_url($override, PHP_URL_SCHEME));
+
+            if (in_array($scheme, ['http', 'https'], true)) {
+                $path = (string) parse_url($defaultUrl, PHP_URL_PATH);
+
+                // A missing path component means the disk URL is not the shape
+                // expected; fall through to the untouched default rather than
+                // emitting a URL with the logo silently missing.
+                if ($path !== '') {
+                    return $override.rtrim($path, '/');
+                }
+            }
+        }
+
+        return $defaultUrl;
     }
 
     /** The address a recipient's reply should go to (override first). */

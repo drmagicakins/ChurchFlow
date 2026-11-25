@@ -33,6 +33,21 @@ return [
     ],
 
     /*
+     | Ownership / attribution shown in the site footers.
+     |
+     | Stated once here so the public marketing footer, the application shell
+     | and the transactional email footers cannot drift apart. `name` and `rc`
+     | are the legal entity; `url` is rendered as a link on the website only
+     | (email clients must not be relied on to render every link).
+     */
+    'company' => [
+        'name' => 'Mart Code International Technologies Ltd',
+        'rc' => '1333471',
+        'url' => 'https://www.mcitng.com',
+        'display_url' => 'www.mcitng.com',
+    ],
+
+    /*
      | Contact details. PLACEHOLDER — the brief forbids inventing final contact
      | data. `null` makes the contact page render an honest "not yet configured"
      | state instead of a dead mailto: to an address nobody owns.

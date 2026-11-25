@@ -57,6 +57,17 @@
             <p class="mk-footer__tagline">{{ config('marketing.product.tagline') }}</p>
             <p class="mk-footer__slogan">{{ config('marketing.product.slogan') }}</p>
 
+            {{-- Ownership. Rendered from config so the marketing site, the app
+                 shell and the email footer all state the same legal entity. --}}
+            <p class="mk-footer__owner">
+                ChurchFlow is owned and developed by
+                <strong>{{ config('marketing.company.name') }}</strong>
+                (RC: {{ config('marketing.company.rc') }}).
+                <br>
+                <a href="{{ config('marketing.company.url') }}" rel="noopener noreferrer"
+                    target="_blank">{{ config('marketing.company.display_url') }}</a>
+            </p>
+
             @if (! empty($social))
                 <div class="mk-footer__social">
                     @foreach ($social as $network => $url)

@@ -349,7 +349,10 @@
 
 <footer>
   <div class="wrap" style="display:flex;justify-content:space-between;width:100%;flex-wrap:wrap">
-    <div>© {{ now()->year }} ChurchFlow. Built for churches of every size.</div>
+    <div>© {{ now()->year }} ChurchFlow. Built for churches of every size.
+      <br>ChurchFlow is owned and developed by {{ config('marketing.company.name') }} (RC: {{ config('marketing.company.rc') }}).
+      <a href="{{ config('marketing.company.url') }}" target="_blank" rel="noopener noreferrer">{{ config('marketing.company.display_url') }}</a>
+    </div>
     <div><a href="#modules">Modules</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a></div>
   </div>
 </footer>

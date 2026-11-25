@@ -207,6 +207,14 @@
                     @else
                         You are receiving this because an account was created with this address on {{ $productName }}.
                     @endif
+                    <br>
+                    {{-- Ownership attribution. Kept as plain text with the URL
+                         spelled out: many mail clients do not render links
+                         reliably, and the company name must still be legible. --}}
+                    @if (! empty(config('marketing.company.name')))
+                        {{ $productName }} is owned and developed by {{ config('marketing.company.name') }}
+                        (RC: {{ config('marketing.company.rc') }}) &middot; {{ config('marketing.company.display_url') }}
+                    @endif
                 </div>
             </td>
         </tr>

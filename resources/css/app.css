@@ -3703,6 +3703,28 @@ html { scroll-padding-top: 5.5rem; }
         color: var(--color-mk-green-500);
     }
 
+    .mk-footer__owner {
+        margin-top: 1.1rem;
+        font-size: 0.78rem;
+        line-height: 1.6;
+        color: rgba(255, 255, 255, 0.62);
+    }
+
+    .mk-footer__owner strong {
+        color: rgba(255, 255, 255, 0.88);
+        font-weight: 600;
+    }
+
+    .mk-footer__owner a {
+        color: rgba(255, 255, 255, 0.62);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
+
+    .mk-footer__owner a:hover {
+        color: #fff;
+    }
+
     .mk-footer__social {
         display: flex;
         gap: 0.5rem;
@@ -3770,6 +3792,66 @@ html { scroll-padding-top: 5.5rem; }
     }
 
     .mk-footer__legal a:hover { color: #fff; }
+
+    /* -------------------------------------------------------------------
+       Application shell footer.
+
+       Aligned to the SAME gutter and max-width as `.cf-content` above it, so
+       the attribution lines up with the cards rather than floating at the
+       viewport edge, and carries real breathing room to the left and below.
+       Styled as a closing section: a full-width rule, a quiet heading-ish
+       label and small print — notice, not navigation.
+    ------------------------------------------------------------------- */
+    .cf-appfooter {
+        width: 100%;
+        max-width: 76rem;
+        margin-top: auto; /* pushes it to the bottom of a short page */
+        padding: 1.15rem var(--shell-gutter, 1rem) 2rem;
+    }
+
+    .cf-appfooter__inner {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem 1.5rem;
+        padding-top: 1.05rem;
+        border-top: 1px solid var(--line, #e2e8f0);
+        font-size: 0.72rem;
+        line-height: 1.6;
+        color: var(--muted, #64748b);
+    }
+
+    .cf-appfooter__owner {
+        margin: 0;
+    }
+
+    .cf-appfooter strong {
+        color: var(--ink, #0f172a);
+        font-weight: 600;
+    }
+
+    .cf-appfooter__link {
+        color: inherit;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        white-space: nowrap;
+    }
+
+    .cf-appfooter__link:hover {
+        color: var(--ink, #0f172a);
+    }
+
+    /* Kept for the original inline link markup / older pages. */
+    .cf-appfooter a {
+        color: inherit;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
+
+    .cf-appfooter a:hover {
+        color: var(--ink, #0f172a);
+    }
 }@layer components {
 
     /*

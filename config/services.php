@@ -51,6 +51,28 @@ return [
     | silently resolved to null and the endpoint could not have accepted a real
     | webhook even with the env var set. Merged into the real file instead.
     */
+    /*
+    |--------------------------------------------------------------------------
+    | Church logo public URL
+    |--------------------------------------------------------------------------
+    |
+    | The base URL the church logo is served from (see Church::logoUrl()).
+    |
+    | It must be the ORIGIN that actually serves `public/storage` — normally the
+    | app itself, so it defaults to APP_URL. Point it elsewhere only when a CDN
+    | or separate asset host fronts that directory.
+    |
+    | Why this is its own key: the stored logo is written to disk on upload and
+    | exists only on the machine that received it. Emails are sent from one
+    | deployment (APP_URL) while the logo was uploaded on another (e.g. a
+    | developer's machine at http://127.0.0.1:8000), so building the URL from
+    | APP_URL produced a link that 404s and the image never showed. Setting
+    | CHURCH_LOGO_URL on the machine that SENDS the email points it at the host
+    | that actually holds the file, without changing APP_URL for anything else.
+    | Blank (the default) keeps the historical behaviour: APP_URL + /storage.
+    */
+    'church_logo_url' => env('CHURCH_LOGO_URL'),
+
     'payments' => [
         'webhook_secret' => env('PAYMENT_WEBHOOK_SECRET'),
 
@@ -124,6 +146,15 @@ return [
     | would turn a configuration gap into a failed text the church paid a unit
     | for. Unset means the provider refuses, in words naming the variable.
     |
+    |     …UPDATED 2026-11-25 — the default IS the approved header now. Both
+    |     statements above still hold, which is exactly why this is safe:
+    |     `ChurchFlow` was measured ACTIVE on the account (GET /api/sender-id,
+    |     2026-11-25), so it is not an invented name. Keeping it as the default
+    |     means the stream works for EVERY church on a deploy whose .env was
+    |     copied before the variable was filled in — and an env value still
+    |     overrides it. A blank TERMII_SENDER_ID= line (present but empty) wins
+    |     over this default, which is what lets an install disable sending.
+    |
     | channel: `dnd` routes around Nigerian do-not-disturb blocks and requires
     | an approved sender id; `generic` does not. `dnd` is the right default for
     | a church reaching its own congregation, and it matches Termii's own
@@ -147,7 +178,7 @@ return [
             | TermiiProvider::send() as `$from`; this value is what it falls back
             | to when the church has no usable name.
             */
-            'sender_id' => env('TERMII_SENDER_ID'),
+            'sender_id' => env('TERMII_SENDER_ID', 'ChurchFlow'),
 
             /*
             | Whether a message may be sent under the CHURCH's own name instead of

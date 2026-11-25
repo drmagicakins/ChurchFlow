@@ -3,6 +3,7 @@
 namespace App\Domains\Events\Jobs;
 
 use App\Domains\Communication\Providers\SmsProviderInterface;
+use App\Domains\Communication\Providers\SmsSendResult;
 use App\Domains\Communication\Services\SmsSegmentCalculator;
 use App\Domains\Communication\Services\SmsSenderName;
 use App\Domains\Communication\Services\SmsWalletService;
@@ -91,10 +92,38 @@ class SendEventReminderSmsJob implements ShouldQueue
         // filed against one): a reminder arriving from an unrecognised
         // header is far more likely to be read as spam. Derived once, before
         // the loop — the event cannot change mid-batch.
-        $from = ($senders ?? new SmsSenderName)->for($event->church, $event->organizationalUnit);
+        //
+        // A broken SMS configuration must not destroy the WHOLE batch (the
+        // same rule SmsSendingService now applies): the provider refuses a send
+        // it cannot make honest sense of, and that refusal used to escape the
+        // loop — leaving the remaining people unrecorded and their reserved
+        // units unreturned. Now the first such answer is recorded against the
+        // person it belongs to and the rest are failed the same way, so every
+        // unit is refunded with the reason on the ledger.
+        $batchStopped = null;
+
+        // Resolved ONCE, before the loop (the event cannot change mid-batch).
+        // Guarded because this is the other thing that can refuse a send when
+        // the SMS configuration is broken, and it must fail the batch honestly
+        // — with every unit refunded — rather than throw out of the job.
+        try {
+            $from = ($senders ?? new SmsSenderName)->for($event->church, $event->organizationalUnit);
+        } catch (\Throwable $e) {
+            report($e);
+            $batchStopped = $e->getMessage();
+            $from = null;
+        }
 
         foreach ($recipients as $recipient) {
-            $result = $provider->send($recipient['phone'], $this->message, $from);
+            try {
+                $result = $batchStopped === null
+                    ? $provider->send($recipient['phone'], $this->message, $from)
+                    : new SmsSendResult(success: false, failureReason: $batchStopped);
+            } catch (\Throwable $e) {
+                report($e);
+                $batchStopped = $e->getMessage();
+                $result = new SmsSendResult(success: false, failureReason: $batchStopped);
+            }
 
             if ($result->success) {
                 $this->markReminded($recipient['key']);

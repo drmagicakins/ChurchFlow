@@ -79,7 +79,22 @@ class CheckoutController extends Controller
             $request->user()->refresh();
 
             if ($checkout->purpose === 'sms_credits') {
-                return redirect()->route('billing.show')->with('status', "{$checkout->sms_units} SMS credits added to your wallet.");
+                // The person who bought SMS credits is NOT necessarily the church
+                // owner: a parish pastor tops up their OWN parish wallet from
+                // /sms/wallet, which is gated on `sms.manage` rather than
+                // `billing.manage` (see SmsWalletController::show).
+                //
+                // This used to redirect everyone to `billing.show`, which calls
+                // BillingController::authorizeBilling() and aborts 403 for
+                // anyone without billing.manage — so the pastor was charged,
+                // credited correctly, and then shown "Only the church owner can
+                // change the subscription plan" instead of their receipt.
+                //
+                // The wallet screen is reachable by everyone who can purchase,
+                // and it shows the new balance and the ledger entry, so it is
+                // the honest destination for all buyers.
+                return redirect()->route('sms.wallet.show')
+                    ->with('status', "{$checkout->sms_units} SMS credits added to your wallet.");
             }
 
             return redirect()->route('dashboard')->with('status', 'Welcome! Your subscription is active. Let\'s set up your church.');

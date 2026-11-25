@@ -414,7 +414,9 @@
         </div>
 
         <div class="cf-footer__base">
-            <span>&copy; {{ date('Y') }} ChurchFlow. All rights reserved.</span>
+            <span>&copy; {{ date('Y') }} ChurchFlow. All rights reserved.
+                <br>ChurchFlow is owned and developed by {{ config('marketing.company.name') }}
+                (RC: {{ config('marketing.company.rc') }}) &middot; {{ config('marketing.company.display_url') }}</span>
             <span>Multi-tenant &middot; Audit-logged &middot; Data stays yours</span>
         </div>
     </footer>

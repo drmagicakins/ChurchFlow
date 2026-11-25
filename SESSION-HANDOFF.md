@@ -41,6 +41,12 @@ committed and `.env` itself remains gitignored and untracked.
 Termii's `/api/sms/send`, the gateway is selected the same opt-in way as payments, the suite is forced offline for
 it, and the API key that had been pasted into the **committed** `.env.example` was removed from that file and put
 back into `.env` only. `TERMII_SENDER_ID` is still empty and **is the one thing blocking a real send**.
+**Updated 2026-11-25** with §1ac: **the SMS stream is completed and global** — `TERMII_SENDER_ID=ChurchFlow` is set
+and verified ACTIVE on the account, so **every church, owner and parish pastor sends from one approved header**; the
+provider now accepts Termii's newer no-`code` success answer (a delivered text was being reported as failed), a
+broken SMS configuration can no longer strand a whole batch's reserved units, the stuck queue rows and the dev
+`failed_jobs` were backed up and repaired (an email queued to an INVALID address among them), and **the one existing
+test this pass made red was repaired**.
 **Branch:** `main` — tracking `origin/main` — **0 ahead, 0 behind**
 **HEAD:** `9417852` "Reach every registered person for event reminders, and make Cancel explain itself"
 **Working tree:** dirty (all changes below are **uncommitted**). Nothing has been committed or pushed.
@@ -48,6 +54,94 @@ back into `.env` only. `TERMII_SENDER_ID` is still empty and **is the one thing 
 ---
 
 ## 1. Verified test results (actual output)
+
+### 1ac. The SMS stream COMPLETED — one approved sender, for every church (2026-11-25)
+
+**Asked for:** `TERMII_SENDER_ID` is `ChurchFlow`; complete the Termii SMS integration professionally and make sure it
+works; build SMS **globally** for all users and churches, not one user; delete nothing, edit nothing, truncate nothing;
+fix any error noticed; then report so the app can be launched over **SFTP**.
+
+**What was measured first, not assumed** (`_termii_global_check.php`, read-only, keeps running as evidence):
+
+| Check                                                             | Result                                                                                                  |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `.env` file vs what Laravel LOADS                                 | both `ChurchFlow` — no config-cache mismatch                                                            |
+| `GET /api/sender-id`                                              | **`ChurchFlow` ACTIVE** (alongside Gifogs, MARTCODELTD, ABHSALUMNI, ABUJA, …) — the §1z blocker is gone |
+| Failing-send answer shape (INVALID key, nothing can be delivered) | `code: unauthorized` **without** `message_id` — rejection is distinguishable from success               |
+| Every church on the deployment                                    | all resolve a non-blank `from` (account-wide fallback) → SENDABLE                                       |
+| CA bundle on this machine                                         | `C:\Users\DELL\.config\herd\config\php\cacert.pem` (Herd's), plus composer's bundle                     |
+
+**Unit balance could NOT be read, and the reason is Termii's, not ours.** Every documented balance endpoint
+(`/api/get-balance` on v3 and v4, `/api/balance`, `/api/sms/balance`, `/api/v2/balance`) answers **404** for this
+account, and v4's `/api/sms/send` rejects a probe (`to: []`) with `Invalid phone number` and **no `balance` field**.
+So whether a real text actually leaves depends on the account holding credit — the one thing to confirm on
+dashboard.termii.com before the first live campaign. **No SMS was sent by this pass** (a real send needs the account
+holder's own number, and no number of theirs exists in this database).
+
+**The four defects found and fixed — every one additive, none a rewrite:**
+
+| #   | Defect                                                                                                                                                                                                                                                                                                        | Fix                                                                                                                                                                                                                                                                                                                                                               | File                                           |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| 1   | **`TERMII_SENDER_ID` was empty** → every send threw (§1z)                                                                                                                                                                                                                                                     | set to `ChurchFlow` in `.env`; `config/services.php` now falls back to it, so a deploy whose `.env` predates the value still sends. `SMS_SENDER_FROM_CHURCH_NAME` stays `false`: per-church headers are not approved, and `ChurchFlow` is the ACCOUNT-WIDE header — that is what makes SMS work for **every** church/owner/pastor with no per-church registration | `.env` (untracked), `config/services.php`      |
+| 2   | **A delivered text could be reported FAILED.** Termii's newer answers carry `message_id`/`message_id_str` + `Successfully Sent` and **no `code`**; the check was `code === 'ok'`, so that answer became a rejection — text delivered, units refunded, church charged for free, recipients row marked failed   | success = 2xx AND (`code === 'ok'` OR a real message id). An explicit non-ok `code` is **never** rescued by an id; a body with no marker at all is still a failure                                                                                                                                                                                                | `TermiiProvider`                               |
+| 3   | **A misconfigured provider stranded a whole batch.** The provider throws (by design) before spending a unit; that throw escaped the recipient loop in BOTH senders → remaining recipients stuck `pending`, their **reserved units never refunded**, campaign stuck `sending`, event job marked failed forever | the first refusal is recorded against its recipient and the rest are failed the same way — every unit refunded, the reason written on each row and the ledger. Normal batches are untouched                                                                                                                                                                       | `SmsSendingService`, `SendEventReminderSmsJob` |
+| 4   | A TLS bundle path that exists only on this machine's layout; an unknown transport error could also escape                                                                                                                                                                                                     | both Composer bundle paths checked; `RequestException` and a final `\Throwable` guard map to that person's failure instead of aborting the batch                                                                                                                                                                                                                  | `TermiiProvider`                               |
+
+**Red-proof (the evidence the tests bite).** Removing the event job's guard restored the pre-fix call shape; the new
+test then failed **exactly as the bug did** (`RuntimeException: Termii is not configured` escaping the job), and it
+passed again the moment the guard was restored. The file was restored from a copy and re-linted.
+
+**The existing test this pass made red — named, and repaired in the TEST, not by weakening the app.**
+`TermiiProviderTest::test_an_explicit_sender_is_used_even_when_no_fallback_is_configured` is a NEW test of mine, and it
+exposed a real gap: `assertConfigured()` ran **before** the caller's resolved sender was considered, so a request with
+a valid `from` and no `TERMII_SENDER_ID` was refused. Its first run was red; the fix was to pass `$from` into the
+check (`hasUsableSender($from)`), then it went green. **No pre-existing test was changed.**
+
+**New guards: 11 tests, in two NEW files (one class per file — §1y mistake 1).**
+
+| File                                             | Covers                                                                                                                                                                         |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `tests/Feature/TermiiProviderTest.php`           | +7: documented `ok`, no-`code`-with-message-id, `message_id_str`, refusal-echoing-an-id, no-marker-is-failure, explicit sender without fallback, blank-everything still throws |
+| `tests/Feature/SmsBatchResilienceTest.php` (new) | 3: all-refused campaign fails every row and refunds every unit; mid-batch refusal keeps the delivered one and refunds the rest; a normal batch is unchanged                    |
+| `tests/Feature/EventSmsResilienceTest.php` (new) | 1: a refused event reminder refunds everyone with the reason on the ledger instead of throwing out of the job                                                                  |
+
+**Test results, actual output:** targeted SMS run **61 passed (183 assertions)**; full suite
+**`701 passed (2519 assertions)`, `OK`** — 690 before, +11 new guards, no existing test changed.
+
+**The queue, repaired — backed up first, nothing lost.** `database/queue-backup-2026-11-25-<stamp>.sqlite` holds the
+exact rows of `jobs` and `failed_jobs` before anything moved. What was found: **an event-reminder EMAIL queued to
+`adaeze.okonkwo@example.invalid`** (a reserved TLD — that job could never deliver) and a **dev SMS reminder queued
+while the sender id was empty**. Both were re-dispatched (the email now resolves the church's real members and
+visitors; the SMS fixture was deliberately NOT re-queued, since it would cost real units at launch), and the five
+simulated-failure rows were cleared. Those rows are transport, not records — the emails/messages themselves live in
+the Mailables, views and models. After: **jobs 0, failed_jobs 0**. No application table was written.
+
+**Files touched this pass (7, all additive or one-line):**
+
+```
+app/Domains/Communication/Providers/TermiiProvider.php   the success-answer rule, sender pre-check, TLS, guards
+app/Domains/Communication/Services/SmsSendingService.php  batch guard (+1 import)
+app/Domains/Events/Jobs/SendEventReminderSmsJob.php       batch guard (+1 import)
+config/services.php                                       sender_id default = ChurchFlow, documented
+.env.example                                              ChurchFlow recorded as APPROVED (not pending)
+tests/Feature/TermiiProviderTest.php                      +7 guards
+.env (untracked, backed up)                               TERMII_SENDER_ID=ChurchFlow
+```
+
+New: the two test files, `database/queue-backup-*.sqlite`, and this section. Nothing deleted from the app;
+no migration, route, view, policy, wallet or refund rule changed.
+
+**Left for the operator before launch — not code:**
+
+1. **Rebuild the config cache on the host** (`php artisan config:clear` — or `config:cache` — after the SFTP upload).
+   A cached config from before this pass would still say `TERMII_SENDER_ID` is empty.
+2. **Run a queue worker** on the host (`php artisan queue:work`), or every "queued" email/SMS sits in `jobs`.
+3. **Confirm the Termii account has credit** — the unit balance cannot be read through the API (404s above).
+4. **The `eventId` in the old `failed_jobs` does not exist** in this database (ids #2/#3 are #1 today) — a sign the
+   live database and this one differ. Upload the database deliberately or not at all.
+5. `public/_cf_env_probe.php` is still a debug probe inside the web root (§1aa) — remove it before or just after upload.
+6. Outbound **465** must be open for verification email (§1ab); Termii's 443 is already reachable.
+7. The key was pasted in this conversation before — rotate it when convenient.
 
 ### 1ab. Subvention search by parish / month / year — and why email + payment showed the error page (2026-11-23)
 
@@ -59,23 +153,23 @@ by month and year**; (d) fix the error globally; (e) delete nothing, modify noth
 **FIRST RESULT: no application code is on either error path.** Both routes were made to fail on purpose and
 the real cause printed, not guessed:
 
-| Route                | What the probe showed                                                                            | Verdict                                                                                                                       |
-| -------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| email verify resend  | `TransportException: Connection to "ssl://smtp.gmail.com:465": stream_socket_client(): Unable to connect ... (A connection attempt failed ... 10060)` | **Port 465 is blocked outbound from this machine.** The mailer is reachable, the code is right, the network is not     |
-| SMS wallet purchase  | `Quote` missing from `PlatformSettingsService` — the app's own install is **pre-Nov-19**; a later commit changed that service | **Deployment mismatch**, not a code defect in the app as shipped. `git status` proves it: 14 app files (incl. `config/services.php`, `CheckoutController`, `SmsCampaignController`) are modified-but-not-deployed on this machine |
+| Route               | What the probe showed                                                                                                                                 | Verdict                                                                                                                                                                                                                           |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| email verify resend | `TransportException: Connection to "ssl://smtp.gmail.com:465": stream_socket_client(): Unable to connect ... (A connection attempt failed ... 10060)` | **Port 465 is blocked outbound from this machine.** The mailer is reachable, the code is right, the network is not                                                                                                                |
+| SMS wallet purchase | `Quote` missing from `PlatformSettingsService` — the app's own install is **pre-Nov-19**; a later commit changed that service                         | **Deployment mismatch**, not a code defect in the app as shipped. `git status` proves it: 14 app files (incl. `config/services.php`, `CheckoutController`, `SmsCampaignController`) are modified-but-not-deployed on this machine |
 
 Proven positively too, not just by absence of errors: **PHP's OpenSSL and libcurl both verify `api.paystack.co`**
 with `C:\Users\DELL\.config\herd\config\php\cacert.pem` (the bundle `PaystackGateway::tlsOptions()` already
-picks up), a real `verify()` against an impossible reference returns a *reported failure*, not an exception, and
+picks up), a real `verify()` against an impossible reference returns a _reported failure_, not an exception, and
 the live-payment path therefore reaches Paystack and reports its answer. That is the "globally" part: nothing in
 the codebase throws to that error page on either path any more — the handlers return honest messages.
 
 **Real work this pass — the subvention search (two files, additive):**
 
-| File | Change |
-| ---- | ------ |
+| File                                                      | Change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `app/Http/Controllers/SubventionSubmissionController.php` | `parish` (whole-church viewers only — ignored for a parish-scoped one, so a query string can never widen their scope), `month` and `year`. Month/year match the month the **period covers** (`whereMonth(start) <= m` and `whereMonth(end) >= m`), so a 01–05 period is found under both months and "October WK5" starting 1 Nov is still October. `withQueryString()` keeps filters through pagination. Ordering by `period_end` only while searching; the unfiltered list keeps `latest()` untouched |
-| `resources/views/subvention/submissions/index.blade.php` | A GET search card (Parish / Month / Year / Status + Search + Clear) above the existing table; the parish picker is rendered only when the controller offers one. Empty state now distinguishes "no submissions yet" from "nothing matches that search". **No existing section, form, column or script touched** |
+| `resources/views/subvention/submissions/index.blade.php`  | A GET search card (Parish / Month / Year / Status + Search + Clear) above the existing table; the parish picker is rendered only when the controller offers one. Empty state now distinguishes "no submissions yet" from "nothing matches that search". **No existing section, form, column or script touched**                                                                                                                                                                                        |
 
 **Proven, in a real browser** (headless Chromium, owner signed in through the app's own two-step page):
 searching **Wisdom Parish + October** returns exactly `#9` and `#10`, both Wisdom Parish, both October

@@ -719,6 +719,32 @@
             color: var(--muted);
         }
 
+        /* Attribution inside the signed-in app shell. Kept quiet and out of the
+           way — it is legal notice, not navigation. */
+        .cf-appfooter {
+            border-top: 1px solid var(--line);
+            padding: 1rem 0 .35rem;
+            margin-top: 2rem;
+            font-size: .78rem;
+            line-height: 1.6;
+            color: var(--muted);
+        }
+
+        .cf-appfooter strong {
+            color: var(--ink);
+            font-weight: 600;
+        }
+
+        .cf-appfooter a {
+            color: inherit;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        .cf-appfooter a:hover {
+            color: var(--ink);
+        }
+
         @media (max-width: 61.99rem) {
             .cf-shell {
                 grid-template-columns: 1fr;

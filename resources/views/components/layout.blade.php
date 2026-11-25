@@ -502,6 +502,62 @@
             </header>
 
             <main class="cf-content">
+                {{-- PLATFORM HEALTH NOTICE.
+
+                     Shown to every signed-in user while the platform has open
+                     incidents, linking to the public /health page so they can
+                     see what was recorded and what has since been fixed.
+
+                     Read-only, and deliberately cheap: a single indexed query
+                     behind a short cache, and the whole block is skipped when
+                     there are no open incidents. Messages are the same
+                     human-readable ones the status page shows — never an
+                     exception, a stack trace or a credential. --}}
+                @php
+                    $healthOpen = \App\Models\HealthIncident::query()
+                        ->open()
+                        ->orderByRaw("case severity when 'critical' then 0 when 'error' then 1 when 'warning' then 2 else 3 end")
+                        ->orderByDesc('last_seen_at')
+                        ->get();
+                    $healthResolvedRecently = $healthOpen->isEmpty()
+                        ? 0
+                        : \App\Models\HealthIncident::query()
+                            ->resolved()
+                            ->where('resolved_at', '>=', now()->subDay())
+                            ->count();
+                @endphp
+
+                @if ($healthOpen->isNotEmpty())
+                    <div class="cf-alert cf-alert--{{ $healthOpen->contains(fn ($i) => $i->alertVariant() === 'error') ? 'error' : 'warn' }}"
+                        role="status" aria-live="polite">
+                        <div>
+                            <strong>
+                                Some parts of the platform are not working right now.
+                            </strong>
+                            <ul>
+                                @foreach ($healthOpen->take(3) as $incident)
+                                    <li>{{ $incident->checkLabel() }}: {{ $incident->message }}</li>
+                                @endforeach
+                                @if ($healthOpen->count() > 3)
+                                    <li>&hellip; and {{ $healthOpen->count() - 3 }} more.</li>
+                                @endif
+                            </ul>
+                            <p class="cf-small" style="margin:.45rem 0 0">
+                                <a href="{{ route('health') }}" target="_blank" rel="noopener noreferrer">
+                                    See every issue recorded and what has been fixed &rarr;
+                                </a>
+                                @if ($healthResolvedRecently > 0)
+                                    <span class="cf-muted">
+                                        ({{ $healthResolvedRecently }}
+                                        {{ \Illuminate\Support\Str::plural('issue', $healthResolvedRecently) }}
+                                        fixed in the last 24 hours)
+                                    </span>
+                                @endif
+                            </p>
+                        </div>
+                    </div>
+                @endif
+
                 @if(session('status'))
                     <div class="cf-alert cf-alert--ok">{{ session('status') }}</div>
                 @endif
@@ -560,6 +616,23 @@
 
                 {{ $slot }}
             </main>
+
+            {{-- Application footer. Styled as a section of its own — the same
+                 gutter, hairline and type scale as the cards above it — so the
+                 signed-in shell is visually closed off rather than the text
+                 simply ending. The legal entity is named here because the
+                 public marketing footer is not shown inside the app. --}}
+            <footer class="cf-appfooter">
+                <div class="cf-appfooter__inner">
+                    <p class="cf-appfooter__owner">
+                        ChurchFlow is owned and developed by
+                        <strong>{{ config('marketing.company.name') }}</strong>
+                        (RC: {{ config('marketing.company.rc') }})
+                    </p>
+                    <a class="cf-appfooter__link" href="{{ config('marketing.company.url') }}"
+                        target="_blank" rel="noopener noreferrer">{{ config('marketing.company.display_url') }}</a>
+                </div>
+            </footer>
         </div>
     </div>
 
